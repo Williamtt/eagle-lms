@@ -115,12 +115,21 @@ def generate_instant_feedback(task_number, submission_type, content, student_nam
                 "content": f"以下是學生 {student_name} 提交的{submission_type}內容：\n\n{content}"
             }]
         )
-        result = json.loads(message.content[0].text)
+        raw_text = message.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw_text.startswith('```'):
+            lines = raw_text.split('\n')
+            # Remove first line (```json) and last line (```)
+            lines = [l for l in lines if not l.strip().startswith('```')]
+            raw_text = '\n'.join(lines).strip()
+        result = json.loads(raw_text)
         return result
     except json.JSONDecodeError:
-        # If response isn't valid JSON, return the raw text
+        # If response isn't valid JSON, return the raw text as feedback
+        raw = message.content[0].text if message else "AI 回饋生成失敗"
+        # Try to extract feedback from partial JSON
         return {
-            "feedback": message.content[0].text if message else "AI 回饋生成失敗",
+            "feedback": raw,
             "scores": {}
         }
     except Exception as e:
