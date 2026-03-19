@@ -18,4 +18,4 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
     # Teacher credentials
-    TEACHER_CODE = os.environ.get('TEACHER_CODE', 'tku-cm-114')
+    TEACHER_CODE = os.environ.get('TEACHER_CODE', 'eagle2025')

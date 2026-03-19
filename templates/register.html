@@ -70,19 +70,16 @@
                 <input type="text" id="name" name="name" required>
             </div>
 
-            <div class="form-group">
-                <label for="class_group">班級</label>
-                <select id="class_group" name="class_group" required>
-                    <option value="">-- 請選擇班級 --</option>
-                    <option value="A班">A班</option>
-                    <option value="B班">B班</option>
-                </select>
+            <div class="form-group" id="class_group_field">
+                <label for="class_group">班級（學生請填寫）</label>
+                <input type="text" id="class_group" name="class_group" placeholder="例如：營建三A">
+                <div class="form-hint">教師可留空</div>
             </div>
 
             <div class="form-group">
                 <label for="password">密碼</label>
                 <input type="password" id="password" name="password" required>
-                <div class="form-hint">至少 8 個字符，包含大小寫字母和數字</div>
+                <div class="form-hint">至少 6 個字元</div>
             </div>
 
             <div class="form-group">

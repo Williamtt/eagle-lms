@@ -235,7 +235,7 @@
                         {% endif %}
                     </div>
                     <div>
-                        <a href="{{ url_for('submission_detail', submission_id=submission.id) }}" class="submission-link">查看詳情 →</a>
+                        <a href="{{ url_for('view_submission', submission_id=submission.id) }}" class="submission-link">查看詳情 →</a>
                     </div>
                 </li>
             {% endfor %}

@@ -298,7 +298,7 @@
                     <span class="submission-type">{{ submission.submission_type }}</span>
                     <span style="margin-left: 1rem;">提交於 {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
                 </div>
-                <a href="{{ url_for('submission_detail', submission_id=submission.id) }}" style="color: #2980b9; text-decoration: none; font-weight: bold;">查看詳情 →</a>
+                <a href="{{ url_for('view_submission', submission_id=submission.id) }}" style="color: #2980b9; text-decoration: none; font-weight: bold;">查看詳情 →</a>
             </div>
         {% endfor %}
     {% else %}

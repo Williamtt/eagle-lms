@@ -39,7 +39,7 @@ def register():
         name = request.form.get('name', '').strip()
         password = request.form.get('password', '')
         confirm = request.form.get('confirm_password', '')
-        class_group = request.form.get('class_group', 'A')
+        class_group = request.form.get('class_group', '').strip() or '未分班'
         teacher_code = request.form.get('teacher_code', '').strip()
 
         if not student_id or not name or not password:
@@ -114,10 +114,14 @@ def dashboard():
     task_status = {}
     for t in range(1, 5):
         task_subs = [s for s in submissions if s.task_number == t]
-        reviewed = any(s.teacher_reviews.first() and s.teacher_reviews.first().published for s in task_subs)
+        reviewed_count = 0
+        for s in task_subs:
+            tr = s.teacher_reviews.first()
+            if tr and tr.published:
+                reviewed_count += 1
         task_status[t] = {
             'submissions': len(task_subs),
-            'reviewed': reviewed,
+            'reviewed': reviewed_count,
             'has_ai_feedback': any(s.ai_feedbacks.first() for s in task_subs)
         }
     return render_template('student/dashboard.html', task_status=task_status, submissions=submissions)

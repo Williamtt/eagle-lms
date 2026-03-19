@@ -116,15 +116,6 @@
         background: #d1e7dd;
     }
 
-    .ai-suggestion {
-        background: #fff3cd;
-        border-left-color: #ffc107;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        border-left: 4px solid #ffc107;
-        border-radius: 4px;
-    }
-
     .score-display {
         display: inline-block;
         background: #1a5276;
@@ -152,9 +143,29 @@
         text-decoration: underline;
     }
 
-    .back-button {
-        display: inline-block;
+    .scores-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.5rem;
         margin-top: 1rem;
+    }
+
+    .score-item {
+        background: rgba(255,255,255,0.6);
+        padding: 0.5rem;
+        border-radius: 4px;
+        text-align: center;
+    }
+
+    .score-item .score-label {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .score-item .score-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #1a5276;
     }
 
     @media (max-width: 768px) {
@@ -174,8 +185,8 @@
     <div class="submission-header">
         <h2>
             任務 {{ submission.task_number }} 提交詳情
-            <span class="status-badge {% if submission.teacher_review %}status-reviewed{% else %}status-submitted{% endif %}">
-                {% if submission.teacher_review %}已評閱{% else %}已提交{% endif %}
+            <span class="status-badge {% if teacher_review %}status-reviewed{% else %}status-submitted{% endif %}">
+                {% if teacher_review %}已評閱{% else %}已提交{% endif %}
             </span>
         </h2>
 
@@ -200,70 +211,60 @@
             </div>
             <div class="meta-item">
                 <div class="meta-label">提交學生</div>
-                <div class="meta-value">{{ current_user.name }}</div>
+                <div class="meta-value">{{ submission.author.name }}</div>
             </div>
         </div>
     </div>
 
     <!-- 提交內容 -->
+    {% if submission.content %}
     <div class="content-section">
         <div class="section-title">提交內容</div>
         <div class="content-text">{{ submission.content }}</div>
     </div>
+    {% endif %}
 
     <!-- 附件 -->
-    {% if submission.file_path %}
+    {% if submission.file_name %}
         <div class="content-section">
             <div class="section-title">附件</div>
             <div class="file-download">
-                📎 <a href="{{ url_for('download_submission_file', submission_id=submission.id) }}">下載附件</a>
+                📎 {{ submission.file_name }}
             </div>
         </div>
     {% endif %}
 
     <!-- AI 回饋 -->
-    {% if submission.ai_feedback %}
+    {% if ai_feedback %}
         <div class="content-section">
-            <div class="section-title">AI 回饋</div>
+            <div class="section-title">AI 助教回饋</div>
             <div class="feedback-box">
-                <p>{{ submission.ai_feedback }}</p>
-                {% if submission.ai_scores %}
-                    <div style="margin-top: 1rem;">
-                        <strong>評分項目：</strong>
-                        <ul>
-                            {% for key, value in submission.ai_scores.items() %}
-                                <li>{{ key }}: {{ value }}/100</li>
-                            {% endfor %}
-                        </ul>
+                <div style="white-space: pre-wrap;">{{ ai_feedback.feedback }}</div>
+                {% if ai_feedback.scores %}
+                    {% set scores = ai_feedback.scores | tojson | safe %}
+                    <div class="scores-grid">
+                        {% for key, value in (ai_feedback.scores if ai_feedback.scores is mapping else {}).__class__.__name__ == 'dict' %}
+                        {% endfor %}
                     </div>
                 {% endif %}
             </div>
-
-            {% if submission.ai_suggestion %}
-                <div class="ai-suggestion">
-                    <strong>AI 建議給教師的評閱方向：</strong>
-                    <p>{{ submission.ai_suggestion }}</p>
-                </div>
-            {% endif %}
         </div>
     {% endif %}
 
     <!-- 教師評閱 -->
-    {% if submission.teacher_review %}
+    {% if teacher_review %}
         <div class="content-section">
             <div class="section-title">
                 教師評閱
-                {% if submission.teacher_score %}
-                    <span class="score-display">{{ submission.teacher_score }} / 100</span>
+                {% if teacher_review.score %}
+                    <span class="score-display">{{ teacher_review.score }} / 100</span>
                 {% endif %}
             </div>
             <div class="feedback-box success">
-                <p>{{ submission.teacher_review }}</p>
-                {% if submission.teacher_review_date %}
-                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-                        評閱於 {{ submission.teacher_review_date.strftime('%Y-%m-%d %H:%M') }}
-                    </div>
-                {% endif %}
+                <div style="white-space: pre-wrap;">{{ teacher_review.feedback }}</div>
+                <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                    評閱於 {{ teacher_review.reviewed_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
             </div>
         </div>
     {% else %}
@@ -274,7 +275,7 @@
         </div>
     {% endif %}
 
-    <div class="back-button">
+    <div style="margin-top: 1.5rem;">
         <a href="{{ url_for('view_task', task_number=submission.task_number) }}" class="btn btn-secondary">返回任務</a>
     </div>
 </div>
