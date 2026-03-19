@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}評閱提交 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .back-link {
+        color: #2980b9;
+        text-decoration: none;
+        font-weight: bold;
+        margin-bottom: 2rem;
+        display: inline-block;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .submission-display {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+
+    .submission-header {
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .submission-header h2 {
+        color: #1a5276;
+        margin-bottom: 1rem;
+    }
+
+    .submission-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .meta-item {
+        background: #f9f9f9;
+        padding: 1rem;
+        border-radius: 4px;
+    }
+
+    .meta-label {
+        font-size: 0.85rem;
+        color: #999;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+
+    .meta-value {
+        font-size: 1rem;
+        color: #1a5276;
+        font-weight: 600;
+    }
+
+    .content-section {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        color: #1a5276;
+        font-size: 1.2rem;
+        border-bottom: 2px solid #2980b9;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .content-text {
+        background: #f9f9f9;
+        padding: 1.5rem;
+        border-radius: 4px;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .ai-feedback-box {
+        border-left: 4px solid #ffc107;
+        padding: 1.5rem;
+        background: #fff3cd;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+
+    .ai-feedback-box strong {
+        color: #856404;
+    }
+
+    .ai-suggestion-box {
+        border-left: 4px solid #17a2b8;
+        padding: 1.5rem;
+        background: #d1ecf1;
+        border-radius: 4px;
+    }
+
+    .review-form {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .review-form h2 {
+        color: #1a5276;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-hint {
+        font-size: 0.85rem;
+        color: #999;
+        margin-top: 0.25rem;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .form-actions .btn {
+        flex: 1;
+    }
+
+    @media (max-width: 768px) {
+        .submission-display,
+        .review-form {
+            padding: 1.5rem;
+        }
+
+        .submission-meta-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<a href="{{ url_for('teacher_task_submissions', task_number=submission.task_number) }}" class="back-link">← 回到提交列表</a>
+
+<div class="submission-display">
+    <div class="submission-header">
+        <h2>學生提交詳情</h2>
+        <div class="submission-meta-grid">
+            <div class="meta-item">
+                <div class="meta-label">學號</div>
+                <div class="meta-value">{{ submission.student_id }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">學生姓名</div>
+                <div class="meta-value">{{ submission.student_name }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">任務</div>
+                <div class="meta-value">任務 {{ submission.task_number }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">提交時間</div>
+                <div class="meta-value">{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-section">
+        <div class="section-title">學生提交內容</div>
+        <div class="content-text">{{ submission.content }}</div>
+    </div>
+
+    {% if submission.ai_feedback %}
+        <div class="content-section">
+            <div class="section-title">AI 回饋與建議</div>
+            <div class="ai-feedback-box">
+                <strong>AI 回饋：</strong>
+                <p>{{ submission.ai_feedback }}</p>
+            </div>
+            {% if submission.ai_suggestion %}
+                <div class="ai-suggestion-box">
+                    <strong>AI 給教師的評閱建議：</strong>
+                    <p>{{ submission.ai_suggestion }}</p>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<div class="review-form">
+    <h2>教師評閱</h2>
+    <form method="POST" action="{{ url_for('teacher_review', submission_id=submission.id) }}">
+        <div class="form-section">
+            <label for="feedback">評閱意見 *</label>
+            <textarea id="feedback" name="feedback" required placeholder="請輸入你對學生此份提交的評閱意見...">{% if existing_review %}{{ existing_review.teacher_review }}{% endif %}</textarea>
+            <div class="form-hint">請以建設性、鼓勵性的方式提供回饋。建議 100-300 字</div>
+        </div>
+
+        <div class="form-section">
+            <label for="score">評分 (0-100) *</label>
+            <input type="number" id="score" name="score" min="0" max="100" required value="{% if existing_review %}{{ existing_review.teacher_score }}{% endif %}">
+            <div class="form-hint">根據學生的表現評分，100 分為滿分</div>
+        </div>
+
+        <div class="form-section">
+            <label for="publish">
+                <input type="checkbox" id="publish" name="publish" {% if existing_review %}checked{% endif %}>
+                發送給學生（學生將看到此評閱）
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">提交評閱</button>
+            <a href="{{ url_for('teacher_task_submissions', task_number=submission.task_number) }}" class="btn btn-outline">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}任務 {{ task_number }} - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .task-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .task-header h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .task-description {
+        opacity: 0.95;
+        line-height: 1.6;
+    }
+
+    .submission-form {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 3rem;
+    }
+
+    .submission-form h2 {
+        color: #1a5276;
+        margin-bottom: 1.5rem;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 1rem;
+    }
+
+    .form-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-hint {
+        font-size: 0.85rem;
+        color: #999;
+        margin-top: 0.25rem;
+    }
+
+    .previous-submissions {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .previous-submissions h2 {
+        color: #1a5276;
+        margin-bottom: 1.5rem;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 1rem;
+    }
+
+    .submission-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .submission-list-item {
+        border-left: 4px solid #2980b9;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f9f9f9;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+    }
+
+    .submission-list-item:hover {
+        background-color: #f0f4f8;
+    }
+
+    .submission-list-item h4 {
+        margin: 0 0 0.5rem 0;
+        color: #1a5276;
+    }
+
+    .submission-meta {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.75rem;
+    }
+
+    .submission-type-badge {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        background-color: #e8f4f8;
+        color: #2980b9;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+
+    .submission-status {
+        display: inline-block;
+        margin-left: 1rem;
+    }
+
+    .status-badge {
+        padding: 0.3rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-submitted {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-reviewed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .submission-link {
+        color: #2980b9;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .submission-link:hover {
+        text-decoration: underline;
+    }
+
+    .empty-submissions {
+        text-align: center;
+        padding: 2rem;
+        color: #999;
+    }
+
+    @media (max-width: 768px) {
+        .task-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .submission-form,
+        .previous-submissions {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<div class="task-header">
+    <h1>任務 {{ task_number }}：
+        {% if task_number == 1 %}
+            專案建立
+        {% elif task_number == 2 %}
+            施工日誌填寫
+        {% elif task_number == 3 %}
+            工程進度計算與填寫
+        {% elif task_number == 4 %}
+            自主查核表填寫
+        {% endif %}
+    </h1>
+    <div class="task-description">
+        {% if task_number == 1 %}
+            在 EAGLE 系統中建立磺港溪再造步道整建工程的完整專案，包含基本資料設定、契約工項匯入、成員權限配置等。
+        {% elif task_number == 2 %}
+            根據本工程的歷史施工日誌資料，填寫工程進度 30% 之前的監造日報表。
+        {% elif task_number == 3 %}
+            運用 CPM 和 EVM 方法，進行工程進度的計算與分析，並撰寫進度報告。
+        {% elif task_number == 4 %}
+            根據監造計畫與自主檢查樣板，填寫施工品質自主查核表。
+        {% endif %}
+    </div>
+</div>
+
+<div class="submission-form">
+    <h2>提交新作業</h2>
+    <form method="POST" action="{{ url_for('submit_task', task_number=task_number) }}" enctype="multipart/form-data">
+        <div class="form-section">
+            <label for="submission_type">提交類型 *</label>
+            <select id="submission_type" name="submission_type" required>
+                <option value="">-- 請選擇提交類型 --</option>
+                <option value="reflection">反思報告</option>
+                <option value="question">提示問題回答</option>
+                <option value="checklist">自我檢核</option>
+                <option value="self_assessment">自我評量</option>
+            </select>
+            <div class="form-hint">選擇你本次提交的主要內容類型</div>
+        </div>
+
+        <div class="form-section">
+            <label for="content">提交內容 *</label>
+            <textarea id="content" name="content" required placeholder="請在此填寫你的提交內容..."></textarea>
+            <div class="form-hint">請詳細且認真地填寫內容。建議字數 300-500 字</div>
+        </div>
+
+        <div class="form-section">
+            <label for="file">上傳附件（可選）</label>
+            <input type="file" id="file" name="file">
+            <div class="form-hint">支援 PDF、Word、Excel、圖片等檔案格式，最大 10MB</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">提交作業</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline" style="margin-left: 1rem;">取消</a>
+    </form>
+</div>
+
+<div class="previous-submissions">
+    <h2>之前的提交</h2>
+    {% if submissions %}
+        <ul class="submission-list">
+            {% for submission in submissions %}
+                <li class="submission-list-item">
+                    <h4>
+                        <span class="submission-type-badge">{{ submission.submission_type }}</span>
+                        <span class="submission-status">
+                            {% if submission.teacher_review %}
+                                <span class="status-badge status-reviewed">已評閱</span>
+                            {% else %}
+                                <span class="status-badge status-submitted">已提交</span>
+                            {% endif %}
+                        </span>
+                    </h4>
+                    <div class="submission-meta">
+                        提交於 {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        {% if submission.file_path %}
+                            | <a href="{{ url_for('download_submission_file', submission_id=submission.id) }}" style="color: #2980b9;">下載附件</a>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{{ url_for('submission_detail', submission_id=submission.id) }}" class="submission-link">查看詳情 →</a>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="empty-submissions">
+            <p>尚未有任何提交</p>
+            <p>請在上方「提交新作業」表單中提交你的作業</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,1263 @@
+{% extends 'base.html' %}
+
+{% block title %}任務手冊 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .manual-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff;
+        padding: 3rem 2rem;
+        text-align: center;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .manual-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.95;
+    }
+
+    .course-info {
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+
+    .manual-content {
+        background: #fff;
+        padding: 3rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .toc {
+        background: #f0f4f8;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 3rem;
+        border-left: 4px solid #2980b9;
+    }
+
+    .toc h2 {
+        color: #1a5276;
+        margin-bottom: 1rem;
+    }
+
+    .toc ol {
+        margin-left: 1.5rem;
+        line-height: 2;
+    }
+
+    .toc a {
+        color: #2980b9;
+        text-decoration: none;
+    }
+
+    .toc a:hover {
+        text-decoration: underline;
+    }
+
+    section {
+        margin-bottom: 4rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    section h2 {
+        color: #1a5276;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid #2980b9;
+    }
+
+    section h3 {
+        color: #2980b9;
+        font-size: 1.4rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    section h4 {
+        color: #34495e;
+        font-size: 1.1rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .box {
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        border-left: 4px solid #2980b9;
+    }
+
+    .box-tip {
+        background-color: #d4edda;
+        border-left-color: #28a745;
+    }
+
+    .box-tip .box-label {
+        color: #155724;
+    }
+
+    .box-accountability {
+        background-color: #cfe2ff;
+        border-left-color: #e74c3c;
+    }
+
+    .box-accountability .box-label {
+        color: #c0392b;
+    }
+
+    .box-highlight {
+        background-color: #fff3cd;
+        border-left-color: #ffc107;
+    }
+
+    .box-highlight .box-label {
+        color: #856404;
+    }
+
+    .box-success {
+        background-color: #d1e7dd;
+        border-left-color: #198754;
+    }
+
+    .box-success .box-label {
+        color: #0f5132;
+    }
+
+    .box-label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        background: #fff;
+    }
+
+    th {
+        background-color: #1a5276;
+        color: #fff;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #ddd;
+    }
+
+    tr:hover {
+        background-color: #f9f9f9;
+    }
+
+    ul, ol {
+        margin: 1rem 0;
+        margin-left: 2rem;
+    }
+
+    li {
+        margin-bottom: 0.5rem;
+        line-height: 1.8;
+    }
+
+    .steps {
+        counter-reset: step;
+        list-style: none;
+        margin-left: 0;
+    }
+
+    .steps li {
+        counter-increment: step;
+        margin-bottom: 1rem;
+    }
+
+    .steps li:before {
+        content: "步驟 " counter(step) ": ";
+        font-weight: bold;
+        color: #e74c3c;
+    }
+
+    .checklist {
+        list-style: none;
+        margin-left: 0;
+    }
+
+    .checklist li:before {
+        content: "☑ ";
+        color: #27ae60;
+        font-weight: bold;
+        margin-right: 0.5rem;
+    }
+
+    .questions {
+        background: #ecf0f1;
+        padding: 1.5rem;
+        border-radius: 8px;
+    }
+
+    .questions ol {
+        margin-left: 1.5rem;
+    }
+
+    .materials {
+        background: #ecf0f1;
+        padding: 1.5rem;
+        border-radius: 8px;
+    }
+
+    .materials h4 {
+        margin-top: 0;
+    }
+
+    .deliverables {
+        background: #ecf0f1;
+        padding: 1.5rem;
+        border-radius: 8px;
+    }
+
+    .task-header {
+        background: #e8f4f8;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .task-header h2 {
+        margin: 0;
+        border: none;
+        padding: 0;
+    }
+
+    .task-meta {
+        display: flex;
+        gap: 2rem;
+        margin-top: 1rem;
+        color: #666;
+        flex-wrap: wrap;
+    }
+
+    .task-meta span {
+        display: flex;
+        align-items: center;
+    }
+
+    .submit-task-btn {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background-color: #e74c3c;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+        transition: background-color 0.3s;
+        margin-left: 1rem;
+        vertical-align: middle;
+    }
+
+    .submit-task-btn:hover {
+        background-color: #c0392b;
+    }
+
+    footer {
+        text-align: center;
+        color: #666;
+        padding: 2rem 0;
+        border-top: 1px solid #ddd;
+        margin-top: 3rem;
+    }
+
+    @media (max-width: 768px) {
+        .manual-content {
+            padding: 1.5rem;
+        }
+
+        .manual-header h1 {
+            font-size: 1.8rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+        }
+
+        .submit-task-btn {
+            display: block;
+            margin: 1rem 0;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="manual-header">
+    <h1>磺港溪再造步道整建工程</h1>
+    <div class="subtitle">EAGLE 系統自主學習任務手冊</div>
+    <div class="course-info">
+        114 學年度 營建管理課程 ｜ 淡江大學土木工程學系<br>
+        配合計畫：結合專案管理資訊系統與生成式 AI 的營建管理情境式學習教學法
+    </div>
+</div>
+
+<div class="manual-content">
+
+<!-- 目錄 -->
+<nav class="toc" id="toc">
+    <h2>目錄</h2>
+    <ol>
+        <li><a href="#intro">前言：案例背景與學習說明</a></li>
+        <li><a href="#role">你的角色：監造工程師</a></li>
+        <li><a href="#accountability">什麼是「當責」？</a></li>
+        <li><a href="#eagle-overview">EAGLE 系統簡介與登入</a></li>
+        <li><a href="#task1">任務 1：專案建立</a></li>
+        <li><a href="#task2">任務 2：施工日誌填寫（監造日報表第一聯）</a></li>
+        <li><a href="#task3">任務 3：工程進度計算與填寫</a></li>
+        <li><a href="#task4">任務 4：自主查核表填寫</a></li>
+        <li><a href="#reflection">總結反思與自我評量</a></li>
+        <li><a href="#resources">附錄：學習資源與參考連結</a></li>
+    </ol>
+</nav>
+
+<!-- ===== 前言 ===== -->
+<section id="intro">
+    <h2>一、前言：案例背景與學習說明</h2>
+
+    <h3>1.1 工程概要</h3>
+    <p>本學期的自主學習任務以<strong>「磺港溪再造步道整建工程（奇岩抽水站至西安橋）」</strong>為案例。這是一件由臺北市政府工務局水利工程處主辦的實際公共工程，主要施工內容包含河岸護岸整建、步道鋪面、景觀設施及相關排水設施改善工程。</p>
+
+    <table>
+        <tr><th>項目</th><th>內容</th></tr>
+        <tr><td>工程名稱</td><td>磺港溪再造步道整建工程（奇岩抽水站至西安橋）</td></tr>
+        <tr><td>主辦機關</td><td>臺北市政府工務局水利工程處</td></tr>
+        <tr><td>監造單位</td><td>任泰技術顧問有限公司</td></tr>
+        <tr><td>承攬廠商</td><td>永溢營造股份有限公司</td></tr>
+        <tr><td>契約編號</td><td>H-111-03-111166</td></tr>
+        <tr><td>原契約金額</td><td>新臺幣 22,700,000 元</td></tr>
+        <tr><td>變更後契約金額</td><td>新臺幣 14,261,156 元</td></tr>
+        <tr><td>工期</td><td>日曆天 180 天</td></tr>
+        <tr><td>開工日期</td><td>112 年 1 月 30 日</td></tr>
+        <tr><td>預定竣工日期</td><td>112 年 7 月 28 日</td></tr>
+        <tr><td>契約變更次數</td><td>1 次</td></tr>
+    </table>
+
+    <h3>1.2 本手冊的學習目標</h3>
+    <p>透過本案例的四項 EAGLE 系統任務，你將：</p>
+    <ol>
+        <li><strong>理解工程專案管理的完整脈絡</strong>：從專案建立、每日施工記錄、進度計算到品質查驗，體驗監造工程師的日常工作。</li>
+        <li><strong>掌握專案管理資訊系統的操作</strong>：學會在 EAGLE 系統中建立專案、填寫日誌、計算進度、執行品質查驗等操作。</li>
+        <li><strong>連結課堂理論與工程實務</strong>：將營建管理課程中所學的 WBS、CPM、EVM、三級品管等知識，應用於真實工程資料。</li>
+        <li><strong>培養專業當責態度</strong>：理解監造工程師對工程品質、進度、安全的責任，建立對自己工作負完全責任的職業素養。</li>
+    </ol>
+
+    <h3>1.3 任務總覽與時程</h3>
+    <table>
+        <tr><th>任務</th><th>名稱</th><th>對應課程週次</th><th>核心學習主題</th></tr>
+        <tr><td>任務 1</td><td>專案建立</td><td>第 3–4 週</td><td>工程契約、WBS、專案管理架構</td></tr>
+        <tr><td>任務 2</td><td>施工日誌填寫</td><td>第 5–6 週</td><td>施工管理、進度記錄、日報表填寫</td></tr>
+        <tr><td>任務 3</td><td>工程進度計算與填寫</td><td>第 7–8 週</td><td>CPM、EVM、進度分析與控制</td></tr>
+        <tr><td>任務 4</td><td>自主查核表填寫</td><td>第 9–10 週</td><td>品質管理、三級品管、施工查驗</td></tr>
+    </table>
+
+    <div class="box box-tip">
+        <span class="box-label">學習提醒</span>
+        每項任務都設有「自我檢核清單」和「當責反思」。請務必在完成操作後，誠實地進行自我檢核與反思——這不是形式上的交差，而是你建立專業素養的重要過程。
+    </div>
+</section>
+
+<!-- ===== 角色 ===== -->
+<section id="role">
+    <h2>二、你的角色：監造工程師</h2>
+
+    <p>在本系列任務中，你將扮演<strong>任泰技術顧問有限公司的監造工程師</strong>，負責監督「磺港溪再造步道整建工程」的施工品質、進度與安全。</p>
+
+    <h3>2.1 監造工程師是誰？做什麼？</h3>
+    <p>在公共工程中，「監造」是由主辦機關委託的工程顧問公司派駐現場的工程師，其角色介於業主（主辦機關）與承攬廠商（營造廠）之間。監造工程師的主要職責包括：</p>
+    <ol>
+        <li><strong>監督施工品質</strong>：確認承攬廠商是否依照設計圖說及規範施工，執行施工抽查、材料檢驗。</li>
+        <li><strong>管控工程進度</strong>：記錄每日施工情形，核對預定與實際進度，發現落後時提出因應措施。</li>
+        <li><strong>審核工程文件</strong>：審查承攬廠商送審的施工計畫、品質計畫、材料送審資料等。</li>
+        <li><strong>維護工地安全</strong>：監督承攬廠商落實職業安全衛生管理，記錄並追蹤缺失改善。</li>
+        <li><strong>編製監造報告</strong>：定期彙整施工情形，向主辦機關提報監造紀錄與建議。</li>
+    </ol>
+
+    <h3>2.2 監造工程師在 EAGLE 系統中的權限</h3>
+    <p>在 EAGLE 系統中，監造工程師以「專案負責人」身分登入，可以進行以下操作：</p>
+    <table>
+        <tr><th>系統功能</th><th>監造工程師權限</th></tr>
+        <tr><td>基本資料</td><td>可修改</td></tr>
+        <tr><td>契約工項</td><td>不可變更設計及核定（由訂閱者執行）</td></tr>
+        <tr><td>施工日誌</td><td>可修改</td></tr>
+        <tr><td>自主檢查</td><td>可修改</td></tr>
+        <tr><td>缺失改善</td><td>可修改</td></tr>
+        <tr><td>送審管制</td><td>可修改</td></tr>
+        <tr><td>檢（試）驗管制</td><td>可修改</td></tr>
+        <tr><td>進度報告</td><td>可修改</td></tr>
+        <tr><td>估驗計價</td><td>可編輯，不可核定</td></tr>
+        <tr><td>檔案管理</td><td>可修改</td></tr>
+    </table>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責思考</span>
+        監造工程師對工程品質負有法律上的連帶責任。如果監造人員未盡督導之責，工程出了問題，監造人員同樣需要承擔法律責任。因此，每一份你在 EAGLE 系統中填寫的資料，都不只是「作業」，而是代表你身為監造工程師對該工程品質與進度的專業背書。
+    </div>
+</section>
+
+<!-- ===== 當責 ===== -->
+<section id="accountability">
+    <h2>三、什麼是「當責」？</h2>
+
+    <p>「當責」（Accountability）與「負責」（Responsibility）不同。<strong>負責</strong>是完成被交付的工作；<strong>當責</strong>則是對最終結果負完全責任，即使過程中遇到困難，也要主動尋找解決方案，而不是等待他人指示。</p>
+
+    <h3>在本系列任務中，「當責」的具體表現包括：</h3>
+    <ol>
+        <li><strong>準確性</strong>：填寫的每一筆資料都必須經過確認，不能想當然耳地隨意填寫。</li>
+        <li><strong>完整性</strong>：不遺漏任何必要的欄位或資訊，了解每個欄位存在的意義。</li>
+        <li><strong>時效性</strong>：在規定時間內完成任務，理解工程現場「逾期」的嚴重性。</li>
+        <li><strong>主動性</strong>：遇到不確定的問題時，主動查找資料、詢問 AI 助教或與同學討論，而非放棄或隨便填答。</li>
+        <li><strong>反思性</strong>：完成任務後，回顧自己的過程，誠實面對不足之處，思考改進方法。</li>
+    </ol>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責宣言</span>
+        在開始任務之前，請你在心中對自己說：<br>
+        「我是這個專案的監造工程師。我填寫的每一筆資料、做出的每一個判斷，都關係到這個工程的品質與安全。我將對我的工作成果負完全責任。」
+    </div>
+</section>
+
+<!-- ===== EAGLE 系統簡介 ===== -->
+<section id="eagle-overview">
+    <h2>四、EAGLE 系統簡介與登入</h2>
+
+    <h3>4.1 什麼是 EAGLE 系統？</h3>
+    <p>EAGLE（Engineering Administration and General Ledger Expert）是一套雲端化的工程智慧管理系統，由計畫主持人與工程顧問公司合作開發。EAGLE 以監造及專案管理的視角設計，涵蓋施工日誌、自主檢查、缺失改善、送審管制、檢試驗管制、進度報告、估驗計價等功能模組。</p>
+
+    <h3>4.2 系統功能架構</h3>
+    <p>EAGLE 系統依使用情境分為三大模組：</p>
+    <table>
+        <tr><th>模組</th><th>主要功能</th></tr>
+        <tr><td>廠商施工執行</td><td>施工日誌、自主檢查、缺失改善、檢試驗管制、送審管制、進度報告、估驗計價、檔案管理等</td></tr>
+        <tr><td>廠商成本分析</td><td>詳細價目表上傳、價格庫管理</td></tr>
+        <tr><td>照片管理</td><td>施工照片上傳、標籤管理、地圖檢索</td></tr>
+    </table>
+
+    <h3>4.3 登入與基本操作</h3>
+    <ol class="steps">
+        <li>開啟瀏覽器，輸入教師提供的 EAGLE 系統網址。</li>
+        <li>在登入頁面輸入教師發放的帳號與密碼。你將以「專案負責人」（監造工程師）身分登入。</li>
+        <li>登入後，系統會顯示你所屬的專案列表。點選你的磺港溪工程專案即可進入。</li>
+        <li>若需切換模組，請點選畫面左上角的藍色方塊，選擇「廠商施工執行」、「廠商成本分析」或「照片管理」。</li>
+    </ol>
+
+    <div class="box box-tip">
+        <span class="box-label">操作提示</span>
+        詳細的系統操作說明可參考線上文件：<a href="https://kld13838s-organization.gitbook.io/construction-system-docs" target="_blank">EAGLE 系統操作手冊</a>
+    </div>
+</section>
+
+<!-- ===== 任務 1 ===== -->
+<section id="task1">
+    <div class="task-header">
+        <h2>任務 1：專案建立
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('view_task', task_number=1) }}" class="submit-task-btn">提交作業</a>
+        {% endif %}
+        </h2>
+        <div class="task-meta">
+            <span>對應週次：第 3–4 週</span>
+            <span>預估時間：2–3 小時</span>
+            <span>難度：基礎</span>
+        </div>
+    </div>
+
+    <h3>1.1 任務目標</h3>
+    <p>在 EAGLE 系統中建立「磺港溪再造步道整建工程」的完整專案，包含基本資料設定、契約工項匯入、成員權限配置、自主檢查類型匯入及進度表上傳。透過這項任務，你將理解監造工程師在<strong>工程開工前</strong>需要完成哪些準備工作。</p>
+
+    <h3>1.2 學習標的</h3>
+    <ol>
+        <li>理解工程專案基本資料的組成要素（工程名稱、契約編號、工期、金額等）。</li>
+        <li>理解契約工項（詳細價目表）的結構，包含項次、項目說明、單位、數量與單價的意義。</li>
+        <li>了解監造計畫中成員角色與權限的配置邏輯。</li>
+        <li>認識自主檢查類型的設定與品質管理的前置作業。</li>
+        <li>了解工程進度表（甘特圖 / 網狀圖）在系統中的角色。</li>
+        <li>建立「開工前準備工作的完整性直接影響後續管理效率」的責任意識。</li>
+    </ol>
+
+    <h3>1.3 角色與責任</h3>
+    <p>你是任泰技術顧問有限公司派駐此工程的監造工程師。在專案建立階段，你的責任是：</p>
+    <ul>
+        <li>確認所有基本資料的正確性（一個數字錯誤可能影響後續所有管理數據）。</li>
+        <li>確認契約工項與決標紀錄的一致性。</li>
+        <li>依據監造計畫設定適當的自主檢查類型。</li>
+        <li>確保進度表上傳後能正確反映工程排程。</li>
+    </ul>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責提醒</span>
+        專案建立是所有後續任務的基礎。如果此階段的資料有誤（例如契約金額輸入錯誤、工期設定不對），後續的進度計算、估驗計價都會受到影響。在實際工程中，這類錯誤可能導致合約糾紛甚至法律問題。請以最嚴謹的態度對待每一個欄位。
+    </div>
+
+    <h3>1.4 自主學習教材</h3>
+    <div class="materials">
+        <h4>請先閱讀與準備以下資料：</h4>
+        <ul>
+            <li><strong>開工報告表</strong>（11.基本資料/開工報告表.xlsx）：包含工程名稱、地點、廠商、契約金額、工期等基本資訊。</li>
+            <li><strong>決標紀錄</strong>（1.契約工項/3-1決標紀錄.pdf）：確認決標金額與得標廠商。</li>
+            <li><strong>原契約工項</strong>（1.契約工項/磺港溪...原契約.csv）：完整的詳細價目表，含項次、項目說明、單位、數量及單價。</li>
+            <li><strong>第 1 次變更設計</strong>（1.契約工項/磺港溪...第1次變更設計.csv）：變更後的工項與金額。</li>
+            <li><strong>監造計畫</strong>（13.自主檢查類型/磺港溪...監造計畫(修).pdf）：了解監造組織與品質管理計畫。</li>
+            <li><strong>自主檢查項目</strong>（13.自主檢查類型/自主檢查項目.pdf）：本工程適用的檢查項目清單。</li>
+            <li><strong>工程網狀圖</strong>（16.進度表/工程網狀圖.pdf）：工程排程與要徑。</li>
+            <li><strong>進度曲線表</strong>（16.進度表/進度曲線表.pdf）：S 曲線預定進度。</li>
+        </ul>
+    </div>
+
+    <h3>1.5 任務執行步驟</h3>
+
+    <h4>步驟 A：新增專案</h4>
+    <ol class="steps">
+        <li>登入 EAGLE 系統，確認你是以「訂閱者」或「專案負責人」身分進入。</li>
+        <li>在系統首頁點選「新增專案」，選擇「一般式工程」。</li>
+        <li>依照開工報告表中的資料，填入以下欄位：
+            <ul>
+                <li>工程名稱：磺港溪再造步道整建工程（奇岩抽水站至西安橋）</li>
+                <li>契約編號：H-111-03-111166</li>
+                <li>主辦機關：臺北市政府工務局水利工程處</li>
+                <li>承攬廠商：永溢營造股份有限公司</li>
+                <li>契約金額：22,700,000 元</li>
+                <li>工期：日曆天 180 天</li>
+                <li>開工日期：112 年 1 月 30 日</li>
+                <li>預定竣工日期：112 年 7 月 28 日</li>
+            </ul>
+        </li>
+        <li>確認所有欄位填寫正確後，儲存專案。新增的專案會顯示在清單最上方。</li>
+    </ol>
+
+    <h4>步驟 B：匯入契約工項</h4>
+    <ol class="steps">
+        <li>進入專案後，點選左側選單中的「契約工項」功能。</li>
+        <li>使用「匯入契約」功能，上傳原契約 CSV 檔案（磺港溪...原契約.csv）。</li>
+        <li>上傳後，系統會自動解析契約項目。請逐一確認以下項目是否正確匯入：
+            <ul>
+                <li>一（一）整備工程：共 15 項工項</li>
+                <li>一（二）土建景觀工程：包含混凝土、鋼筋、模板等主要結構工項</li>
+                <li>確認各工項的單位、數量與單價是否與原始資料一致</li>
+            </ul>
+        </li>
+        <li>核定契約：確認內容無誤後執行「核定」。<strong>注意：核定時間應設為決標時間。核定完成後僅能檢視及編輯，無法刪除或更改契約，須將整個專案刪除才能重來。請務必仔細確認後再核定。</strong></li>
+    </ol>
+
+    <h4>步驟 C：設定成員與權限</h4>
+    <ol class="steps">
+        <li>進入「成員與權限」功能。</li>
+        <li>新增成員並設定角色（依教師指示新增小組成員帳號）。</li>
+        <li>確認各成員的權限等級：訂閱者（公司負責人）、專案負責人、一般使用者（文書人員）各有不同的操作權限。</li>
+    </ol>
+
+    <h4>步驟 D：匯入自主檢查類型</h4>
+    <ol class="steps">
+        <li>進入「自主檢查類型」功能。</li>
+        <li>可選擇「歷史專案匯入」或「系統預設匯入」：
+            <ul>
+                <li>歷史專案匯入：從系統中既有的專案範本匯入檢查類型。</li>
+                <li>系統預設匯入：匯入系統內建的標準檢查類型模板。</li>
+            </ul>
+        </li>
+        <li>參照監造計畫中的施工抽查程序，確認本工程需要的檢查類型至少包含：測量放樣、鋼筋工程、模板工程、混凝土工程、植筋工程、地坪鋪面等。</li>
+        <li>根據自主檢查樣板資料夾中的檔案（13.自主檢查類型/自主檢查樣板），確認每種檢查類型的查驗項目是否完整。</li>
+    </ol>
+
+    <h4>步驟 E：上傳進度表</h4>
+    <ol class="steps">
+        <li>進入「進度表」功能，點選「新增進度表」。</li>
+        <li>選擇進入方式：可點選中間列表或左上角列表。</li>
+        <li>根據需求選擇模式，上傳工程網狀圖（16.進度表/工程網狀圖.pdf）與進度曲線表（16.進度表/進度曲線表.pdf）。</li>
+        <li>確認上傳的進度表能正確顯示各工項的排程與 S 曲線。</li>
+    </ol>
+
+    <h4>步驟 F：設定其他管理項目</h4>
+    <ol class="steps">
+        <li><strong>檢試驗項目管理</strong>：進入「檢試驗項目管理」功能，新增本工程需要的檢試驗項目（如混凝土抗壓試驗、鋼筋拉力試驗等），並將項目連結至對應的契約工項。</li>
+        <li><strong>人機管理</strong>：進入「人機管理」功能，新增本工程的施工機具與人力項目。系統預設有四項基本項目，可依實際需求新增。新增的項目會在施工日誌中顯示。</li>
+        <li><strong>樣板管理</strong>：確認施工日誌、缺失改善、送審管制、檢試驗管制等表報的樣板格式是否正確。若需調整，可下載預設樣板修改後重新上傳。預設檔案類型：施工日誌為 Excel；缺失改善、送審管制、檢試驗管制為 Word。</li>
+    </ol>
+
+    <h3>1.6 提示問題</h3>
+    <div class="questions">
+        <ol>
+            <li>工程契約中的「詳細價目表」與「單價分析表」各扮演什麼角色？兩者之間是什麼關係？</li>
+            <li>「決標金額」與「契約金額」是否一定相同？變更設計後金額為何大幅減少？可能的原因是什麼？</li>
+            <li>如果在專案建立階段，契約工項的數量輸入錯誤（例如多了一個零），後續可能造成什麼連鎖影響？</li>
+            <li>監造工程師為什麼需要了解契約工項的細節？這與他的監造職責有什麼關聯？</li>
+            <li>自主檢查類型的設定依據是什麼？為什麼不是所有工程的檢查類型都一樣？</li>
+        </ol>
+    </div>
+
+    <h3>1.7 自我檢核清單</h3>
+    <ul class="checklist">
+        <li>專案基本資料（工程名稱、編號、金額、工期、日期）與開工報告表完全一致。</li>
+        <li>契約工項已正確匯入，項次、說明、單位、數量、單價均與原契約 CSV 吻合。</li>
+        <li>契約已核定，核定時間為決標時間。</li>
+        <li>成員與權限已依教師指示設定完成。</li>
+        <li>自主檢查類型已匯入，涵蓋本工程的主要施工項目。</li>
+        <li>進度表（網狀圖與 S 曲線）已上傳且可正常顯示。</li>
+        <li>檢試驗項目已新增並連結至對應工項。</li>
+        <li>人機管理項目已設定。</li>
+        <li>各報表樣板已確認或調整完成。</li>
+    </ul>
+
+    <h3>1.8 當責反思</h3>
+    <div class="box box-accountability">
+        <span class="box-label">反思題</span>
+        <ol>
+            <li>在建立專案的過程中，哪些步驟讓你感到最需要謹慎？為什麼？</li>
+            <li>如果你是真正的監造工程師，在開工前的準備工作中，你最擔心出錯的部分是什麼？</li>
+            <li>你在填寫過程中是否有想要「跳過」或「隨便填」的衝動？你如何克服這種衝動？</li>
+        </ol>
+    </div>
+
+    <h3>1.9 任務產出</h3>
+    <div class="deliverables">
+        <ol>
+            <li>EAGLE 系統中完整建立的磺港溪工程專案（含所有基本設定）。</li>
+            <li>專案建立檢核紀錄（截圖或匯出）。</li>
+            <li>個人反思報告（200–300 字），說明：
+                <ul>
+                    <li>本任務中你學到了什麼？</li>
+                    <li>遇到的困難與解決方式。</li>
+                    <li>對「開工前準備」的責任感有什麼新的認識？</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<!-- ===== 任務 2 ===== -->
+<section id="task2">
+    <div class="task-header">
+        <h2>任務 2：施工日誌填寫（監造日報表第一聯）
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('view_task', task_number=2) }}" class="submit-task-btn">提交作業</a>
+        {% endif %}
+        </h2>
+        <div class="task-meta">
+            <span>對應週次：第 5–6 週</span>
+            <span>預估時間：4–6 小時</span>
+            <span>難度：中等</span>
+        </div>
+    </div>
+
+    <h3>2.1 任務目標</h3>
+    <p>根據本工程的歷史施工日誌資料，在 EAGLE 系統中填寫<strong>工程進度 30% 之前</strong>的公共工程監造日報表（第一聯）。透過此任務，你將體驗監造工程師每日記錄施工情形的工作，理解施工日誌作為工程管理核心文件的重要性。</p>
+
+    <h3>2.2 學習標的</h3>
+    <ol>
+        <li>理解公共工程監造日報表（第一聯）的格式、各欄位意義及填寫要求。</li>
+        <li>學習從歷史施工資料中擷取關鍵訊息，判斷每日施工重點。</li>
+        <li>練習計算每日的預定進度與實際進度百分比。</li>
+        <li>體驗監造工程師製作日報表時的觀察視角與專業判斷。</li>
+        <li>建立對施工日誌真實性與正確性的責任意識。</li>
+        <li>培養按時填報與自我檢核的工作習慣。</li>
+    </ol>
+
+    <h3>2.3 角色與責任</h3>
+    <p>你身為監造工程師，填寫的是<strong>監造日報表第一聯</strong>。與承攬廠商填寫的施工日報（第二聯）不同，監造日報表記錄的是你「監督」施工的情形，而非你「執行」施工的情形。你的日報表需要反映：</p>
+    <ul>
+        <li>本日承攬廠商進行了哪些重要施工項目？</li>
+        <li>你監督了哪些施工活動？是否依照設計圖說施工？</li>
+        <li>本日有無進行材料抽查或品質查核？結果如何？</li>
+        <li>預定進度與實際進度各為多少？是否有落差？</li>
+    </ul>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責提醒</span>
+        監造日報表是工程施工期間最重要的法律文件之一。在工程爭議、驗收糾紛甚至司法訴訟中，監造日報表常被引用作為關鍵證據。如果日報表記載不實（例如記載已施工但實際未施工），監造人員可能面臨偽造文書的法律責任。即使在本課程的模擬練習中，也請你以這樣的嚴謹態度對待每一份日報表。
+    </div>
+
+    <h3>2.4 自主學習教材</h3>
+    <div class="materials">
+        <h4>請先閱讀與準備以下資料：</h4>
+        <ul>
+            <li><strong>歷史監工日報表</strong>（2.施工日誌/資料夾）：112 年 1 月 30 日至 7 月 24 日的監工日報表第一聯 Excel 檔案，共約 26 週的紀錄。</li>
+            <li><strong>原契約工項</strong>（1.契約工項/原契約.csv）：了解各施工項目的契約數量與金額。</li>
+            <li><strong>進度曲線表</strong>（16.進度表/進度曲線表.pdf）：預定進度 S 曲線。</li>
+            <li><strong>工程網狀圖</strong>（16.進度表/工程網狀圖.pdf）：各工項的排程與先後關係。</li>
+            <li><strong>施工日誌樣板</strong>（17.樣板/施工日誌第一聯(預設樣板).xlsx）：了解系統預設的日報表格式。</li>
+        </ul>
+    </div>
+
+    <h3>2.5 背景知識：監造日報表第一聯的結構</h3>
+    <p>根據本案例的歷史資料，公共工程監造日報表第一聯包含以下主要區塊：</p>
+    <table>
+        <tr><th>區塊</th><th>內容</th><th>填寫要點</th></tr>
+        <tr><td>表頭</td><td>天氣（上午/下午）、填報日期</td><td>天氣影響施工進度，需如實記錄。</td></tr>
+        <tr><td>工程資訊</td><td>工程名稱、契約編號、主辦機關、契約工期、開工/竣工日期、契約金額</td><td>這些欄位在系統中會自動帶入，需確認正確性。</td></tr>
+        <tr><td>進度資訊</td><td>預定進度(%)、實際進度(%)</td><td>這是日報表的核心數據，需根據計算結果填入。</td></tr>
+        <tr><td>一、工程進行情況</td><td>本日重要施工項目及數量</td><td>記錄承攬廠商當日執行的主要工作內容。</td></tr>
+        <tr><td>二、監督施工情形</td><td>依設計圖說及核定施工圖說施工之監督情形</td><td>記錄你身為監造人員的監督活動與發現。</td></tr>
+        <tr><td>三、材料查核</td><td>取（抽）樣材料項目、位置、數量、設計強度</td><td>記錄當日材料檢驗情形。</td></tr>
+    </table>
+
+    <h3>2.6 任務執行步驟</h3>
+
+    <h4>步驟 A：研讀歷史日誌，掌握工程脈絡</h4>
+    <ol class="steps">
+        <li>開啟 2–3 份歷史監工日報表 Excel 檔案（建議先看 2023/1/30 開工日、2023/2/6、2023/3/6），了解日報表的格式與填寫方式。</li>
+        <li>特別注意以下欄位的填寫方式：
+            <ul>
+                <li>「工程進行情況」中如何描述施工項目？用詞的精確度如何？</li>
+                <li>「預定進度」與「實際進度」的數值是如何出現的？</li>
+                <li>「監督施工情形」與「材料查核」是否每天都有記載？</li>
+            </ul>
+        </li>
+        <li>記錄你的觀察心得，這些觀察將幫助你理解日報表填寫的脈絡。</li>
+    </ol>
+
+    <h4>步驟 B：理解 WBS 與契約工項的對應關係</h4>
+    <ol class="steps">
+        <li>對照「工程網狀圖」與「原契約工項 CSV」，理解：
+            <ul>
+                <li>網狀圖中的工作項目（Activity）如何對應到契約的詳細價目表？</li>
+                <li>甘特圖中的工程名稱與契約項目名稱可能不完全一致，你需要建立對應關係。</li>
+            </ul>
+        </li>
+        <li>列出工程進度 30% 之前涉及的主要施工項目，例如：
+            <ul>
+                <li>整備工程（機械拆除、清除、圍籬設置等）</li>
+                <li>土建景觀工程初期（回填、混凝土、鋼筋等）</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h4>步驟 C：計算每日預定進度與實際進度</h4>
+    <ol class="steps">
+        <li>根據進度曲線表的 S 曲線，讀取各時間點的預定進度百分比。</li>
+        <li>根據歷史日誌中記載的施工項目，對照契約工項的金額，計算當天的實際進度：
+            <ul>
+                <li>計算方式：以「金額」為基礎計算進度百分比。</li>
+                <li>公式：實際進度(%) = 已完成工項金額累計 ÷ 契約總金額 × 100%</li>
+            </ul>
+        </li>
+        <li>製作一份進度計算工作表，記錄每日（或每週）的預定進度與實際進度。</li>
+    </ol>
+
+    <div class="box box-highlight">
+        <span class="box-label">關鍵問題</span>
+        營造廠（公司內部）甘特圖的工程名稱跟契約的項目不一樣，為什麼？有沒有可能一樣？——這是因為公司內部的施工排程是以「工作面」或「施工階段」來規劃，而契約項目則是以「計價項目」來分類。兩者的分類邏輯不同，但透過 WBS 可以建立對應關係。理解這個差異，是成為合格工程師的重要一步。
+    </div>
+
+    <h4>步驟 D：在 EAGLE 系統中填寫監造日報表</h4>
+    <ol class="steps">
+        <li>進入 EAGLE 系統的「施工日誌」模組。</li>
+        <li>點選「新增日誌」，系統會顯示日報表填寫介面。</li>
+        <li>可透過兩種方式進入統計表：(1) 點選中間「統計表」；(2) 點擊左上角「統計表」。</li>
+        <li>依序填寫每日監造日報表：
+            <ul>
+                <li><strong>天氣</strong>：參照歷史日報表記載的天氣資訊。</li>
+                <li><strong>工程進行情況</strong>：參照歷史日報表記載的施工項目，以監造的視角描述當日重要工作。例如：「本日重要工作：工程開工、工棚設置、停車格塗銷及紅線繪製、告示牌擺放」。</li>
+                <li><strong>預定進度與實際進度</strong>：填入你在步驟 C 計算的數值。</li>
+                <li><strong>監督施工情形</strong>：根據當日施工項目，描述你身為監造人員的監督重點。</li>
+                <li><strong>材料查核</strong>：如有取樣或送驗，記錄材料名稱、取樣位置、數量與設計強度。</li>
+            </ul>
+        </li>
+        <li>填寫完成後，使用系統的下載功能確認輸出格式是否正確：點選「下載」，選擇需要的日期範圍與格式。</li>
+    </ol>
+
+    <div class="box box-tip">
+        <span class="box-label">操作提示</span>
+        <ul>
+            <li>EAGLE 系統中施工日誌的預設樣板為 Microsoft Excel 格式。</li>
+            <li>下載日誌時，系統會依據你設定的樣板格式輸出。</li>
+            <li>建議每填寫 3–5 天的日誌後就下載一次確認，避免大量填寫後才發現格式或內容問題。</li>
+        </ul>
+    </div>
+
+    <h3>2.7 提示問題</h3>
+    <div class="questions">
+        <ol>
+            <li>以「數量」還是以「金額」計算工程進度百分比？兩者的差異是什麼？在什麼情境下會使用不同的計算方式？</li>
+            <li>監造日報表在工程契約中具有什麼樣的法律效力？它與承攬廠商的施工日報（第二聯）有何不同？</li>
+            <li>如果某天實際進度大幅落後預定進度，監造工程師應該在日報表中如何記載？後續應採取什麼行動？</li>
+            <li>不實填報（例如記載未實際執行的施工項目）可能造成什麼樣的後果？對監造工程師個人有什麼影響？</li>
+            <li>遇到填報困難時（例如不確定某工項是否已完成），身為監造工程師應該採取什麼行動？</li>
+        </ol>
+    </div>
+
+    <h3>2.8 自我檢核清單</h3>
+    <ul class="checklist">
+        <li>已研讀至少 3 份歷史監工日報表，了解填寫脈絡。</li>
+        <li>已建立 WBS 與契約工項的對應關係表。</li>
+        <li>已完成工程進度 30% 前所有工作天的預定進度與實際進度計算。</li>
+        <li>每份日報表的「工程進行情況」描述具體、準確，與歷史資料一致。</li>
+        <li>每份日報表的「監督施工情形」反映了監造工程師的專業觀察。</li>
+        <li>所有進度數值經過計算驗證，非隨意填寫。</li>
+        <li>已下載並確認系統輸出的日報表格式與內容正確。</li>
+        <li>在 EAGLE 系統上可看到 30% 前的實際進度曲線。</li>
+    </ul>
+
+    <h3>2.9 當責反思</h3>
+    <div class="box box-accountability">
+        <span class="box-label">反思題</span>
+        <ol>
+            <li>在填寫日誌的過程中，你是否曾經想要「複製貼上」前一天的內容？如果這樣做了，可能會造成什麼問題？</li>
+            <li>你覺得監造工程師每天都需要填寫日報表，這件事情「麻煩」嗎？如果取消日報表制度，可能會發生什麼？</li>
+            <li>從本任務中，你對「按時填報」這件事有什麼新的認識？如果拖延三天才補填，品質會有什麼差異？</li>
+            <li>你在進度計算中遇到不確定的地方時，是選擇「猜一個數字」還是「想辦法找答案」？這個選擇反映了什麼？</li>
+        </ol>
+    </div>
+
+    <h3>2.10 任務產出</h3>
+    <div class="deliverables">
+        <ol>
+            <li>EAGLE 系統中完整的工程進度 30% 前監造日報表（系統上可查看完整的進度曲線）。</li>
+            <li>進度計算工作表（Excel 或手寫），記錄每日預定進度與實際進度的計算過程。</li>
+            <li>WBS 與契約工項對應關係表。</li>
+            <li>個人反思報告（200–300 字），包含：
+                <ul>
+                    <li>本任務中你學到了什麼？掌握了哪些技能？</li>
+                    <li>困難問題及已經搞懂的問題列表。</li>
+                    <li>當責反思心得：你對「監造日報表的責任」有什麼新的認識？</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<!-- ===== 任務 3 ===== -->
+<section id="task3">
+    <div class="task-header">
+        <h2>任務 3：工程進度計算與填寫
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('view_task', task_number=3) }}" class="submit-task-btn">提交作業</a>
+        {% endif %}
+        </h2>
+        <div class="task-meta">
+            <span>對應週次：第 7–8 週</span>
+            <span>預估時間：4–6 小時</span>
+            <span>難度：中高</span>
+        </div>
+    </div>
+
+    <h3>3.1 任務目標</h3>
+    <p>運用課堂所學的 CPM（要徑法）和 EVM（實獲值管理法），結合磺港溪工程的真實工程資料，進行工程進度的計算與分析，並在 EAGLE 系統中填寫進度報告。透過此任務，你將從「填寫日誌」的執行層面，提升到「分析進度」的管理層面。</p>
+
+    <h3>3.2 學習標的</h3>
+    <ol>
+        <li>運用 CPM 方法，根據工程網狀圖計算要徑、最早/最晚開始與完成時間、浮時。</li>
+        <li>運用 EVM 方法，計算計畫值（PV）、實獲值（EV）與實際成本（AC），分析進度偏差（SV）與成本偏差（CV）。</li>
+        <li>根據計算結果，在 EAGLE 系統中撰寫進度報告，提出專業的進度分析與建議。</li>
+        <li>理解進度管控對工程專案成敗的關鍵影響。</li>
+        <li>培養以數據為基礎的工程管理決策能力。</li>
+    </ol>
+
+    <h3>3.3 角色與責任</h3>
+    <p>身為監造工程師，進度管控是你最重要的職責之一。你需要定期向主辦機關提報工程進度報告，分析承攬廠商的施工進度是否符合預定計畫，如有落後需提出原因分析與因應建議。進度報告的品質直接影響主辦機關對工程的掌控能力。</p>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責提醒</span>
+        進度落後是公共工程最常見的問題之一。如果監造工程師未能及時發現進度落後並提出警示，等到問題擴大後再處理，不僅增加趕工成本，更可能影響工程品質。因此，進度報告不只是「記錄現狀」，更是「預警管理」的重要工具。你的每一次進度分析，都可能影響這個工程最終能否如期完工。
+    </div>
+
+    <h3>3.4 自主學習教材</h3>
+    <div class="materials">
+        <h4>請先閱讀與準備以下資料：</h4>
+        <ul>
+            <li><strong>工程網狀圖</strong>（16.進度表/工程網狀圖.pdf）：工程各工項的排程與邏輯關係。</li>
+            <li><strong>進度曲線表</strong>（16.進度表/進度曲線表.pdf）：預定進度 S 曲線。</li>
+            <li><strong>原契約工項</strong>（1.契約工項/原契約.csv）：各工項的金額，作為 EVM 計算的基礎。</li>
+            <li><strong>估驗計價資料</strong>（9.估驗計價/）：實際完成工項的金額紀錄，可作為 EV 與 AC 的參考。</li>
+            <li><strong>任務 2 成果</strong>：你在施工日誌中記錄的每日施工進度數據。</li>
+            <li><strong>課堂講義</strong>：CPM 計算方法與 EVM 分析方法（Ch5 工程規劃：進度排程）。</li>
+        </ul>
+    </div>
+
+    <h3>3.5 任務執行步驟</h3>
+
+    <h4>步驟 A：CPM 分析</h4>
+    <ol class="steps">
+        <li>根據工程網狀圖，繪製（或整理出）本工程的前置關係圖（Activity-on-Node 或 Activity-on-Arrow）。</li>
+        <li>標示每項工作的工期，並執行前推（Forward Pass）與後推（Backward Pass）計算：
+            <ul>
+                <li>最早開始時間（ES）與最早完成時間（EF）</li>
+                <li>最晚開始時間（LS）與最晚完成時間（LF）</li>
+                <li>總浮時（TF）= LS - ES 或 LF - EF</li>
+            </ul>
+        </li>
+        <li>辨識要徑（Critical Path）：浮時為零的路徑。</li>
+        <li>列出要徑上的工作項目，標示哪些項目在工程進度 30% 時已經在執行或即將開始。</li>
+    </ol>
+
+    <h4>步驟 B：EVM 分析</h4>
+    <ol class="steps">
+        <li>以契約金額為基礎，建立 EVM 分析表。選定分析的時間點（建議以「工程進度 30%」作為分析時間點）。</li>
+        <li>計算各指標：
+            <table>
+                <tr><th>指標</th><th>公式</th><th>意義</th></tr>
+                <tr><td>PV（計畫值）</td><td>截至分析時間點，預定應完成工作的預算金額</td><td>我們原本計畫做多少？</td></tr>
+                <tr><td>EV（實獲值）</td><td>截至分析時間點，實際完成工作的預算金額</td><td>我們實際做了多少？</td></tr>
+                <tr><td>AC（實際成本）</td><td>截至分析時間點，實際花費的金額</td><td>我們花了多少錢？</td></tr>
+                <tr><td>SV（進度偏差）</td><td>EV - PV</td><td>正值=超前，負值=落後</td></tr>
+                <tr><td>CV（成本偏差）</td><td>EV - AC</td><td>正值=節省，負值=超支</td></tr>
+                <tr><td>SPI（進度績效指標）</td><td>EV ÷ PV</td><td>&gt;1 超前，&lt;1 落後</td></tr>
+                <tr><td>CPI（成本績效指標）</td><td>EV ÷ AC</td><td>&gt;1 節省，&lt;1 超支</td></tr>
+            </table>
+        </li>
+        <li>根據估驗計價資料（9.估驗計價/磺港C-C(1).pdf 等），交叉比對 EV 與 AC 的計算結果。</li>
+    </ol>
+
+    <h4>步驟 C：在 EAGLE 系統中填寫進度報告</h4>
+    <ol class="steps">
+        <li>進入 EAGLE 系統的「進度報告」模組，點選「新增報告」。</li>
+        <li>在進度報告中填寫以下內容：
+            <ul>
+                <li>報告期間與分析時間點</li>
+                <li>預定進度 vs. 實際進度的比較</li>
+                <li>CPM 分析摘要：要徑項目、目前執行狀態</li>
+                <li>EVM 分析摘要：PV、EV、SV、SPI 等關鍵指標</li>
+                <li>進度偏差原因分析（如有落後）</li>
+                <li>後續建議與因應措施</li>
+            </ul>
+        </li>
+        <li>下載進度報告確認格式與內容：點選「下載」，選擇報告匯出。</li>
+    </ol>
+
+    <div class="box box-tip">
+        <span class="box-label">操作提示</span>
+        進度報告的「新增」與「下載」操作與施工日誌類似。新增報告時，系統會提供結構化的欄位供你填寫。如有附件（如 EVM 計算表），可透過檔案管理功能上傳。
+    </div>
+
+    <h3>3.6 提示問題</h3>
+    <div class="questions">
+        <ol>
+            <li>在本工程中，要徑上有哪些工作項目？如果這些項目延遲，對整體工期有什麼影響？</li>
+            <li>如果 SPI = 0.85，代表什麼意義？監造工程師應該向主辦機關提出什麼建議？</li>
+            <li>本工程有一次變更設計，契約金額從 2,270 萬降為 1,426 萬。這對 EVM 分析有什麼影響？應該用哪個金額作為 BAC（完工預算）？</li>
+            <li>進度報告中的數據如果不準確，可能造成什麼管理決策上的失誤？</li>
+            <li>如果你發現進度已嚴重落後（SPI &lt; 0.7），但承攬廠商堅稱「可以趕上」，你會怎麼處理？</li>
+        </ol>
+    </div>
+
+    <h3>3.7 自我檢核清單</h3>
+    <ul class="checklist">
+        <li>已完成工程網狀圖的 CPM 計算（ES、EF、LS、LF、TF），並正確辨識要徑。</li>
+        <li>已建立 EVM 分析表，計算 PV、EV、AC、SV、CV、SPI、CPI。</li>
+        <li>EVM 計算結果與估驗計價資料可交叉驗證。</li>
+        <li>已在 EAGLE 系統中完成進度報告的填寫。</li>
+        <li>進度報告包含數據分析與專業建議，而非僅列數字。</li>
+        <li>已下載確認進度報告的格式與內容。</li>
+    </ul>
+
+    <h3>3.8 當責反思</h3>
+    <div class="box box-accountability">
+        <span class="box-label">反思題</span>
+        <ol>
+            <li>CPM 和 EVM 的計算看似繁複，但在實際工程中，這些計算結果如何幫助監造工程師做出更好的管理決策？</li>
+            <li>如果進度報告中的數據被「美化」（例如高估實際進度），短期看起來問題不大，但長期會造成什麼後果？</li>
+            <li>你在計算過程中犯過哪些錯誤？這些錯誤如果發生在真實工程中，可能有什麼影響？</li>
+            <li>「讓數據說話」對於工程管理有什麼重要性？與「憑經驗判斷」相比，各有什麼優劣？</li>
+        </ol>
+    </div>
+
+    <h3>3.9 任務產出</h3>
+    <div class="deliverables">
+        <ol>
+            <li>CPM 計算工作表：包含完整的前推/後推計算與要徑標示。</li>
+            <li>EVM 分析表：包含 PV、EV、AC、SV、CV、SPI、CPI 的計算過程與結果。</li>
+            <li>EAGLE 系統中的進度報告（含數據分析與建議）。</li>
+            <li>個人反思報告（200–300 字），包含：
+                <ul>
+                    <li>CPM 與 EVM 在實務中如何幫助監造工程師？</li>
+                    <li>你在計算過程中遇到的困難與解決方法。</li>
+                    <li>對「以數據為基礎的工程管理」有什麼體會？</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<!-- ===== 任務 4 ===== -->
+<section id="task4">
+    <div class="task-header">
+        <h2>任務 4：自主查核表填寫
+        {% if current_user.is_authenticated %}
+            <a href="{{ url_for('view_task', task_number=4) }}" class="submit-task-btn">提交作業</a>
+        {% endif %}
+        </h2>
+        <div class="task-meta">
+            <span>對應週次：第 9–10 週</span>
+            <span>預估時間：3–4 小時</span>
+            <span>難度：中等</span>
+        </div>
+    </div>
+
+    <h3>4.1 任務目標</h3>
+    <p>根據磺港溪工程的監造計畫與自主檢查樣板，在 EAGLE 系統中填寫施工品質自主查核表。透過此任務，你將理解公共工程三級品管制度中「監造查驗」的角色，學習如何執行施工品質的查核與記錄。</p>
+
+    <h3>4.2 學習標的</h3>
+    <ol>
+        <li>理解公共工程三級品管制度的架構（承攬廠商自主檢查 → 監造單位查驗 → 主辦機關抽驗）。</li>
+        <li>認識本工程涉及的主要施工抽查程序（測量放樣、鋼筋、模板、混凝土等）。</li>
+        <li>學習自主查核表的格式與填寫方法，理解各查核項目的工程意義。</li>
+        <li>在 EAGLE 系統中操作新增查驗、填寫查核結果與下載查核表。</li>
+        <li>建立對施工品質「零容忍」的監造態度。</li>
+    </ol>
+
+    <h3>4.3 角色與責任</h3>
+    <p>在三級品管制度中，監造工程師的角色是「第二級」品管——監造查驗。你的職責不是代替承攬廠商執行品質檢查，而是<strong>監督</strong>承攬廠商是否確實執行自主檢查，並針對關鍵施工項目進行抽查確認。</p>
+    <p>根據本工程的監造計畫，施工抽查程序包含：</p>
+    <table>
+        <tr><th>項次</th><th>抽查項目</th><th>對應程序</th></tr>
+        <tr><td>1</td><td>測量放樣工程</td><td>圖 7.2-1</td></tr>
+        <tr><td>2</td><td>開挖打除工程</td><td>圖 7.2-2</td></tr>
+        <tr><td>3</td><td>銲接鋼線網工程</td><td>圖 7.2-3</td></tr>
+        <tr><td>4</td><td>鋼筋工程</td><td>圖 7.2-4</td></tr>
+        <tr><td>5</td><td>植筋工程</td><td>圖 7.2-5</td></tr>
+        <tr><td>6</td><td>模板工程</td><td>圖 7.2-6</td></tr>
+        <tr><td>7</td><td>混凝土工程</td><td>圖 7.2-7</td></tr>
+    </table>
+
+    <div class="box box-accountability">
+        <span class="box-label">當責提醒</span>
+        品質查驗是監造工程師最核心的專業職責。如果監造人員在查驗紀錄中簽核「合格」，但實際上並未到場查驗，或者明知有品質缺失卻放行——這不只是專業失職，更可能構成瀆職或偽造文書。在本任務中，請你認真對待每一項查驗項目，理解它們存在的工程意義。
+    </div>
+
+    <h3>4.4 自主學習教材</h3>
+    <div class="materials">
+        <h4>請先閱讀與準備以下資料：</h4>
+        <ul>
+            <li><strong>監造計畫</strong>（13.自主檢查類型/磺港溪...監造計畫(修).pdf）：了解本工程的品質管理計畫與施工抽查程序。</li>
+            <li><strong>自主檢查項目</strong>（13.自主檢查類型/自主檢查項目.pdf）：本工程適用的檢查項目清單。</li>
+            <li><strong>自主檢查樣板</strong>（13.自主檢查類型/自主檢查樣板1121102(更新版)梁/）：各類工程的自主檢查表範本，包含：
+                <ul>
+                    <li>一般排水及常用：鋼筋、模板、混凝土、測量放樣、植筋、地坪鋪面等</li>
+                    <li>河濱花海景觀類：植栽、透水磚鋪面、景觀護欄等</li>
+                </ul>
+            </li>
+            <li><strong>施工抽查紀錄表</strong>（13.自主檢查類型/06-4【施工抽查紀錄表】.xls）：監造查驗用的抽查紀錄表格式。</li>
+            <li><strong>歷史自主檢查紀錄</strong>（3.自主檢查/C標抽查表.pdf）：參考本工程實際執行過的查核紀錄。</li>
+        </ul>
+    </div>
+
+    <h3>4.5 背景知識：三級品管與自主檢查</h3>
+    <p>公共工程的三級品管制度是確保工程品質的核心機制：</p>
+    <table>
+        <tr><th>層級</th><th>執行單位</th><th>內容</th></tr>
+        <tr><td>第一級</td><td>承攬廠商（營造廠）</td><td>施工自主檢查：承攬廠商在每個施工階段完成後，依據自主檢查表逐項檢核，確認品質符合規範後，報請監造查驗。</td></tr>
+        <tr><td>第二級</td><td>監造單位（顧問公司）</td><td>監造查驗：監造工程師接到承攬廠商的查驗請求後，到場進行抽查確認，填寫施工抽查紀錄表。</td></tr>
+        <tr><td>第三級</td><td>主辦機關</td><td>機關抽驗：主辦機關不定期到場抽驗，確認施工品質符合設計要求。</td></tr>
+    </table>
+
+    <h3>4.6 任務執行步驟</h3>
+
+    <h4>步驟 A：研讀自主檢查樣板</h4>
+    <ol class="steps">
+        <li>開啟自主檢查樣板資料夾（13.自主檢查類型/自主檢查樣板），瀏覽各類工程的檢查表。</li>
+        <li>重點研讀與磺港溪工程前 30% 進度相關的檢查表：
+            <ul>
+                <li>自主檢查表——測量放樣</li>
+                <li>自主檢查表——鋼筋</li>
+                <li>自主檢查表——模板</li>
+                <li>自主檢查表——混凝土</li>
+                <li>自主檢查表——土方（整地）</li>
+            </ul>
+        </li>
+        <li>理解每份檢查表中各查核項目的意義。例如，鋼筋查核表中「鋼筋號數、間距是否與圖說相符」這個項目，你需要理解為什麼鋼筋間距的正確性如此重要。</li>
+    </ol>
+
+    <h4>步驟 B：研讀歷史查核紀錄</h4>
+    <ol class="steps">
+        <li>開啟歷史自主檢查紀錄（3.自主檢查/C標抽查表.pdf），了解本工程實際執行過的查核內容。</li>
+        <li>注意觀察：
+            <ul>
+                <li>查核頻率：多久執行一次查核？</li>
+                <li>查核範圍：每次查核涵蓋哪些項目？</li>
+                <li>查核結果：是否有發現不合格項目？如何處理？</li>
+            </ul>
+        </li>
+    </ol>
+
+    <h4>步驟 C：在 EAGLE 系統中填寫自主查核表</h4>
+    <ol class="steps">
+        <li>進入 EAGLE 系統的「自主檢查」模組。</li>
+        <li>點選「新增查驗」，系統會要求選擇查驗的分項工程名稱（系統會根據契約工項自動帶入可選項目）。</li>
+        <li>選擇要查驗的施工項目後，系統會載入對應的自主檢查表格式。</li>
+        <li>依據歷史查核紀錄的內容，以監造工程師的視角填寫各查核項目：
+            <ul>
+                <li>查核日期</li>
+                <li>查核位置/區段</li>
+                <li>各項目的查核結果（合格/不合格/不適用）</li>
+                <li>監造意見與備註</li>
+            </ul>
+        </li>
+        <li>完成後，使用下載功能匯出查核表：
+            <ul>
+                <li>下載單筆查核表：選擇特定的查驗紀錄下載。</li>
+                <li>下載查核總表：匯出所有查驗紀錄的彙整表。</li>
+            </ul>
+        </li>
+    </ol>
+
+    <div class="box box-tip">
+        <span class="box-label">操作提示</span>
+        <ul>
+            <li>在「新增查驗」時，分項工程名稱會根據你在任務 1 匯入的契約工項自動帶入，不需要手動輸入。</li>
+            <li>下載查核表時，系統提供「單筆下載」和「總表下載」兩種方式，分別適用於個別查驗紀錄和彙整報告。</li>
+        </ul>
+    </div>
+
+    <h4>步驟 D：模擬缺失發現與改善（選做）</h4>
+    <ol class="steps">
+        <li>如果在查核過程中「發現缺失」（根據歷史缺失紀錄 4.缺失改善/缺失.pdf），可進入「缺失改善」模組進行練習。</li>
+        <li>首次新增缺失改善前，需先設定好編號前綴。</li>
+        <li>填寫缺失內容、缺失照片、改善期限，並追蹤改善狀態（待改善→已改善→已確認）。</li>
+    </ol>
+
+    <h3>4.7 提示問題</h3>
+    <div class="questions">
+        <ol>
+            <li>三級品管制度中，每一級各自的角色與責任是什麼？如果缺少其中一級，可能出現什麼問題？</li>
+            <li>「自主檢查」的「自主」是什麼意思？為什麼叫「自主」而不是「強制」？這背後有什麼管理哲學？</li>
+            <li>如果承攬廠商的自主檢查表上填的都是「合格」，但監造工程師到場抽查卻發現問題，這代表什麼？</li>
+            <li>鋼筋間距差了 2 公分，看起來是「小問題」，但為什麼在查核時不能放過這種「小偏差」？</li>
+            <li>身為監造工程師，你在簽核查驗紀錄時，承擔的是什麼樣的責任？</li>
+        </ol>
+    </div>
+
+    <h3>4.8 自我檢核清單</h3>
+    <ul class="checklist">
+        <li>已研讀至少 3 種自主檢查樣板，理解各查核項目的工程意義。</li>
+        <li>已研讀歷史查核紀錄，了解本工程的查核實務。</li>
+        <li>已在 EAGLE 系統中完成至少 3 份不同類型的自主查核表填寫。</li>
+        <li>查核表的填寫反映了監造工程師的專業判斷，而非隨意勾選。</li>
+        <li>已下載查核表（單筆與總表）確認格式與內容。</li>
+        <li>（選做）已完成至少 1 項缺失改善的完整流程。</li>
+    </ul>
+
+    <h3>4.9 當責反思</h3>
+    <div class="box box-accountability">
+        <span class="box-label">反思題</span>
+        <ol>
+            <li>在填寫查核表的過程中，你是否曾經想「反正都是模擬的，隨便勾一勾就好」？這種想法在真實工程中可能造成什麼後果？</li>
+            <li>品質查驗看似繁瑣，但為什麼公共工程堅持要求三級品管？如果取消這個制度，你認為會怎樣？</li>
+            <li>「查核合格」這四個字，背後承載著監造工程師什麼樣的專業判斷與法律責任？</li>
+            <li>你認為品質管理中最難做到的是什麼？是技術問題還是態度問題？</li>
+        </ol>
+    </div>
+
+    <h3>4.10 任務產出</h3>
+    <div class="deliverables">
+        <ol>
+            <li>EAGLE 系統中完整的自主查核紀錄（至少 3 種不同類型的查驗）。</li>
+            <li>匯出的查核總表。</li>
+            <li>（選做）缺失改善完整流程紀錄。</li>
+            <li>個人反思報告（200–300 字），包含：
+                <ul>
+                    <li>你對三級品管制度有什麼新的認識？</li>
+                    <li>自主查核表中哪些項目讓你印象最深刻？為什麼？</li>
+                    <li>對「品質查驗的專業責任」有什麼體會？</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<!-- ===== 總結反思 ===== -->
+<section id="reflection">
+    <h2>九、總結反思與自我評量</h2>
+
+    <h3>四項任務的學習整合</h3>
+    <p>完成四項任務後，請花一些時間回顧整個學習歷程。你從「專案建立」到「施工日誌」，從「進度計算」到「品質查驗」，已經體驗了監造工程師在工程生命週期中的核心工作。</p>
+
+    <h3>綜合反思問題</h3>
+    <div class="box box-accountability">
+        <span class="box-label">綜合反思</span>
+        <ol>
+            <li><strong>連結課堂與實務</strong>：哪些課堂上學過的概念，在實際操作中讓你有了更深的體會？</li>
+            <li><strong>角色認同</strong>：經過四項任務，你對「監造工程師」這個角色有了什麼新的認識？你會想成為一名監造工程師嗎？為什麼？</li>
+            <li><strong>當責成長</strong>：回顧四項任務，你的「當責態度」有沒有隨著任務的推進而改變？從哪些具體行為上可以看出這種改變？</li>
+            <li><strong>技術能力</strong>：四項任務中，你最有信心的是哪一項？最需要加強的是哪一項？你打算如何加強？</li>
+            <li><strong>團隊合作</strong>：在與同學互審或討論的過程中，你學到了什麼？其他同學的做法有沒有啟發你？</li>
+            <li><strong>AI 助教的使用</strong>：在任務過程中，你如何使用 AI 助教？AI 的回答有沒有需要你自己去驗證的地方？你如何判斷 AI 回答的正確性？</li>
+        </ol>
+    </div>
+
+    <h3>自我評量量表</h3>
+    <p>請針對以下項目，以 1（完全不同意）到 5（完全同意）進行自我評分：</p>
+    <table>
+        <tr><th>評量項目</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+        <tr><td>我能說明工程契約與 WBS 的基本概念</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能在 EAGLE 系統中獨立完成專案建立</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能正確填寫監造日報表並計算工程進度</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能運用 CPM 方法辨識工程要徑</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能運用 EVM 方法分析進度與成本偏差</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能理解三級品管制度並填寫自主查核表</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我理解監造工程師的專業責任</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我對自己的學習成果負起完全責任</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我在遇到問題時主動尋找解決方案</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我對營建管理工作的價值有了更深的認同</td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+</section>
+
+<!-- ===== 附錄 ===== -->
+<section id="resources">
+    <h2>十、附錄：學習資源與參考連結</h2>
+
+    <h3>系統與工具</h3>
+    <table>
+        <tr><th>資源</th><th>說明</th></tr>
+        <tr><td><a href="https://kld13838s-organization.gitbook.io/construction-system-docs" target="_blank">EAGLE 系統操作手冊</a></td><td>完整的系統功能說明與操作教學</td></tr>
+        <tr><td>EAGLE 系統操作介紹（簡略版）.pdf</td><td>系統功能架構與操作步驟的快速參考</td></tr>
+        <tr><td>營建管理 AI 助教</td><td>教師客製化的 AI 學習助理，提供 24/7 即時問答</td></tr>
+    </table>
+
+    <h3>案例資料清單</h3>
+    <table>
+        <tr><th>資料夾</th><th>內容</th><th>用於任務</th></tr>
+        <tr><td>1.契約工項</td><td>原契約 CSV、變更設計 CSV、決標紀錄、工程採購契約、詳細價目表等</td><td>1, 2, 3</td></tr>
+        <tr><td>2.施工日誌</td><td>歷史監工日報表第一聯（Excel），涵蓋全工期</td><td>2</td></tr>
+        <tr><td>3.自主檢查</td><td>C 標抽查表</td><td>4</td></tr>
+        <tr><td>4.缺失改善</td><td>缺失紀錄</td><td>4（選做）</td></tr>
+        <tr><td>5.送審管制</td><td>材料送審管制表</td><td>參考</td></tr>
+        <tr><td>6.檢(試)驗管制</td><td>材料檢驗統計表</td><td>1, 參考</td></tr>
+        <tr><td>7.檔案管理</td><td>工程結算驗收證明書、竣工計價單、簡報</td><td>參考</td></tr>
+        <tr><td>9.估驗計價</td><td>6 期估驗計價表</td><td>3</td></tr>
+        <tr><td>11.基本資料</td><td>開工報告表、竣工報告表、告示牌、工程採購契約</td><td>1</td></tr>
+        <tr><td>13.自主檢查類型</td><td>監造計畫、自主檢查項目、自主檢查樣板（7大類）</td><td>1, 4</td></tr>
+        <tr><td>14.檢試驗項目管理</td><td>材料送審/檢驗項目</td><td>1</td></tr>
+        <tr><td>16.進度表</td><td>工程網狀圖、進度曲線表</td><td>1, 2, 3</td></tr>
+        <tr><td>17.樣板</td><td>各類報表的預設樣板格式</td><td>1</td></tr>
+    </table>
+
+    <h3>課程相關章節</h3>
+    <table>
+        <tr><th>任務</th><th>對應課程章節</th></tr>
+        <tr><td>任務 1：專案建立</td><td>Ch3 營建管理基本概念、Ch4 工程契約</td></tr>
+        <tr><td>任務 2：施工日誌</td><td>Ch5 工程規劃：進度排程</td></tr>
+        <tr><td>任務 3：進度計算</td><td>Ch5 工程規劃：進度排程（CPM、EVM）</td></tr>
+        <tr><td>任務 4：自主查核</td><td>Ch6 品質管理</td></tr>
+    </table>
+
+    <div class="box box-success">
+        <span class="box-label">最後的話</span>
+        完成這四項任務不是終點，而是你理解營建管理實務的起點。你在 EAGLE 系統中建立的每一筆資料、計算的每一個進度、填寫的每一份查核表，都是在為你未來的工程師生涯打下基礎。記住，一位優秀的工程師，不只是懂技術，更要懂得對自己的專業負責。這就是「當責」的精神。
+    </div>
+</section>
+
+</div>
+
+<footer>
+    <p>114 學年度 營建管理課程 — EAGLE 系統自主學習任務手冊<br>
+    淡江大學土木工程學系 ｜ 計畫主持人：蔡明修</p>
+</footer>
+{% endblock %}

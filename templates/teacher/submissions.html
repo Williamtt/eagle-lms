@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+
+{% block title %}任務 {{ task_number }} 提交 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-header h1 {
+        margin: 0;
+    }
+
+    .back-link {
+        color: #fff;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .back-link:hover {
+        opacity: 0.8;
+    }
+
+    .filter-section {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .filter-group label {
+        font-weight: 600;
+        color: #1a5276;
+    }
+
+    .filter-group select {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .submissions-table-wrapper {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .submissions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .submissions-table th {
+        background-color: #1a5276;
+        color: #fff;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .submissions-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .submissions-table tbody tr:hover {
+        background-color: #f9f9f9;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .status-submitted {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-reviewed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .submission-type {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        background-color: #e8f4f8;
+        color: #2980b9;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+
+    .review-button {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background-color: #2980b9;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+
+    .review-button:hover {
+        background-color: #1f618d;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #999;
+    }
+
+    .pagination {
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .pagination a,
+    .pagination span {
+        display: inline-block;
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #2980b9;
+    }
+
+    .pagination a:hover {
+        background-color: #f9f9f9;
+    }
+
+    .pagination .active {
+        background-color: #2980b9;
+        color: #fff;
+        border-color: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .filter-section {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .submissions-table {
+            font-size: 0.9rem;
+        }
+
+        .submissions-table th,
+        .submissions-table td {
+            padding: 0.75rem;
+        }
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1>任務 {{ task_number }} 的提交</h1>
+        <p>共 <strong>{{ submissions|length }}</strong> 份提交</p>
+    </div>
+    <a href="{{ url_for('teacher_dashboard') }}" class="back-link">← 返回儀表板</a>
+</div>
+
+<div class="filter-section">
+    <div class="filter-group">
+        <label for="type-filter">篩選類型：</label>
+        <select id="type-filter">
+            <option value="">所有類型</option>
+            <option value="reflection">反思報告</option>
+            <option value="question">提示問題回答</option>
+            <option value="checklist">自我檢核</option>
+            <option value="self_assessment">自我評量</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="status-filter">篩選狀態：</label>
+        <select id="status-filter">
+            <option value="">所有狀態</option>
+            <option value="pending">待評閱</option>
+            <option value="reviewed">已評閱</option>
+        </select>
+    </div>
+</div>
+
+<div class="submissions-table-wrapper">
+    {% if submissions %}
+        <table class="submissions-table">
+            <thead>
+                <tr>
+                    <th>學號</th>
+                    <th>姓名</th>
+                    <th>提交類型</th>
+                    <th>提交時間</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for submission in submissions %}
+                    <tr>
+                        <td>{{ submission.student_id }}</td>
+                        <td>{{ submission.student_name }}</td>
+                        <td>
+                            <span class="submission-type">
+                                {% if submission.submission_type == 'reflection' %}
+                                    反思報告
+                                {% elif submission.submission_type == 'question' %}
+                                    提示問題回答
+                                {% elif submission.submission_type == 'checklist' %}
+                                    自我檢核
+                                {% elif submission.submission_type == 'self_assessment' %}
+                                    自我評量
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <span class="status-badge {% if submission.teacher_review %}status-reviewed{% else %}status-submitted{% endif %}">
+                                {% if submission.teacher_review %}已評閱{% else %}待評閱{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('teacher_review', submission_id=submission.id) }}" class="review-button">評閱</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty-state">
+            <p>此任務尚無提交</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

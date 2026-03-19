@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}EAGLE LMS - 磺港溪工程案例自主學習平台{% endblock %}
+
+{% block content %}
+<style>
+    .hero {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff;
+        padding: 6rem 2rem;
+        text-align: center;
+        border-radius: 8px;
+        margin: 2rem 0;
+    }
+
+    .hero h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .hero-subtitle {
+        font-size: 1.25rem;
+        margin-bottom: 2rem;
+        opacity: 0.95;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 2rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .hero .btn {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+    }
+
+    .intro-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        margin: 4rem 0;
+    }
+
+    .intro-card {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #2980b9;
+    }
+
+    .intro-card h3 {
+        color: #1a5276;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+    }
+
+    .intro-card p {
+        color: #666;
+        line-height: 1.8;
+    }
+
+    .task-number {
+        display: inline-block;
+        background-color: #e74c3c;
+        color: #fff;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 40px;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .hero h1 {
+            font-size: 2rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1rem;
+        }
+
+        .hero-actions {
+            flex-direction: column;
+        }
+
+        .hero .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="hero">
+    <h1>磺港溪工程案例 EAGLE 系統</h1>
+    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">自主學習平台</h2>
+    <div class="hero-subtitle">
+        114 學年度 營建管理課程 | 淡江大學土木工程學系
+    </div>
+    <div class="hero-actions">
+        <a href="{{ url_for('manual') }}" class="btn btn-secondary" style="background-color: #fff; color: #1a5276; border: 2px solid #fff;">查看任務手冊</a>
+        {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('login') }}" class="btn btn-accent">登入系統</a>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-accent">前往儀表板</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="intro-section">
+    <div class="intro-card">
+        <div class="task-number">1</div>
+        <h3>任務1：專案建立</h3>
+        <p>初步認識磺港溪工程專案背景、利害關係人角色與責任，建立項目文件夾與權限。</p>
+    </div>
+
+    <div class="intro-card">
+        <div class="task-number">2</div>
+        <h3>任務2：施工日誌填寫</h3>
+        <p>每日記錄施工進度、天氣狀況、人力配置等資訊，養成工程現場記錄習慣。</p>
+    </div>
+
+    <div class="intro-card">
+        <div class="task-number">3</div>
+        <h3>任務3：工程進度計算與填寫</h3>
+        <p>計算各工項進度百分比，繪製進度 S 曲線，分析偏差與成本效益。</p>
+    </div>
+
+    <div class="intro-card">
+        <div class="task-number">4</div>
+        <h3>任務4：自主查核表填寫</h3>
+        <p>對照營建管理關鍵控制點清單，進行自我檢核與評量，強化學習成效。</p>
+    </div>
+</div>
+
+<div style="background: #fff; padding: 3rem; border-radius: 8px; margin: 3rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h2 style="color: #1a5276; margin-bottom: 1.5rem; font-size: 2rem;">平台簡介</h2>
+    <p style="color: #666; line-height: 1.8; margin-bottom: 1rem;">
+        EAGLE LMS 是一個專為營建管理課程設計的自主學習平台。透過磺港溪工程案例研究，學生將完成四項實務任務，深入理解工程管理的核心原理與實踐方法。
+    </p>
+    <p style="color: #666; line-height: 1.8; margin-bottom: 1rem;">
+        本平台提供完整的任務指引、提交機制、AI反饋與教師評閱功能，幫助學生逐步建立營建管理的專業能力。
+    </p>
+    <p style="color: #666; line-height: 1.8;">
+        請先閱讀<a href="{{ url_for('manual') }}" style="color: #2980b9; text-decoration: none; font-weight: bold;">任務手冊</a>，了解各項任務的詳細要求，然後
+        {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('login') }}" style="color: #2980b9; text-decoration: none; font-weight: bold;">登入系統</a>開始進行任務。
+        {% else %}
+            前往儀表板開始進行任務。
+        {% endif %}
+    </p>
+</div>
+{% endblock %}
