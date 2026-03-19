@@ -240,13 +240,6 @@
             <div class="section-title">AI 助教回饋</div>
             <div class="feedback-box">
                 <div style="white-space: pre-wrap;">{{ ai_feedback.feedback }}</div>
-                {% if ai_feedback.scores %}
-                    {% set scores = ai_feedback.scores | tojson | safe %}
-                    <div class="scores-grid">
-                        {% for key, value in (ai_feedback.scores if ai_feedback.scores is mapping else {}).__class__.__name__ == 'dict' %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
             </div>
         </div>
     {% endif %}
