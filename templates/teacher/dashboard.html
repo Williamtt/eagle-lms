@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}教師儀表板 - EAGLE LMS{% endblock %}
+{% block title %}教師儀表板 - EAGLE 2.0 LMS{% endblock %}
 
 {% block content %}
 <style>
@@ -205,7 +205,7 @@
 
 <div class="welcome-section">
     <h1>歡迎，{{ current_user.name }}（教師）</h1>
-    <p>EAGLE LMS 教師管理儀表板</p>
+    <p>EAGLE 2.0 LMS 教師管理儀表板</p>
 </div>
 
 <div class="stats-grid">
@@ -294,7 +294,7 @@
 
 <div class="analytics-section">
     <h2>AI 分析與洞察</h2>
-    <p style="color: #666; margin-bottom: 1.5rem;">查看 EAGLE 系統利用生成式 AI 進行的自動分析和學習洞察。</p>
+    <p style="color: #666; margin-bottom: 1.5rem;">查看 EAGLE 2.0 LMS 利用生成式 AI 進行的自動分析和學習洞察。</p>
     <a href="{{ url_for('teacher_analytics') }}" class="analytics-link">進入 AI 分析平台</a>
 </div>
 {% endblock %}
