@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}任務 {{ task_number }} - EAGLE 2.0 LMS{% endblock %}
+{% block title %}任務 {{ task_number }}：{{ task_def.name }} - EAGLE 2.0 LMS{% endblock %}
 
 {% block content %}
 <style>
+    /* ── 任務標題列 ──────────────────────────────────────────────────── */
     .task-header {
         background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
         color: #fff;
@@ -11,240 +12,484 @@
         border-radius: 8px;
         margin-bottom: 2rem;
     }
-
-    .task-header h1 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
+    .task-header h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .task-meta {
+        display: flex; flex-wrap: wrap; gap: 1.5rem;
+        margin-top: 1rem; font-size: 0.9rem; opacity: 0.9;
     }
+    .task-meta span { display: flex; align-items: center; gap: 0.4rem; }
 
-    .task-description {
-        opacity: 0.95;
-        line-height: 1.6;
+    /* ── 任務說明卡 ─────────────────────────────────────────────────── */
+    .info-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+        margin-bottom: 2rem;
     }
-
-    .submission-form {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 3rem;
-    }
-
-    .submission-form h2 {
-        color: #1a5276;
-        margin-bottom: 1.5rem;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-    }
-
-    .form-section {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-hint {
-        font-size: 0.85rem;
-        color: #999;
-        margin-top: 0.25rem;
-    }
-
-    .previous-submissions {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .previous-submissions h2 {
-        color: #1a5276;
-        margin-bottom: 1.5rem;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-    }
-
-    .submission-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .submission-list-item {
+    @media (max-width: 768px) { .info-grid { grid-template-columns: 1fr; } }
+    .info-card {
+        background: #fff; border-radius: 8px; padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         border-left: 4px solid #2980b9;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        background: #f9f9f9;
-        border-radius: 4px;
-        transition: background-color 0.3s;
+    }
+    .info-card h3 { color: #1a5276; margin-bottom: 0.75rem; font-size: 1rem; }
+    .info-card ul { padding-left: 1.2rem; }
+    .info-card li { margin-bottom: 0.4rem; font-size: 0.95rem; }
+
+    /* ── 表單區塊 ────────────────────────────────────────────────────── */
+    .form-card {
+        background: #fff; border-radius: 8px; padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 2rem;
+    }
+    .section-title {
+        font-size: 1.25rem; color: #1a5276;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 0.6rem; margin-bottom: 1.5rem;
+        display: flex; align-items: center; gap: 0.6rem;
+    }
+    .section-badge {
+        background: #2980b9; color: #fff;
+        padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem;
+    }
+    .question-block { margin-bottom: 1.8rem; }
+    .question-label {
+        font-weight: 600; color: #333; margin-bottom: 0.5rem;
+        display: block; line-height: 1.5;
+    }
+    .question-number {
+        display: inline-block; background: #1a5276; color: #fff;
+        width: 1.6rem; height: 1.6rem; border-radius: 50%;
+        text-align: center; line-height: 1.6rem; font-size: 0.8rem;
+        margin-right: 0.5rem; flex-shrink: 0;
+    }
+    textarea.answer-input {
+        width: 100%; min-height: 120px; padding: 0.75rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-family: inherit; font-size: 0.95rem; resize: vertical;
+    }
+    textarea.answer-input:focus {
+        outline: none; border-color: #2980b9;
+        box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
+    }
+    .hint { font-size: 0.82rem; color: #888; margin-top: 0.3rem; }
+
+    /* ── 檢核清單 ─────────────────────────────────────────────────────── */
+    .checklist-item {
+        display: flex; align-items: flex-start; gap: 0.75rem;
+        padding: 0.9rem 1rem; margin-bottom: 0.6rem;
+        background: #f9f9f9; border-radius: 6px;
+        border: 1px solid #eee; transition: background 0.2s;
+    }
+    .checklist-item:hover { background: #f0f4f8; }
+    .checklist-item input[type="checkbox"] {
+        width: 1.1rem; height: 1.1rem; margin-top: 0.15rem;
+        accent-color: #1a5276; cursor: pointer; flex-shrink: 0;
+    }
+    .checklist-text { flex: 1; line-height: 1.5; font-size: 0.95rem; }
+    .checklist-note {
+        width: 100%; margin-top: 0.5rem; padding: 0.5rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-size: 0.88rem; font-family: inherit;
+        color: #555; resize: none; height: 60px;
+    }
+    .checklist-note:focus {
+        outline: none; border-color: #2980b9;
+        box-shadow: 0 0 0 2px rgba(41,128,185,0.1);
+    }
+    .checklist-item.checked { background: #eaf4ec; border-color: #a9d8b3; }
+
+    /* ── 產出上傳 ─────────────────────────────────────────────────────── */
+    .deliverable-block {
+        border: 1px solid #ddd; border-radius: 8px;
+        padding: 1.2rem 1.5rem; margin-bottom: 1.2rem;
+    }
+    .deliverable-block h4 {
+        color: #1a5276; margin-bottom: 0.8rem;
+        font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .type-badge {
+        font-size: 0.75rem; padding: 0.15rem 0.5rem;
+        background: #e8f4f8; color: #2980b9;
+        border-radius: 3px; font-weight: normal;
+    }
+    .optional-badge {
+        font-size: 0.75rem; padding: 0.15rem 0.5rem;
+        background: #f8f9fa; color: #888;
+        border-radius: 3px; font-weight: normal;
+    }
+    .existing-file {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: #eaf4ec; color: #27ae60;
+        padding: 0.3rem 0.7rem; border-radius: 4px;
+        font-size: 0.85rem; margin-bottom: 0.6rem;
+    }
+    input[type="file"] {
+        width: 100%; padding: 0.5rem;
+        border: 1px dashed #aaa; border-radius: 4px;
+        background: #f9f9f9; font-size: 0.9rem;
     }
 
-    .submission-list-item:hover {
-        background-color: #f0f4f8;
+    /* ── AI 回饋 & 教師評閱 ─────────────────────────────────────────── */
+    .feedback-card {
+        border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .ai-feedback { background: #e8f4f8; border-left: 4px solid #2980b9; }
+    .teacher-feedback { background: #eaf4ec; border-left: 4px solid #27ae60; }
+    .feedback-card h3 { margin-bottom: 0.75rem; font-size: 1rem; }
+    .feedback-card pre {
+        white-space: pre-wrap; font-family: inherit;
+        font-size: 0.95rem; line-height: 1.7;
+    }
+    .score-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .score-badge {
+        background: #fff; border: 1px solid #2980b9;
+        border-radius: 20px; padding: 0.25rem 0.75rem;
+        font-size: 0.85rem; color: #1a5276;
     }
 
-    .submission-list-item h4 {
-        margin: 0 0 0.5rem 0;
-        color: #1a5276;
+    /* ── 提交按鈕列 ──────────────────────────────────────────────────── */
+    .submit-bar {
+        display: flex; align-items: center; gap: 1rem;
+        flex-wrap: wrap; padding-top: 1rem;
+        border-top: 1px solid #eee; margin-top: 1.5rem;
     }
+    .submit-note { font-size: 0.85rem; color: #888; }
 
-    .submission-meta {
-        font-size: 0.9rem;
-        color: #666;
-        margin-bottom: 0.75rem;
-    }
-
-    .submission-type-badge {
-        display: inline-block;
-        padding: 0.3rem 0.6rem;
-        background-color: #e8f4f8;
-        color: #2980b9;
-        border-radius: 3px;
-        font-size: 0.85rem;
-    }
-
-    .submission-status {
-        display: inline-block;
-        margin-left: 1rem;
-    }
-
-    .status-badge {
-        padding: 0.3rem 0.6rem;
-        border-radius: 3px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .status-pending {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .status-submitted {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-
-    .status-reviewed {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .submission-link {
-        color: #2980b9;
-        text-decoration: none;
-        font-weight: bold;
-    }
-
-    .submission-link:hover {
-        text-decoration: underline;
-    }
-
-    .empty-submissions {
-        text-align: center;
-        padding: 2rem;
-        color: #999;
-    }
-
-    @media (max-width: 768px) {
-        .task-header h1 {
-            font-size: 1.5rem;
-        }
-
-        .submission-form,
-        .previous-submissions {
-            padding: 1.5rem;
-        }
+    /* ── 已提交標記 ──────────────────────────────────────────────────── */
+    .submitted-banner {
+        background: #eaf4ec; border: 1px solid #a9d8b3;
+        border-radius: 8px; padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem; display: flex;
+        align-items: center; gap: 1rem;
+        font-size: 0.95rem; color: #27ae60;
     }
 </style>
 
+{# ── 任務標題 ── #}
 <div class="task-header">
-    <h1>任務 {{ task_number }}：
-        {% if task_number == 1 %}
-            專案建立
-        {% elif task_number == 2 %}
-            施工日誌填寫
-        {% elif task_number == 3 %}
-            工程進度計算與填寫
-        {% elif task_number == 4 %}
-            自主查核表填寫
-        {% endif %}
-    </h1>
-    <div class="task-description">
-        {% if task_number == 1 %}
-            在 EAGLE 2.0 中建立磺港溪再造步道整建工程專案，完成基本資料設定、契約工項匯入及預定進度計畫上傳。
-        {% elif task_number == 2 %}
-            根據本工程的歷史施工日誌資料，填寫工程進度 30% 之前的監造日報表。
-        {% elif task_number == 3 %}
-            運用 CPM 和 EVM 方法，進行工程進度的計算與分析，並撰寫進度報告。
-        {% elif task_number == 4 %}
-            根據監造計畫與自主檢查樣板，填寫施工品質自主查核表。
+    <h1>任務 {{ task_number }}：{{ task_def.name }}</h1>
+    <p style="opacity:0.9; margin-top:0.4rem;">{{ task_def.description }}</p>
+    <div class="task-meta">
+        <span>📅 開放週次：{{ task_def.week_range }}</span>
+        <span>⏱ 預估 {{ task_def.estimated_hours }} 小時</span>
+        <span>⚡ 難度：{{ task_def.difficulty }}</span>
+        {% if existing_sub %}
+            <span style="background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:4px;">
+                ✅ 已於 {{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }} 提交
+            </span>
         {% endif %}
     </div>
 </div>
 
-<div class="submission-form">
-    <h2>提交新作業</h2>
-    <form method="POST" action="{{ url_for('submit_task', task_number=task_number) }}" enctype="multipart/form-data">
-        <div class="form-section">
-            <label for="submission_type">提交類型 *</label>
-            <select id="submission_type" name="submission_type" required>
-                <option value="">-- 請選擇提交類型 --</option>
-                <option value="reflection">反思報告</option>
-                <option value="question">提示問題回答</option>
-                <option value="checklist">自我檢核</option>
-                <option value="self_assessment">自我評量</option>
-            </select>
-            <div class="form-hint">選擇你本次提交的主要內容類型</div>
-        </div>
-
-        <div class="form-section">
-            <label for="content">提交內容 *</label>
-            <textarea id="content" name="content" required placeholder="請在此填寫你的提交內容..."></textarea>
-            <div class="form-hint">請詳細且認真地填寫內容。建議字數 300-500 字</div>
-        </div>
-
-        <div class="form-section">
-            <label for="file">上傳附件（可選）</label>
-            <input type="file" id="file" name="file">
-            <div class="form-hint">支援 PDF、Word、Excel、圖片等檔案格式，最大 10MB</div>
-        </div>
-
-        <button type="submit" class="btn btn-primary">提交作業</button>
-        <a href="{{ url_for('dashboard') }}" class="btn btn-outline" style="margin-left: 1rem;">取消</a>
-    </form>
-</div>
-
-<div class="previous-submissions">
-    <h2>之前的提交</h2>
-    {% if submissions %}
-        <ul class="submission-list">
-            {% for submission in submissions %}
-                <li class="submission-list-item">
-                    <h4>
-                        <span class="submission-type-badge">{{ submission.submission_type }}</span>
-                        <span class="submission-status">
-                            {% if submission.teacher_review %}
-                                <span class="status-badge status-reviewed">已評閱</span>
-                            {% else %}
-                                <span class="status-badge status-submitted">已提交</span>
-                            {% endif %}
-                        </span>
-                    </h4>
-                    <div class="submission-meta">
-                        提交於 {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') }}
-                        {% if submission.file_path %}
-                            | <a href="{{ url_for('download_submission_file', submission_id=submission.id) }}" style="color: #2980b9;">下載附件</a>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <a href="{{ url_for('view_submission', submission_id=submission.id) }}" class="submission-link">查看詳情 →</a>
-                    </div>
-                </li>
+{# ── 任務說明 ── #}
+<div class="info-grid">
+    <div class="info-card">
+        <h3>🎯 學習目標</h3>
+        <ul>
+            {% for goal in task_def.learning_goals %}
+                <li>{{ goal }}</li>
             {% endfor %}
         </ul>
-    {% else %}
-        <div class="empty-submissions">
-            <p>尚未有任何提交</p>
-            <p>請在上方「提交新作業」表單中提交你的作業</p>
-        </div>
-    {% endif %}
+    </div>
+    <div class="info-card">
+        <h3>🏗️ 角色情境</h3>
+        <p style="font-size:0.95rem;line-height:1.6;">{{ task_def.role_description }}</p>
+    </div>
+    <div class="info-card" style="border-color:#e74c3c;">
+        <h3>⚖️ 當責焦點</h3>
+        <p style="font-size:0.95rem;line-height:1.6;">{{ task_def.accountability_focus }}</p>
+    </div>
 </div>
+
+{# ── 已有提交標記 ── #}
+{% if existing_sub %}
+    <div class="submitted-banner">
+        <span style="font-size:1.4rem;">✅</span>
+        <div>
+            <strong>你已提交本任務</strong>（最後更新：{{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }}）<br>
+            修改後重新按下方「儲存並提交」可覆蓋上一次的回答。
+            <a href="{{ url_for('view_task_submission', submission_id=existing_sub.id) }}"
+               style="margin-left:1rem;color:#1a5276;font-weight:600;">查看完整提交 →</a>
+        </div>
+    </div>
+{% endif %}
+
+{# ── 主表單 ── #}
+<form method="POST" action="{{ url_for('submit_task', task_number=task_number) }}"
+      enctype="multipart/form-data" id="task-form">
+
+    {# ═══════════════════════════════════════════════════════════
+       第一節：提示問題回答
+       form field: pq_{question.id}
+    ═══════════════════════════════════════════════════════════ #}
+    <div class="form-card">
+        <h2 class="section-title">
+            <span class="section-badge">一</span>
+            提示問題回答
+            <span style="font-size:0.85rem;color:#888;font-weight:normal;">
+                （共 {{ task_def.prompt_questions | length }} 題）
+            </span>
+        </h2>
+        <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
+            請根據你在 EAGLE 2.0 系統中的實際操作，逐題認真作答。
+            每題建議 50–150 字，說明你的思考過程與操作依據。
+        </p>
+
+        {% for pq in task_def.prompt_questions %}
+            <div class="question-block">
+                <label class="question-label">
+                    <span class="question-number">{{ loop.index }}</span>
+                    {{ pq.text }}
+                    <span style="color:#e74c3c;"> *</span>
+                </label>
+                <textarea class="answer-input"
+                          name="pq_{{ pq.id }}"
+                          id="pq_{{ pq.id }}"
+                          placeholder="請在此輸入你的回答…"
+                          required>{{ existing_data.pq.get(pq.id, '') }}</textarea>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════
+       第二節：自我檢核清單
+       form field: cl_{item.id}   (checkbox)
+                   cl_note_{item.id}  (textarea)
+    ═══════════════════════════════════════════════════════════ #}
+    <div class="form-card">
+        <h2 class="section-title">
+            <span class="section-badge">二</span>
+            自我檢核清單
+            <span style="font-size:0.85rem;color:#888;font-weight:normal;">
+                （共 {{ task_def.checklist_items | length }} 項）
+            </span>
+        </h2>
+        <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
+            逐項確認你是否已完成各項工作，打勾表示已完成。
+            如有補充說明（如遇到的問題或做法說明），請填寫備註。
+        </p>
+
+        {% for cl in task_def.checklist_items %}
+            {% set cl_state = existing_data.cl.get(cl.id, {}) %}
+            <div class="checklist-item{% if cl_state.get('checked', False) %} checked{% endif %}"
+                 id="cli_{{ cl.id }}">
+                <input type="checkbox"
+                       name="cl_{{ cl.id }}"
+                       id="cl_{{ cl.id }}"
+                       {% if cl_state.get('checked', False) %}checked{% endif %}
+                       onchange="toggleChecked('{{ cl.id }}')">
+                <div class="checklist-text">
+                    <label for="cl_{{ cl.id }}" style="cursor:pointer;">
+                        {{ loop.index }}. {{ cl.text }}
+                    </label>
+                    <textarea class="checklist-note"
+                              name="cl_note_{{ cl.id }}"
+                              id="cl_note_{{ cl.id }}"
+                              placeholder="備註（選填）：說明操作細節或遇到的問題…">{{ cl_state.get('note', '') }}</textarea>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════
+       第三節：當責反思
+       form field: rq_{question.id}
+    ═══════════════════════════════════════════════════════════ #}
+    <div class="form-card">
+        <h2 class="section-title">
+            <span class="section-badge">三</span>
+            當責反思
+            <span style="font-size:0.85rem;color:#888;font-weight:normal;">
+                （共 {{ task_def.reflection_questions | length }} 題）
+            </span>
+        </h2>
+        <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
+            請深入思考本次任務中的決策與行動，誠實回答下列反思問題。
+            反思內容是培養當責態度的核心，請勿流於形式。
+        </p>
+
+        {% for rq in task_def.reflection_questions %}
+            <div class="question-block">
+                <label class="question-label">
+                    <span class="question-number">{{ loop.index }}</span>
+                    {{ rq.text }}
+                    <span style="color:#e74c3c;"> *</span>
+                </label>
+                <textarea class="answer-input"
+                          name="rq_{{ rq.id }}"
+                          id="rq_{{ rq.id }}"
+                          placeholder="請在此輸入你的反思…"
+                          style="min-height:140px;"
+                          required>{{ existing_data.rq.get(rq.id, '') }}</textarea>
+            </div>
+        {% endfor %}
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════
+       第四節：任務產出
+       form field: dv_text_{dv.id}  (textarea，若 accept_text)
+                   dv_file_{dv.id}  (file，若 accept_file)
+    ═══════════════════════════════════════════════════════════ #}
+    <div class="form-card">
+        <h2 class="section-title">
+            <span class="section-badge">四</span>
+            任務產出
+            <span style="font-size:0.85rem;color:#888;font-weight:normal;">
+                （共 {{ task_def.deliverables | length }} 項）
+            </span>
+        </h2>
+        <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
+            請繳交任務要求的各項產出。部分項目需上傳檔案，部分需填寫文字，
+            請依各項說明完成。
+        </p>
+
+        {% for dv in task_def.deliverables %}
+            <div class="deliverable-block">
+                <h4>
+                    {{ loop.index }}. {{ dv.label }}
+                    <span class="type-badge">{{ dv.type }}</span>
+                    {% if dv.optional %}
+                        <span class="optional-badge">選填</span>
+                    {% else %}
+                        <span style="color:#e74c3c;font-size:0.8rem;"> *必填</span>
+                    {% endif %}
+                </h4>
+                <p style="font-size:0.9rem;color:#555;margin-bottom:0.8rem;">{{ dv.text }}</p>
+
+                {# 文字欄位 #}
+                {% if dv.accept_text %}
+                    <label for="dv_text_{{ dv.id }}" style="font-size:0.9rem;color:#666;">
+                        文字說明{% if not dv.optional %}（必填）{% endif %}：
+                    </label>
+                    <textarea class="answer-input"
+                              name="dv_text_{{ dv.id }}"
+                              id="dv_text_{{ dv.id }}"
+                              placeholder="請在此填寫你的說明或反思報告…"
+                              style="min-height:160px;"
+                              {% if not dv.optional and not dv.accept_file %}required{% endif %}>{{ existing_data.dv_text.get(dv.id, '') }}</textarea>
+                {% endif %}
+
+                {# 檔案上傳 #}
+                {% if dv.accept_file %}
+                    {% set old_file = existing_data.dv_file.get(dv.id, '') %}
+                    {% if old_file %}
+                        <div class="existing-file">
+                            📎 已上傳：{{ old_file }}
+                            <span style="color:#888;font-size:0.8rem;">（重新選擇檔案即可覆蓋）</span>
+                        </div><br>
+                    {% endif %}
+                    <label for="dv_file_{{ dv.id }}" style="font-size:0.9rem;color:#666;">
+                        {% if old_file %}更換檔案{% else %}上傳檔案{% if not dv.optional %}（必填）{% endif %}{% endif %}：
+                    </label>
+                    <input type="file"
+                           name="dv_file_{{ dv.id }}"
+                           id="dv_file_{{ dv.id }}"
+                           accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg,.zip"
+                           {% if not dv.optional and not old_file and not dv.accept_text %}required{% endif %}>
+                    <div class="hint">支援 PDF、Word、Excel、圖片（JPG/PNG）、ZIP，單檔最大 10 MB</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        {# ── 提交按鈕 ── #}
+        <div class="submit-bar">
+            <button type="submit" class="btn btn-primary" style="font-size:1.05rem;padding:0.85rem 2rem;">
+                {% if existing_sub %}🔄 更新並重新提交{% else %}📤 儲存並提交{% endif %}
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
+            <span class="submit-note">
+                ⚠ 提交後 AI 助教將自動產生初步回饋，供你參考。
+                {% if existing_sub %}本次提交將覆蓋上次所有文字回答。{% endif %}
+            </span>
+        </div>
+    </div>
+
+</form>{# end #task-form #}
+
+{# ═══════════════════════════════════════════════════════════
+   AI 回饋區塊（提交後顯示）
+═══════════════════════════════════════════════════════════ #}
+{% if ai_feedback %}
+    <div class="feedback-card ai-feedback">
+        <h3>🤖 AI 助教回饋
+            <span style="font-size:0.8rem;font-weight:normal;color:#555;">
+                （{{ ai_feedback.created_at.strftime('%Y-%m-%d %H:%M') }}）
+            </span>
+        </h3>
+        <pre>{{ ai_feedback.feedback }}</pre>
+
+        {# 顯示各構面分數（若有） #}
+        {% if ai_feedback.scores %}
+            {% set scores = ai_feedback.scores | tojson | safe %}
+            <div class="score-badges" id="score-badges-container" data-scores="{{ ai_feedback.scores }}">
+                {# 由 JS 動態填入 #}
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════
+   教師評閱區塊（已發布才顯示）
+═══════════════════════════════════════════════════════════ #}
+{% if teacher_review %}
+    <div class="feedback-card teacher-feedback">
+        <h3>👩‍🏫 教師評閱
+            <span style="font-size:0.8rem;font-weight:normal;color:#555;">
+                （{{ teacher_review.reviewed_at.strftime('%Y-%m-%d %H:%M') }}）
+            </span>
+            {% if teacher_review.score is not none %}
+                <span style="float:right;font-size:1.1rem;color:#27ae60;font-weight:700;">
+                    {{ teacher_review.score }} 分
+                </span>
+            {% endif %}
+        </h3>
+        <pre>{{ teacher_review.feedback }}</pre>
+    </div>
+{% endif %}
+
+<script>
+/* ── 勾選後切換底色 ─────────────────────────────────────── */
+function toggleChecked(itemId) {
+    const cb  = document.getElementById('cl_' + itemId);
+    const row = document.getElementById('cli_' + itemId);
+    if (cb.checked) {
+        row.classList.add('checked');
+    } else {
+        row.classList.remove('checked');
+    }
+}
+
+/* ── 解析並顯示 AI 分數 badge ─────────────────────────── */
+(function() {
+    const container = document.getElementById('score-badges-container');
+    if (!container) return;
+    try {
+        const raw = container.getAttribute('data-scores');
+        const scores = JSON.parse(raw);
+        const labelMap = {
+            attention:      '引起注意',
+            relevance:      '切身相關',
+            confidence:     '建立信心',
+            satisfaction:   '獲得滿足',
+            accountability: '當責表現',
+            overall:        '整體',
+            completeness:   '完整度',
+            depth:          '深度',
+        };
+        let html = '';
+        for (const [k, v] of Object.entries(scores)) {
+            if (v !== null && v !== undefined) {
+                const label = labelMap[k] || k;
+                html += `<span class="score-badge">${label}：${v}</span>`;
+            }
+        }
+        container.innerHTML = html;
+    } catch(e) { /* 無法解析則靜默略過 */ }
+})();
+
+/* ── 防止重複提交 ─────────────────────────────────────── */
+document.getElementById('task-form').addEventListener('submit', function() {
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = '提交中，請稍候…';
+});
+</script>
 {% endblock %}

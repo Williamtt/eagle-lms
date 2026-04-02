@@ -1,0 +1,377 @@
+{% extends 'base.html' %}
+
+{% block title %}任務 {{ sub.task_number }} 提交詳情 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    /* ── 頁首 ────────────────────────────────────────────────────── */
+    .detail-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+    }
+    .detail-header h1 { font-size: 1.7rem; margin-bottom: 0.4rem; }
+    .meta-row {
+        display: flex; flex-wrap: wrap; gap: 1.5rem;
+        margin-top: 0.8rem; font-size: 0.9rem; opacity: 0.9;
+    }
+
+    /* ── 區塊卡片 ────────────────────────────────────────────────── */
+    .detail-card {
+        background: #fff; border-radius: 8px; padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1.8rem;
+    }
+    .section-title {
+        font-size: 1.2rem; color: #1a5276;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 0.6rem; margin-bottom: 1.5rem;
+        display: flex; align-items: center; gap: 0.6rem;
+    }
+    .section-badge {
+        background: #2980b9; color: #fff;
+        padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem;
+    }
+
+    /* ── 問答條目 ────────────────────────────────────────────────── */
+    .qa-item { margin-bottom: 1.6rem; }
+    .qa-question {
+        font-weight: 600; color: #1a5276; margin-bottom: 0.5rem;
+        line-height: 1.5; display: flex; gap: 0.5rem;
+    }
+    .qa-number {
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #1a5276; color: #fff;
+        width: 1.5rem; height: 1.5rem; border-radius: 50%;
+        font-size: 0.78rem; flex-shrink: 0; margin-top: 0.1rem;
+    }
+    .qa-answer {
+        background: #f7f9fc; border-left: 3px solid #2980b9;
+        padding: 0.8rem 1rem; border-radius: 0 4px 4px 0;
+        font-size: 0.95rem; line-height: 1.7; white-space: pre-wrap;
+        color: #333;
+    }
+    .qa-empty { color: #aaa; font-style: italic; }
+
+    /* ── 檢核清單 ─────────────────────────────────────────────────── */
+    .cl-item {
+        display: flex; align-items: flex-start; gap: 0.75rem;
+        padding: 0.8rem 1rem; margin-bottom: 0.5rem;
+        border-radius: 6px; border: 1px solid #eee;
+    }
+    .cl-checked   { background: #eaf4ec; border-color: #a9d8b3; }
+    .cl-unchecked { background: #fafafa; }
+    .cl-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+    .cl-text { flex: 1; font-size: 0.95rem; line-height: 1.5; }
+    .cl-note {
+        margin-top: 0.4rem; font-size: 0.87rem; color: #666;
+        background: rgba(0,0,0,0.04); padding: 0.35rem 0.6rem;
+        border-radius: 3px;
+    }
+
+    /* ── 任務產出 ─────────────────────────────────────────────────── */
+    .dv-block {
+        border: 1px solid #ddd; border-radius: 8px;
+        padding: 1.2rem 1.5rem; margin-bottom: 1.2rem;
+    }
+    .dv-block h4 {
+        color: #1a5276; margin-bottom: 0.8rem;
+        display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .type-badge {
+        font-size: 0.75rem; padding: 0.15rem 0.5rem;
+        background: #e8f4f8; color: #2980b9;
+        border-radius: 3px; font-weight: normal;
+    }
+    .dv-text-content {
+        background: #f7f9fc; border-left: 3px solid #2980b9;
+        padding: 0.8rem 1rem; border-radius: 0 4px 4px 0;
+        white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7;
+    }
+    .file-link {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: #eaf4ec; color: #27ae60;
+        padding: 0.4rem 0.9rem; border-radius: 4px;
+        text-decoration: none; font-size: 0.9rem; font-weight: 500;
+    }
+    .file-link:hover { background: #d4edd9; }
+
+    /* ── AI 回饋 & 教師評閱 ─────────────────────────────────────── */
+    .feedback-card { border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .ai-feedback     { background: #e8f4f8; border-left: 4px solid #2980b9; }
+    .teacher-feedback{ background: #eaf4ec; border-left: 4px solid #27ae60; }
+    .feedback-card h3 { margin-bottom: 0.75rem; font-size: 1.05rem; }
+    .feedback-body {
+        white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7;
+    }
+    .score-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .score-badge {
+        background: #fff; border: 1px solid #2980b9;
+        border-radius: 20px; padding: 0.25rem 0.75rem;
+        font-size: 0.85rem; color: #1a5276;
+    }
+
+    /* ── 統計列 ──────────────────────────────────────────────────── */
+    .stats-row {
+        display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-box {
+        background: #f0f4f8; border-radius: 6px;
+        padding: 0.6rem 1.2rem; text-align: center; min-width: 100px;
+    }
+    .stat-label { font-size: 0.75rem; color: #888; }
+    .stat-value { font-size: 1.3rem; font-weight: 700; color: #1a5276; }
+</style>
+
+{# ── 頁首 ── #}
+<div class="detail-header">
+    <h1>任務 {{ sub.task_number }}：{{ task_def.name }} — 提交詳情</h1>
+    <div class="meta-row">
+        <span>🎓 提交者：{{ sub.author.name }}（{{ sub.author.student_id }}）</span>
+        <span>📅 提交：{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        <span>🔄 更新：{{ sub.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        <span>📌 版本：v{{ sub.task_version }}</span>
+        <span>
+            {% if sub.status == 'reviewed' %}
+                ✅ 已評閱
+            {% else %}
+                🕐 待評閱
+            {% endif %}
+        </span>
+    </div>
+</div>
+
+{# ── 完成度統計 ── #}
+{% set total_pq = task_def.prompt_questions | length %}
+{% set total_cl = task_def.checklist_items | length %}
+{% set total_rq = task_def.reflection_questions | length %}
+{% set answered_pq = namespace(count=0) %}
+{% set checked_cl  = namespace(count=0) %}
+{% set answered_rq = namespace(count=0) %}
+{% for pq in task_def.prompt_questions %}
+    {% if pq_map.get(pq.id, '') | trim %}{% set answered_pq.count = answered_pq.count + 1 %}{% endif %}
+{% endfor %}
+{% for cl in task_def.checklist_items %}
+    {% if cl_map.get(cl.id) and cl_map.get(cl.id).checked %}{% set checked_cl.count = checked_cl.count + 1 %}{% endif %}
+{% endfor %}
+{% for rq in task_def.reflection_questions %}
+    {% if rq_map.get(rq.id, '') | trim %}{% set answered_rq.count = answered_rq.count + 1 %}{% endif %}
+{% endfor %}
+
+<div class="stats-row">
+    <div class="stat-box">
+        <div class="stat-label">提示問題</div>
+        <div class="stat-value">{{ answered_pq.count }}/{{ total_pq }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">自我檢核</div>
+        <div class="stat-value">{{ checked_cl.count }}/{{ total_cl }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">當責反思</div>
+        <div class="stat-value">{{ answered_rq.count }}/{{ total_rq }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">任務產出</div>
+        <div class="stat-value">{{ du_map | length }}/{{ task_def.deliverables | length }}</div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   第一節：提示問題回答
+═══════════════════════════════════════════════════════════ #}
+<div class="detail-card">
+    <h2 class="section-title">
+        <span class="section-badge">一</span>
+        提示問題回答
+    </h2>
+
+    {% for pq in task_def.prompt_questions %}
+        <div class="qa-item">
+            <div class="qa-question">
+                <span class="qa-number">{{ loop.index }}</span>
+                <span>{{ pq.text }}</span>
+            </div>
+            {% set ans = pq_map.get(pq.id, '') %}
+            {% if ans | trim %}
+                <div class="qa-answer">{{ ans }}</div>
+            {% else %}
+                <div class="qa-answer qa-empty">（未作答）</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   第二節：自我檢核清單
+═══════════════════════════════════════════════════════════ #}
+<div class="detail-card">
+    <h2 class="section-title">
+        <span class="section-badge">二</span>
+        自我檢核清單
+        <span style="font-size:0.85rem;color:#888;font-weight:normal;">
+            已勾選 {{ checked_cl.count }}/{{ total_cl }}
+        </span>
+    </h2>
+
+    {% for cl in task_def.checklist_items %}
+        {% set cr = cl_map.get(cl.id) %}
+        {% set is_checked = cr and cr.checked %}
+        <div class="cl-item {% if is_checked %}cl-checked{% else %}cl-unchecked{% endif %}">
+            <span class="cl-icon">{% if is_checked %}✅{% else %}⬜{% endif %}</span>
+            <div class="cl-text">
+                {{ loop.index }}. {{ cl.text }}
+                {% if cr and cr.note | trim %}
+                    <div class="cl-note">📝 備註：{{ cr.note }}</div>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   第三節：當責反思
+═══════════════════════════════════════════════════════════ #}
+<div class="detail-card">
+    <h2 class="section-title">
+        <span class="section-badge">三</span>
+        當責反思
+    </h2>
+
+    {% for rq in task_def.reflection_questions %}
+        <div class="qa-item">
+            <div class="qa-question">
+                <span class="qa-number">{{ loop.index }}</span>
+                <span>{{ rq.text }}</span>
+            </div>
+            {% set ans = rq_map.get(rq.id, '') %}
+            {% if ans | trim %}
+                <div class="qa-answer">{{ ans }}</div>
+            {% else %}
+                <div class="qa-answer qa-empty">（未作答）</div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   第四節：任務產出
+═══════════════════════════════════════════════════════════ #}
+<div class="detail-card">
+    <h2 class="section-title">
+        <span class="section-badge">四</span>
+        任務產出
+    </h2>
+
+    {% for dv in task_def.deliverables %}
+        {% set du = du_map.get(dv.id) %}
+        <div class="dv-block">
+            <h4>
+                {{ loop.index }}. {{ dv.label }}
+                <span class="type-badge">{{ dv.type }}</span>
+                {% if dv.optional %}
+                    <span style="font-size:0.75rem;color:#888;">(選填)</span>
+                {% endif %}
+            </h4>
+            <p style="font-size:0.88rem;color:#666;margin-bottom:0.75rem;">{{ dv.text }}</p>
+
+            {% if du %}
+                {# 文字內容 #}
+                {% if dv.accept_text and du.content | trim %}
+                    <div class="dv-text-content">{{ du.content }}</div>
+                {% endif %}
+
+                {# 已上傳檔案 #}
+                {% if dv.accept_file and du.file_name %}
+                    <a href="{{ url_for('download_deliverable_file',
+                                       submission_id=sub.id,
+                                       deliverable_id=dv.id) }}"
+                       class="file-link" style="margin-top:0.6rem;display:inline-flex;">
+                        📎 下載：{{ du.file_name }}
+                    </a>
+                {% endif %}
+
+                {# 若兩者皆空 #}
+                {% if not (dv.accept_text and du.content | trim) and not (dv.accept_file and du.file_name) %}
+                    <span style="color:#aaa;font-style:italic;">（此項目未提交內容）</span>
+                {% endif %}
+            {% else %}
+                <span style="color:#aaa;font-style:italic;">（未提交）</span>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   AI 回饋
+═══════════════════════════════════════════════════════════ #}
+{% if ai_feedback %}
+    <div class="feedback-card ai-feedback">
+        <h3>🤖 AI 助教回饋
+            <span style="font-size:0.82rem;font-weight:normal;color:#555;">
+                （{{ ai_feedback.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ ai_feedback.model_used }}）
+            </span>
+        </h3>
+        <div class="feedback-body">{{ ai_feedback.feedback }}</div>
+
+        {% if ai_feedback.scores %}
+            <div class="score-badges" id="score-badges" data-scores="{{ ai_feedback.scores }}"></div>
+        {% endif %}
+    </div>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════
+   教師評閱
+═══════════════════════════════════════════════════════════ #}
+{% if teacher_review %}
+    <div class="feedback-card teacher-feedback">
+        <h3>👩‍🏫 教師評閱
+            <span style="font-size:0.82rem;font-weight:normal;color:#555;">
+                （{{ teacher_review.reviewed_at.strftime('%Y-%m-%d %H:%M') }}）
+            </span>
+            {% if teacher_review.score is not none %}
+                <span style="float:right;font-size:1.15rem;color:#27ae60;font-weight:700;">
+                    {{ teacher_review.score }} 分
+                </span>
+            {% endif %}
+        </h3>
+        <div class="feedback-body">{{ teacher_review.feedback }}</div>
+    </div>
+{% endif %}
+
+{# ── 底部操作列 ── #}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:3rem;">
+    {% if not current_user.is_teacher %}
+        <a href="{{ url_for('view_task', task_number=sub.task_number) }}"
+           class="btn btn-secondary">✏️ 修改提交</a>
+    {% endif %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">← 返回儀表板</a>
+
+    {% if current_user.is_teacher %}
+        <a href="{{ url_for('teacher_review', submission_id=sub.id) }}"
+           class="btn btn-primary" style="margin-left:auto;">📝 教師評閱</a>
+    {% endif %}
+</div>
+
+<script>
+/* ── 解析 AI 分數 badges ──────────────────────────────── */
+(function() {
+    const container = document.getElementById('score-badges');
+    if (!container) return;
+    try {
+        const scores = JSON.parse(container.getAttribute('data-scores'));
+        const labelMap = {
+            attention:'引起注意', relevance:'切身相關',
+            confidence:'建立信心', satisfaction:'獲得滿足',
+            accountability:'當責表現', overall:'整體',
+            completeness:'完整度', depth:'深度',
+        };
+        let html = '';
+        for (const [k, v] of Object.entries(scores)) {
+            if (v !== null && v !== undefined) {
+                html += `<span class="score-badge">${labelMap[k] || k}：${v}</span>`;
+            }
+        }
+        container.innerHTML = html;
+    } catch(e) {}
+})();
+</script>
+{% endblock %}

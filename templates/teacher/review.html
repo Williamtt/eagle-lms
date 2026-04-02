@@ -1,228 +1,413 @@
 {% extends 'base.html' %}
 
-{% block title %}評閱提交 - EAGLE 2.0 LMS{% endblock %}
+{% block title %}評閱｜任務 {{ sub.task_number }} - EAGLE 2.0 LMS{% endblock %}
 
 {% block content %}
 <style>
-    .back-link {
-        color: #2980b9;
-        text-decoration: none;
-        font-weight: bold;
-        margin-bottom: 2rem;
-        display: inline-block;
-    }
-
-    .back-link:hover {
-        text-decoration: underline;
-    }
-
-    .submission-display {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-    }
-
-    .submission-header {
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .submission-header h2 {
-        color: #1a5276;
-        margin-bottom: 1rem;
-    }
-
-    .submission-meta-grid {
+    /* ── 版面 ─────────────────────────────────────────────────────── */
+    .review-layout {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
+        grid-template-columns: 1fr 420px;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 960px) {
+        .review-layout { grid-template-columns: 1fr; }
     }
 
-    .meta-item {
-        background: #f9f9f9;
-        padding: 1rem;
-        border-radius: 4px;
+    /* ── 頁首 ─────────────────────────────────────────────────────── */
+    .review-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 1.8rem 2rem; border-radius: 8px;
+        margin-bottom: 1.5rem; grid-column: 1 / -1;
+        display: flex; justify-content: space-between;
+        align-items: flex-start; flex-wrap: wrap; gap: 1rem;
+    }
+    .review-header h1 { font-size: 1.5rem; margin: 0 0 0.3rem; }
+    .meta-chips { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.5rem; }
+    .chip {
+        background: rgba(255,255,255,0.2); padding: 0.2rem 0.65rem;
+        border-radius: 12px; font-size: 0.82rem;
     }
 
-    .meta-label {
-        font-size: 0.85rem;
-        color: #999;
-        text-transform: uppercase;
-        margin-bottom: 0.25rem;
+    /* ── 內容卡片 ─────────────────────────────────────────────────── */
+    .content-card {
+        background: #fff; border-radius: 8px; padding: 1.6rem 1.8rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 1.2rem;
     }
-
-    .meta-value {
-        font-size: 1rem;
-        color: #1a5276;
-        font-weight: 600;
-    }
-
-    .content-section {
-        margin-bottom: 2rem;
-    }
-
-    .section-title {
-        color: #1a5276;
-        font-size: 1.2rem;
-        border-bottom: 2px solid #2980b9;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1rem;
-    }
-
-    .content-text {
-        background: #f9f9f9;
-        padding: 1.5rem;
-        border-radius: 4px;
-        line-height: 1.8;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .ai-feedback-box {
-        border-left: 4px solid #ffc107;
-        padding: 1.5rem;
-        background: #fff3cd;
-        border-radius: 4px;
-        margin-bottom: 1rem;
-    }
-
-    .ai-feedback-box strong {
-        color: #856404;
-    }
-
-    .ai-suggestion-box {
-        border-left: 4px solid #17a2b8;
-        padding: 1.5rem;
-        background: #d1ecf1;
-        border-radius: 4px;
-    }
-
-    .review-form {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .review-form h2 {
-        color: #1a5276;
+    .card-title {
+        font-size: 1.05rem; color: #1a5276; font-weight: 700;
         border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem; margin-bottom: 1.1rem;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .section-badge {
+        background: #2980b9; color: #fff;
+        padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem;
     }
 
-    .form-section {
-        margin-bottom: 1.5rem;
+    /* ── QA 顯示 ──────────────────────────────────────────────────── */
+    .qa-item { margin-bottom: 1.3rem; }
+    .qa-q {
+        font-weight: 600; color: #1a5276;
+        margin-bottom: 0.4rem; font-size: 0.93rem; line-height: 1.5;
+        display: flex; gap: 0.5rem;
+    }
+    .qa-num {
+        display: inline-flex; align-items: center; justify-content: center;
+        background: #1a5276; color: #fff;
+        min-width: 1.5rem; height: 1.5rem; border-radius: 50%;
+        font-size: 0.72rem; flex-shrink: 0;
+    }
+    .qa-a {
+        background: #f7f9fc; border-left: 3px solid #2980b9;
+        padding: 0.65rem 0.9rem; border-radius: 0 4px 4px 0;
+        font-size: 0.92rem; line-height: 1.7; white-space: pre-wrap;
+        color: #333;
+    }
+    .qa-empty { color: #bbb; font-style: italic; }
+
+    /* ── 檢核清單 ─────────────────────────────────────────────────── */
+    .cl-item {
+        display: flex; align-items: flex-start; gap: 0.6rem;
+        padding: 0.65rem 0.8rem; border-radius: 5px;
+        margin-bottom: 0.4rem; font-size: 0.9rem; line-height: 1.5;
+    }
+    .cl-checked   { background: #eaf4ec; }
+    .cl-unchecked { background: #fafafa; color: #aaa; }
+    .cl-note {
+        font-size: 0.82rem; color: #666; margin-top: 0.25rem;
+        background: rgba(0,0,0,0.04); padding: 0.2rem 0.5rem; border-radius: 3px;
     }
 
-    .form-hint {
-        font-size: 0.85rem;
-        color: #999;
-        margin-top: 0.25rem;
+    /* ── 任務產出 ─────────────────────────────────────────────────── */
+    .dv-block {
+        border: 1px solid #e8e8e8; border-radius: 6px;
+        padding: 1rem 1.2rem; margin-bottom: 0.8rem;
     }
-
-    .form-actions {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
+    .dv-block h4 {
+        color: #1a5276; font-size: 0.93rem;
+        margin-bottom: 0.5rem;
     }
-
-    .form-actions .btn {
-        flex: 1;
+    .dv-text {
+        background: #f7f9fc; border-left: 2px solid #2980b9;
+        padding: 0.6rem 0.8rem; white-space: pre-wrap;
+        font-size: 0.9rem; line-height: 1.7;
     }
-
-    @media (max-width: 768px) {
-        .submission-display,
-        .review-form {
-            padding: 1.5rem;
-        }
-
-        .submission-meta-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .form-actions {
-            flex-direction: column;
-        }
+    .file-link {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        background: #eaf4ec; color: #27ae60;
+        padding: 0.3rem 0.7rem; border-radius: 4px;
+        text-decoration: none; font-size: 0.85rem;
     }
+    .file-link:hover { background: #d4edd9; }
+
+    /* ── AI 回饋 ──────────────────────────────────────────────────── */
+    .ai-box {
+        background: #e8f4f8; border-left: 4px solid #2980b9;
+        border-radius: 0 6px 6px 0; padding: 1rem 1.2rem;
+        margin-bottom: 1rem;
+    }
+    .ai-box h4 { color: #1a5276; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .ai-box pre { white-space: pre-wrap; font-family: inherit; font-size: 0.88rem; line-height: 1.7; }
+    .suggest-box {
+        background: #fff8e1; border-left: 4px solid #f39c12;
+        border-radius: 0 6px 6px 0; padding: 1rem 1.2rem; margin-bottom: 1rem;
+    }
+    .suggest-box h4 { color: #7d5a00; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .suggest-box pre { white-space: pre-wrap; font-family: inherit; font-size: 0.88rem; line-height: 1.7; }
+
+    /* ── 右側評閱表單（sticky） ────────────────────────────────────── */
+    .review-panel {
+        position: sticky; top: 1rem;
+    }
+    .review-form-card {
+        background: #fff; border-radius: 8px; padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .review-form-card h2 {
+        color: #1a5276; font-size: 1.05rem;
+        border-bottom: 3px solid #e74c3c;
+        padding-bottom: 0.5rem; margin-bottom: 1.2rem;
+    }
+    .form-group { margin-bottom: 1.1rem; }
+    .form-group label {
+        display: block; font-weight: 600; color: #444;
+        font-size: 0.9rem; margin-bottom: 0.4rem;
+    }
+    textarea.review-textarea {
+        width: 100%; min-height: 160px; padding: 0.7rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-family: inherit; font-size: 0.9rem; resize: vertical;
+    }
+    textarea.review-textarea:focus {
+        outline: none; border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231,76,60,0.08);
+    }
+    input.score-input {
+        width: 100%; padding: 0.6rem;
+        border: 1px solid #ddd; border-radius: 4px; font-size: 0.95rem;
+    }
+    input.score-input:focus {
+        outline: none; border-color: #e74c3c;
+        box-shadow: 0 0 0 3px rgba(231,76,60,0.08);
+    }
+    .publish-label {
+        display: flex; align-items: center; gap: 0.5rem;
+        font-size: 0.9rem; cursor: pointer;
+        background: #fff3cd; padding: 0.6rem 0.8rem; border-radius: 4px;
+    }
+    .publish-label input { width: 1rem; height: 1rem; accent-color: #e67e22; }
+    .hint { font-size: 0.8rem; color: #aaa; margin-top: 0.25rem; }
+    .form-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1.2rem; }
+    .form-actions .btn { width: 100%; text-align: center; }
+    .fill-btn {
+        background: none; border: 1px dashed #2980b9; color: #2980b9;
+        padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 0.82rem;
+        cursor: pointer; width: 100%; text-align: center; margin-bottom: 0.5rem;
+    }
+    .fill-btn:hover { background: #e8f4f8; }
 </style>
 
-<a href="{{ url_for('teacher_task_submissions', task_number=submission.task_number) }}" class="back-link">← 回到提交列表</a>
-
-<div class="submission-display">
-    <div class="submission-header">
-        <h2>學生提交詳情</h2>
-        <div class="submission-meta-grid">
-            <div class="meta-item">
-                <div class="meta-label">學號</div>
-                <div class="meta-value">{{ submission.student_id }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">學生姓名</div>
-                <div class="meta-value">{{ submission.student_name }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">任務</div>
-                <div class="meta-value">任務 {{ submission.task_number }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">提交時間</div>
-                <div class="meta-value">{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="content-section">
-        <div class="section-title">學生提交內容</div>
-        <div class="content-text">{{ submission.content }}</div>
-    </div>
-
-    {% if submission.ai_feedback %}
-        <div class="content-section">
-            <div class="section-title">AI 回饋與建議</div>
-            <div class="ai-feedback-box">
-                <strong>AI 回饋：</strong>
-                <p>{{ submission.ai_feedback }}</p>
-            </div>
-            {% if submission.ai_suggestion %}
-                <div class="ai-suggestion-box">
-                    <strong>AI 給教師的評閱建議：</strong>
-                    <p>{{ submission.ai_suggestion }}</p>
-                </div>
+{# ── 頁首（跨欄） ── #}
+<div class="review-header" style="grid-column: 1 / -1;">
+    <div>
+        <h1>評閱｜任務 {{ sub.task_number }}：{{ task_def.name }}</h1>
+        <div class="meta-chips">
+            <span class="chip">👤 {{ sub.author.name }}（{{ sub.author.student_id }}）</span>
+            <span class="chip">🏫 {{ sub.author.class_group }} 班</span>
+            <span class="chip">🕐 {{ sub.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="chip">v{{ sub.task_version }}</span>
+            {% if existing_review %}
+                <span class="chip" style="background:rgba(39,174,96,0.3);">✅ 已評閱</span>
             {% endif %}
         </div>
-    {% endif %}
+    </div>
+    <a href="{{ url_for('teacher_task_submissions', task_number=sub.task_number) }}"
+       style="color:#fff;text-decoration:none;opacity:0.85;font-size:0.9rem;">← 返回列表</a>
 </div>
 
-<div class="review-form">
-    <h2>教師評閱</h2>
-    <form method="POST" action="{{ url_for('teacher_review', submission_id=submission.id) }}">
-        <div class="form-section">
-            <label for="feedback">評閱意見 *</label>
-            <textarea id="feedback" name="feedback" required placeholder="請輸入你對學生此份提交的評閱意見...">{% if existing_review %}{{ existing_review.teacher_review }}{% endif %}</textarea>
-            <div class="form-hint">請以建設性、鼓勵性的方式提供回饋。建議 100-300 字</div>
+<div class="review-layout">
+    {# ══════════════════════════════════════════════════════════
+       左欄：學生提交內容
+    ══════════════════════════════════════════════════════════ #}
+    <div>
+
+        {# ── 一、提示問題 ── #}
+        <div class="content-card">
+            <div class="card-title">
+                <span class="section-badge">一</span> 提示問題回答
+            </div>
+            {% for pq in task_def.prompt_questions %}
+                <div class="qa-item">
+                    <div class="qa-q">
+                        <span class="qa-num">{{ loop.index }}</span>
+                        <span>{{ pq.text }}</span>
+                    </div>
+                    {% set ans = pq_map.get(pq.id, '') %}
+                    {% if ans | trim %}
+                        <div class="qa-a">{{ ans }}</div>
+                    {% else %}
+                        <div class="qa-a qa-empty">（未作答）</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
 
-        <div class="form-section">
-            <label for="score">評分 (0-100) *</label>
-            <input type="number" id="score" name="score" min="0" max="100" required value="{% if existing_review %}{{ existing_review.teacher_score }}{% endif %}">
-            <div class="form-hint">根據學生的表現評分，100 分為滿分</div>
+        {# ── 二、自我檢核 ── #}
+        <div class="content-card">
+            {% set checked_count = namespace(n=0) %}
+            {% for cl in task_def.checklist_items %}
+                {% set cr = cl_map.get(cl.id) %}
+                {% if cr and cr.checked %}{% set checked_count.n = checked_count.n + 1 %}{% endif %}
+            {% endfor %}
+            <div class="card-title">
+                <span class="section-badge">二</span> 自我檢核
+                <span style="font-size:0.82rem;color:#888;font-weight:normal;">
+                    {{ checked_count.n }}/{{ task_def.checklist_items | length }} 已勾
+                </span>
+            </div>
+            {% for cl in task_def.checklist_items %}
+                {% set cr = cl_map.get(cl.id) %}
+                {% set is_chk = cr and cr.checked %}
+                <div class="cl-item {% if is_chk %}cl-checked{% else %}cl-unchecked{% endif %}">
+                    <span style="font-size:1rem;flex-shrink:0;">{% if is_chk %}✅{% else %}⬜{% endif %}</span>
+                    <div>
+                        {{ loop.index }}. {{ cl.text }}
+                        {% if cr and cr.note | trim %}
+                            <div class="cl-note">📝 {{ cr.note }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
         </div>
 
-        <div class="form-section">
-            <label for="publish">
-                <input type="checkbox" id="publish" name="publish" {% if existing_review %}checked{% endif %}>
-                發送給學生（學生將看到此評閱）
-            </label>
+        {# ── 三、當責反思 ── #}
+        <div class="content-card">
+            <div class="card-title">
+                <span class="section-badge">三</span> 當責反思
+            </div>
+            {% for rq in task_def.reflection_questions %}
+                <div class="qa-item">
+                    <div class="qa-q">
+                        <span class="qa-num">{{ loop.index }}</span>
+                        <span>{{ rq.text }}</span>
+                    </div>
+                    {% set ans = rq_map.get(rq.id, '') %}
+                    {% if ans | trim %}
+                        <div class="qa-a">{{ ans }}</div>
+                    {% else %}
+                        <div class="qa-a qa-empty">（未作答）</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">提交評閱</button>
-            <a href="{{ url_for('teacher_task_submissions', task_number=submission.task_number) }}" class="btn btn-outline">取消</a>
+        {# ── 四、任務產出 ── #}
+        <div class="content-card">
+            <div class="card-title">
+                <span class="section-badge">四</span> 任務產出
+            </div>
+            {% for dv in task_def.deliverables %}
+                {% set du = du_map.get(dv.id) %}
+                <div class="dv-block">
+                    <h4>{{ loop.index }}. {{ dv.label }}
+                        <span style="font-size:0.78rem;color:#888;">({{ dv.type }})</span>
+                    </h4>
+                    {% if du %}
+                        {% if dv.accept_text and du.content | trim %}
+                            <div class="dv-text">{{ du.content }}</div>
+                        {% endif %}
+                        {% if dv.accept_file and du.file_name %}
+                            <a href="{{ url_for('download_deliverable_file',
+                                               submission_id=sub.id,
+                                               deliverable_id=dv.id) }}"
+                               class="file-link" style="margin-top:0.5rem;display:inline-flex;">
+                                📎 {{ du.file_name }}
+                            </a>
+                        {% endif %}
+                        {% if not (dv.accept_text and du.content | trim) and not (dv.accept_file and du.file_name) %}
+                            <span style="color:#bbb;font-style:italic;font-size:0.88rem;">（未提交）</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:#bbb;font-style:italic;font-size:0.88rem;">（未提交）</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
-    </form>
-</div>
+
+        {# ── AI 回饋 ── #}
+        {% if ai_feedback %}
+            <div class="ai-box">
+                <h4>🤖 AI 助教回饋
+                    <span style="font-weight:normal;color:#666;">
+                        （{{ ai_feedback.created_at.strftime('%Y-%m-%d %H:%M') }}）
+                    </span>
+                </h4>
+                <pre>{{ ai_feedback.feedback }}</pre>
+            </div>
+        {% endif %}
+
+        {# ── AI 給教師的評閱建議 ── #}
+        {% if ai_suggestion %}
+            <div class="suggest-box">
+                <h4>💡 AI 給教師的評閱建議（僅教師可見）</h4>
+                <pre>{{ ai_suggestion }}</pre>
+            </div>
+        {% endif %}
+
+    </div>{# end 左欄 #}
+
+    {# ══════════════════════════════════════════════════════════
+       右欄（sticky）：評閱表單
+    ══════════════════════════════════════════════════════════ #}
+    <div class="review-panel">
+        <div class="review-form-card">
+            <h2>✏️ {% if existing_review %}修改評閱{% else %}填寫評閱{% endif %}</h2>
+
+            <form method="POST"
+                  action="{{ url_for('teacher_review', submission_id=sub.id) }}"
+                  id="review-form">
+
+                <div class="form-group">
+                    <label for="feedback">評閱意見 *</label>
+                    {# 一鍵填入 AI 建議 #}
+                    {% if ai_suggestion %}
+                        <button type="button" class="fill-btn"
+                                onclick="fillFromAI()">⚡ 以 AI 建議為底稿</button>
+                    {% endif %}
+                    <textarea id="feedback" name="feedback"
+                              class="review-textarea"
+                              placeholder="請以建設性、鼓勵性的方式提供回饋…"
+                              required>{% if existing_review %}{{ existing_review.feedback }}{% endif %}</textarea>
+                    <div class="hint">建議 100–300 字</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="score">評分（0–100）</label>
+                    <input type="number" id="score" name="score"
+                           class="score-input"
+                           min="0" max="100" step="0.5"
+                           placeholder="選填"
+                           value="{% if existing_review and existing_review.score is not none %}{{ existing_review.score }}{% endif %}">
+                    <div class="hint">留空表示不評分</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="publish-label">
+                        <input type="checkbox" name="publish"
+                               {% if existing_review and existing_review.published %}checked{% endif %}>
+                        發布給學生（學生即可看到此評閱）
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-accent"
+                            id="submit-btn">
+                        {% if existing_review %}💾 更新評閱{% else %}📤 提交評閱{% endif %}
+                    </button>
+                    <a href="{{ url_for('teacher_task_submissions', task_number=sub.task_number) }}"
+                       class="btn btn-outline">取消</a>
+                </div>
+            </form>
+        </div>
+
+        {# 先前評閱紀錄摘要 #}
+        {% if existing_review %}
+            <div style="margin-top:1rem;background:#fff;border-radius:8px;
+                        padding:1.1rem 1.3rem;box-shadow:0 2px 6px rgba(0,0,0,0.07);
+                        font-size:0.85rem;color:#666;">
+                <strong>上次評閱：</strong>{{ existing_review.reviewed_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                <strong>是否發布：</strong>
+                {% if existing_review.published %}
+                    <span style="color:#27ae60;">✅ 已發布</span>
+                {% else %}
+                    <span style="color:#e67e22;">⬜ 未發布</span>
+                {% endif %}
+                {% if existing_review.score is not none %}
+                    <br><strong>評分：</strong>{{ existing_review.score }} 分
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>{# end 右欄 #}
+
+</div>{# end .review-layout #}
+
+<script>
+{% if ai_suggestion %}
+const AI_SUGGESTION = {{ ai_suggestion | tojson }};
+function fillFromAI() {
+    const ta = document.getElementById('feedback');
+    if (!ta.value.trim() || confirm('目前已有內容，確定以 AI 建議覆蓋？')) {
+        ta.value = AI_SUGGESTION;
+        ta.focus();
+    }
+}
+{% endif %}
+
+document.getElementById('review-form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
+});
+</script>
 {% endblock %}

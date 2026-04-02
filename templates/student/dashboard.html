@@ -4,308 +4,294 @@
 
 {% block content %}
 <style>
+    /* ── 歡迎列 ────────────────────────────────────────────────── */
     .welcome-section {
         background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
-        color: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        margin-bottom: 3rem;
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+    }
+    .welcome-section h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+    .progress-bar-row { margin-top: 1rem; }
+    .progress-label { font-size: 0.88rem; opacity: 0.85; margin-bottom: 0.4rem; }
+    .progress-bar {
+        background: rgba(255,255,255,0.25); border-radius: 8px;
+        height: 10px; overflow: hidden;
+    }
+    .progress-fill {
+        background: #fff; height: 100%; border-radius: 8px;
+        transition: width 0.4s ease;
     }
 
-    .welcome-section h1 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
+    /* ── 區段標題 ───────────────────────────────────────────────── */
+    .section-heading {
+        font-size: 1.2rem; color: #1a5276; font-weight: 700;
+        border-left: 4px solid #2980b9; padding-left: 0.75rem;
+        margin: 2rem 0 1rem;
     }
 
+    /* ── 任務卡片網格 ───────────────────────────────────────────── */
     .task-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 2rem;
-        margin-bottom: 3rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.2rem; margin-bottom: 0.5rem;
     }
-
     .task-card {
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.3s, box-shadow 0.3s;
+        background: #fff; border-radius: 8px; overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex; flex-direction: column;
     }
-
-    .task-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
+    .task-card:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
 
     .task-card-header {
+        padding: 1.2rem 1.4rem; color: #fff;
         background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
-        color: #fff;
-        padding: 1.5rem;
     }
+    .task-card-header.reviewed  { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
+    .task-card-header.submitted { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); }
+    .task-card-header.pending   { background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%); }
 
-    .task-card-header h3 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1.3rem;
+    .task-num-badge {
+        font-size: 0.78rem; background: rgba(255,255,255,0.22);
+        padding: 0.15rem 0.55rem; border-radius: 10px; margin-right: 0.5rem;
     }
+    .task-card-header h3 { font-size: 1.05rem; margin: 0.4rem 0 0; }
 
-    .task-number {
-        display: inline-block;
-        background-color: rgba(255,255,255,0.2);
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-    }
+    .task-card-body { padding: 1.1rem 1.4rem; flex: 1; display: flex; flex-direction: column; }
+    .task-week { font-size: 0.82rem; color: #888; margin-bottom: 0.6rem; }
 
-    .task-card-body {
-        padding: 1.5rem;
+    .status-pill {
+        display: inline-block; padding: 0.3rem 0.75rem;
+        border-radius: 20px; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.8rem;
     }
+    .pill-reviewed  { background: #d4edda; color: #155724; }
+    .pill-submitted { background: #d1ecf1; color: #0c5460; }
+    .pill-pending   { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
 
-    .submission-count {
-        font-size: 0.95rem;
-        color: #666;
-        margin-bottom: 1rem;
-    }
+    .task-updated { font-size: 0.8rem; color: #aaa; margin-bottom: 0.8rem; }
+    .task-card-action { margin-top: auto; padding-top: 0.8rem; }
+    .task-card-action .btn { width: 100%; text-align: center; }
 
-    .submission-count strong {
-        color: #1a5276;
-        font-size: 1.3rem;
+    /* ── 學習日誌列表 ───────────────────────────────────────────── */
+    .journal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem; margin-bottom: 0.5rem;
     }
+    .journal-card {
+        background: #fff; border-radius: 8px; padding: 1.1rem 1.3rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+        border-top: 4px solid #e0e0e0;
+        transition: transform 0.2s;
+    }
+    .journal-card:hover { transform: translateY(-2px); }
+    .journal-card.done  { border-top-color: #27ae60; }
+    .journal-card.open  { border-top-color: #2980b9; }
+    .journal-title { font-weight: 600; color: #1a5276; font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .journal-meta  { font-size: 0.82rem; color: #888; margin-bottom: 0.7rem; }
 
-    .status-badge {
-        display: inline-block;
-        padding: 0.4rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin-right: 0.5rem;
+    /* ── 問卷列表 ────────────────────────────────────────────────── */
+    .questionnaire-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .q-card {
+        background: #fff; border-radius: 8px; padding: 1rem 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 0.75rem;
     }
+    .q-card.completed { border-left: 4px solid #27ae60; }
+    .q-card.open      { border-left: 4px solid #f39c12; }
+    .q-name  { font-weight: 600; color: #1a5276; }
+    .q-timing { font-size: 0.85rem; color: #888; margin-top: 0.15rem; }
 
-    .status-pending {
-        background-color: #fff3cd;
-        color: #856404;
+    /* ── 整體進度摘要 ─────────────────────────────────────────────── */
+    .summary-row {
+        display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
     }
-
-    .status-submitted {
-        background-color: #d1ecf1;
-        color: #0c5460;
+    .summary-box {
+        flex: 1; min-width: 130px;
+        background: #fff; border-radius: 8px; padding: 1rem 1.2rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07); text-align: center;
     }
-
-    .status-reviewed {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .task-action {
-        margin-top: 1.5rem;
-    }
-
-    .task-action .btn {
-        width: 100%;
-    }
-
-    .submissions-section {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .submissions-section h2 {
-        color: #1a5276;
-        margin-bottom: 1.5rem;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-    }
-
-    .submission-item {
-        border-left: 4px solid #2980b9;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        background: #f9f9f9;
-        border-radius: 4px;
-        transition: background-color 0.3s;
-    }
-
-    .submission-item:hover {
-        background-color: #f0f4f8;
-    }
-
-    .submission-item h4 {
-        margin: 0 0 0.5rem 0;
-        color: #1a5276;
-    }
-
-    .submission-meta {
-        font-size: 0.9rem;
-        color: #666;
-        margin-bottom: 0.5rem;
-    }
-
-    .submission-type {
-        display: inline-block;
-        padding: 0.3rem 0.6rem;
-        background-color: #e8f4f8;
-        color: #2980b9;
-        border-radius: 3px;
-        font-size: 0.85rem;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem 2rem;
-        color: #999;
-    }
-
-    .empty-state p {
-        margin-bottom: 1.5rem;
-    }
+    .summary-box .s-label { font-size: 0.78rem; color: #888; }
+    .summary-box .s-value { font-size: 1.6rem; font-weight: 700; color: #1a5276; line-height: 1.3; }
+    .summary-box .s-total { font-size: 0.82rem; color: #aaa; }
 
     @media (max-width: 768px) {
-        .welcome-section h1 {
-            font-size: 1.5rem;
-        }
-
-        .task-grid {
-            grid-template-columns: 1fr;
-        }
+        .welcome-section h1 { font-size: 1.4rem; }
+        .task-grid  { grid-template-columns: 1fr; }
+        .journal-grid { grid-template-columns: repeat(2, 1fr); }
     }
 </style>
 
+{# ── 統計準備 ── #}
+{% set submitted_tasks = namespace(n=0) %}
+{% set reviewed_tasks  = namespace(n=0) %}
+{% for t_num, ts in task_status.items() %}
+    {% if ts.submitted %}{% set submitted_tasks.n = submitted_tasks.n + 1 %}{% endif %}
+    {% if ts.reviewed  %}{% set reviewed_tasks.n  = reviewed_tasks.n  + 1 %}{% endif %}
+{% endfor %}
+{% set total_tasks = task_status | length %}
+
+{% set submitted_journals = namespace(n=0) %}
+{% for j_num, js in journal_status.items() %}
+    {% if js.submitted %}{% set submitted_journals.n = submitted_journals.n + 1 %}{% endif %}
+{% endfor %}
+{% set total_journals = journal_status | length %}
+
+{% set completed_q = completed_q_codes | length %}
+{% set total_q     = active_questionnaires | length %}
+
+{# ── 歡迎列 ── #}
 <div class="welcome-section">
     <h1>歡迎，{{ current_user.name }}！</h1>
-    <p>你目前是 <strong>{{ current_user.class_group }}</strong> 班級的學生</p>
-</div>
-
-<div class="task-grid">
-    <!-- 任務 1 -->
-    <div class="task-card">
-        <div class="task-card-header">
-            <h3>任務 1</h3>
-            <span class="task-number">專案建立</span>
-        </div>
-        <div class="task-card-body">
-            <div class="submission-count">
-                已提交 <strong>{{ task_status.get(1, {}).get('submissions', 0) }}</strong> 份
+    <p style="opacity:0.85;">
+        {{ current_user.class_group }} 班・學號 {{ current_user.student_id }}
+    </p>
+    {% set total_items = total_tasks + total_journals + total_q %}
+    {% set done_items  = submitted_tasks.n + submitted_journals.n + completed_q %}
+    {% if total_items > 0 %}
+        <div class="progress-bar-row">
+            <div class="progress-label">
+                學期整體完成度：{{ done_items }}/{{ total_items }} 項已提交
             </div>
-            <div class="status-badge {{ 'status-reviewed' if task_status.get(1, {}).get('reviewed', 0) > 0 else 'status-submitted' if task_status.get(1, {}).get('submissions', 0) > 0 else 'status-pending' }}">
-                {% if task_status.get(1, {}).get('reviewed', 0) > 0 %}
-                    已評閱
-                {% elif task_status.get(1, {}).get('submissions', 0) > 0 %}
-                    已提交
-                {% else %}
-                    未提交
-                {% endif %}
+            <div class="progress-bar">
+                <div class="progress-fill"
+                     style="width:{{ (done_items / total_items * 100) | int }}%;"></div>
             </div>
-            <div class="task-action">
-                <a href="{{ url_for('view_task', task_number=1) }}" class="btn btn-primary">進入任務</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- 任務 2 -->
-    <div class="task-card">
-        <div class="task-card-header">
-            <h3>任務 2</h3>
-            <span class="task-number">施工日誌填寫</span>
-        </div>
-        <div class="task-card-body">
-            <div class="submission-count">
-                已提交 <strong>{{ task_status.get(2, {}).get('submissions', 0) }}</strong> 份
-            </div>
-            <div class="status-badge {{ 'status-reviewed' if task_status.get(2, {}).get('reviewed', 0) > 0 else 'status-submitted' if task_status.get(2, {}).get('submissions', 0) > 0 else 'status-pending' }}">
-                {% if task_status.get(2, {}).get('reviewed', 0) > 0 %}
-                    已評閱
-                {% elif task_status.get(2, {}).get('submissions', 0) > 0 %}
-                    已提交
-                {% else %}
-                    未提交
-                {% endif %}
-            </div>
-            <div class="task-action">
-                <a href="{{ url_for('view_task', task_number=2) }}" class="btn btn-primary">進入任務</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- 任務 3 -->
-    <div class="task-card">
-        <div class="task-card-header">
-            <h3>任務 3</h3>
-            <span class="task-number">工程進度計算</span>
-        </div>
-        <div class="task-card-body">
-            <div class="submission-count">
-                已提交 <strong>{{ task_status.get(3, {}).get('submissions', 0) }}</strong> 份
-            </div>
-            <div class="status-badge {{ 'status-reviewed' if task_status.get(3, {}).get('reviewed', 0) > 0 else 'status-submitted' if task_status.get(3, {}).get('submissions', 0) > 0 else 'status-pending' }}">
-                {% if task_status.get(3, {}).get('reviewed', 0) > 0 %}
-                    已評閱
-                {% elif task_status.get(3, {}).get('submissions', 0) > 0 %}
-                    已提交
-                {% else %}
-                    未提交
-                {% endif %}
-            </div>
-            <div class="task-action">
-                <a href="{{ url_for('view_task', task_number=3) }}" class="btn btn-primary">進入任務</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- 任務 4 -->
-    <div class="task-card">
-        <div class="task-card-header">
-            <h3>任務 4</h3>
-            <span class="task-number">自主查核表填寫</span>
-        </div>
-        <div class="task-card-body">
-            <div class="submission-count">
-                已提交 <strong>{{ task_status.get(4, {}).get('submissions', 0) }}</strong> 份
-            </div>
-            <div class="status-badge {{ 'status-reviewed' if task_status.get(4, {}).get('reviewed', 0) > 0 else 'status-submitted' if task_status.get(4, {}).get('submissions', 0) > 0 else 'status-pending' }}">
-                {% if task_status.get(4, {}).get('reviewed', 0) > 0 %}
-                    已評閱
-                {% elif task_status.get(4, {}).get('submissions', 0) > 0 %}
-                    已提交
-                {% else %}
-                    未提交
-                {% endif %}
-            </div>
-            <div class="task-action">
-                <a href="{{ url_for('view_task', task_number=4) }}" class="btn btn-primary">進入任務</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="submissions-section">
-    <h2>最近提交</h2>
-    {% if submissions %}
-        {% for submission in submissions[:10] %}
-            <div class="submission-item">
-                <h4>任務 {{ submission.task_number }}:
-                    {% if submission.task_number == 1 %}
-                        專案建立
-                    {% elif submission.task_number == 2 %}
-                        施工日誌填寫
-                    {% elif submission.task_number == 3 %}
-                        工程進度計算
-                    {% elif submission.task_number == 4 %}
-                        自主查核表填寫
-                    {% endif %}
-                </h4>
-                <div class="submission-meta">
-                    <span class="submission-type">{{ submission.submission_type }}</span>
-                    <span style="margin-left: 1rem;">提交於 {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                </div>
-                <a href="{{ url_for('view_submission', submission_id=submission.id) }}" style="color: #2980b9; text-decoration: none; font-weight: bold;">查看詳情 →</a>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div class="empty-state">
-            <p>尚未有任何提交</p>
-            <p>請選擇上方任務開始進行</p>
         </div>
     {% endif %}
 </div>
+
+{# ── 數字摘要 ── #}
+<div class="summary-row">
+    <div class="summary-box">
+        <div class="s-label">EAGLE 任務</div>
+        <div class="s-value">{{ submitted_tasks.n }}</div>
+        <div class="s-total">/ {{ total_tasks }} 項已提交</div>
+    </div>
+    <div class="summary-box">
+        <div class="s-label">教師已評閱</div>
+        <div class="s-value">{{ reviewed_tasks.n }}</div>
+        <div class="s-total">/ {{ total_tasks }} 份</div>
+    </div>
+    <div class="summary-box">
+        <div class="s-label">學習日誌</div>
+        <div class="s-value">{{ submitted_journals.n }}</div>
+        <div class="s-total">/ {{ total_journals }} 篇已撰寫</div>
+    </div>
+    <div class="summary-box">
+        <div class="s-label">問卷填答</div>
+        <div class="s-value">{{ completed_q }}</div>
+        <div class="s-total">/ {{ total_q }} 份已完成</div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   EAGLE 四大任務
+═══════════════════════════════════════════════════════════ #}
+<div class="section-heading">EAGLE 自主學習任務</div>
+<div class="task-grid">
+    {% for t_num, ts in task_status.items() | sort %}
+        {% if ts.reviewed %}
+            {% set header_cls = 'reviewed' %}
+            {% set pill_cls   = 'pill-reviewed' %}
+            {% set pill_text  = '✅ 已評閱' %}
+        {% elif ts.submitted %}
+            {% set header_cls = 'submitted' %}
+            {% set pill_cls   = 'pill-submitted' %}
+            {% set pill_text  = '🕐 待評閱' %}
+        {% else %}
+            {% set header_cls = 'pending' %}
+            {% set pill_cls   = 'pill-pending' %}
+            {% set pill_text  = '⬜ 未提交' %}
+        {% endif %}
+
+        <div class="task-card">
+            <div class="task-card-header {{ header_cls }}">
+                <div>
+                    <span class="task-num-badge">任務 {{ t_num }}</span>
+                </div>
+                <h3>{{ ts.name }}</h3>
+            </div>
+            <div class="task-card-body">
+                <div class="task-week">📅 開放週次：{{ ts.week_range }}</div>
+                <span class="status-pill {{ pill_cls }}">{{ pill_text }}</span>
+                {% if ts.updated_at %}
+                    <div class="task-updated">
+                        最後更新：{{ ts.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                {% endif %}
+                <div class="task-card-action">
+                    {% if ts.submitted and ts.submission_id %}
+                        <div style="display:flex;gap:0.5rem;">
+                            <a href="{{ url_for('view_task_submission', submission_id=ts.submission_id) }}"
+                               class="btn btn-outline btn-small" style="flex:1;text-align:center;">查看提交</a>
+                            <a href="{{ url_for('view_task', task_number=t_num) }}"
+                               class="btn btn-secondary btn-small" style="flex:1;text-align:center;">修改</a>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('view_task', task_number=t_num) }}"
+                           class="btn btn-primary">開始任務</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   學習日誌
+═══════════════════════════════════════════════════════════ #}
+<div class="section-heading">學習日誌</div>
+<div class="journal-grid">
+    {% for j_num, js in journal_status.items() | sort %}
+        <div class="journal-card {% if js.submitted %}done{% else %}open{% endif %}">
+            <div class="journal-title">
+                {% if js.submitted %}✅{% else %}📝{% endif %}
+                日誌 {{ j_num }}：{{ js.title }}
+            </div>
+            <div class="journal-meta">第 {{ js.week }} 週</div>
+            {% if js.submitted %}
+                <a href="{{ url_for('view_journal', journal_number=j_num) }}"
+                   class="btn btn-outline btn-small" style="width:100%;text-align:center;">查看 / 修改</a>
+            {% else %}
+                <a href="{{ url_for('view_journal', journal_number=j_num) }}"
+                   class="btn btn-primary btn-small" style="width:100%;text-align:center;">撰寫日誌</a>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   開放問卷
+═══════════════════════════════════════════════════════════ #}
+{% if active_questionnaires %}
+    <div class="section-heading">開放中的問卷</div>
+    <div class="questionnaire-list">
+        {% for q in active_questionnaires %}
+            {% set is_done = q.code in completed_q_codes %}
+            <div class="q-card {% if is_done %}completed{% else %}open{% endif %}">
+                <div>
+                    <div class="q-name">
+                        {% if is_done %}✅{% else %}📋{% endif %}
+                        {{ q.name }}
+                    </div>
+                    {% if q.timing %}
+                        <div class="q-timing">{{ q.timing }}</div>
+                    {% endif %}
+                </div>
+                {% if is_done %}
+                    <span class="status-pill pill-reviewed">已完成</span>
+                {% else %}
+                    <a href="{{ url_for('view_questionnaire', q_code=q.code) }}"
+                       class="btn btn-secondary btn-small">填寫問卷</a>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{# ── 版本資訊（頁尾小字） ── #}
+<p style="text-align:center;color:#bbb;font-size:0.8rem;margin-top:3rem;margin-bottom:1rem;">
+    EAGLE 2.0 LMS · 114-1 學期
+</p>
 {% endblock %}

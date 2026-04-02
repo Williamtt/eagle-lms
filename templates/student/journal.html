@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ j_def.title }} - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .journal-header {
+        background: linear-gradient(135deg, #1e8449 0%, #27ae60 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+    }
+    .journal-header h1 { font-size: 1.7rem; margin-bottom: 0.4rem; }
+    .journal-meta-row {
+        display: flex; flex-wrap: wrap; gap: 1.5rem;
+        font-size: 0.88rem; opacity: 0.9; margin-top: 0.7rem;
+    }
+
+    /* ── 提示問題卡 ─────────────────────────────────────────────── */
+    .prompt-card {
+        background: #eafaf1; border-left: 4px solid #27ae60;
+        border-radius: 0 8px 8px 0; padding: 1.2rem 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .prompt-card h3 { color: #1e8449; font-size: 0.95rem; margin-bottom: 0.6rem; }
+    .prompt-card pre {
+        white-space: pre-wrap; font-family: inherit;
+        font-size: 0.93rem; line-height: 1.8; color: #2d6a4f;
+    }
+
+    /* ── 表單卡 ─────────────────────────────────────────────────── */
+    .journal-form-card {
+        background: #fff; border-radius: 8px; padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 2rem;
+    }
+    .journal-form-card h2 {
+        font-size: 1.15rem; color: #1a5276;
+        border-bottom: 3px solid #27ae60;
+        padding-bottom: 0.5rem; margin-bottom: 1.3rem;
+    }
+
+    #content {
+        width: 100%; min-height: 320px; padding: 1rem;
+        border: 1px solid #ddd; border-radius: 6px;
+        font-family: inherit; font-size: 1rem; line-height: 1.8;
+        resize: vertical; transition: border-color 0.2s;
+    }
+    #content:focus {
+        outline: none; border-color: #27ae60;
+        box-shadow: 0 0 0 3px rgba(39,174,96,0.1);
+    }
+
+    .word-count {
+        text-align: right; font-size: 0.82rem; color: #aaa; margin-top: 0.4rem;
+    }
+    .word-count.warn  { color: #e67e22; }
+    .word-count.ok    { color: #27ae60; }
+
+    .submit-bar {
+        display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+        padding-top: 1.2rem; border-top: 1px solid #eee; margin-top: 0.5rem;
+    }
+    .submit-note { font-size: 0.84rem; color: #888; }
+
+    /* ── 已儲存預覽（唯讀模式） ─────────────────────────────────── */
+    .saved-content {
+        background: #f7f9f7; border-left: 3px solid #27ae60;
+        padding: 1rem 1.2rem; border-radius: 0 6px 6px 0;
+        white-space: pre-wrap; font-size: 0.97rem; line-height: 1.8;
+        color: #333;
+    }
+</style>
+
+{# ── 頁首 ── #}
+<div class="journal-header">
+    <h1>{{ j_def.title }}</h1>
+    <div class="journal-meta-row">
+        <span>📅 第 {{ j_def.week }} 週</span>
+        <span>📓 學習日誌 {{ j_def.journal_number }}/5</span>
+        {% if existing %}
+            <span style="background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:4px;">
+                ✅ 已儲存・{{ existing.updated_at.strftime('%Y-%m-%d %H:%M') }}
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 提示問題 ── #}
+<div class="prompt-card">
+    <h3>📌 撰寫提示（參考用，非必須逐題回答）</h3>
+    <pre>{{ j_def.prompt }}</pre>
+</div>
+
+{# ── 撰寫 / 修改表單 ── #}
+<div class="journal-form-card">
+    <h2>{% if existing %}修改日誌內容{% else %}撰寫學習日誌{% endif %}</h2>
+
+    <form method="POST"
+          action="{{ url_for('view_journal', journal_number=j_def.journal_number) }}"
+          id="journal-form">
+
+        <textarea id="content" name="content"
+                  placeholder="請在此記錄你的學習心得與反思…&#10;&#10;參考提示問題，描述你在這個階段的學習歷程、遇到的挑戰、以及對工程實務或當責態度的理解與體會。&#10;建議字數：150–400 字。"
+                  required>{{ existing.content if existing else '' }}</textarea>
+
+        <div class="word-count" id="word-count">0 字</div>
+
+        <div class="submit-bar">
+            <button type="submit" class="btn btn-success"
+                    style="font-size:1.05rem;padding:0.85rem 2rem;"
+                    id="submit-btn">
+                {% if existing %}💾 更新日誌{% else %}📤 儲存日誌{% endif %}
+            </button>
+            <a href="{{ url_for('journal_list') }}" class="btn btn-outline">返回日誌清單</a>
+            <span class="submit-note">
+                ⚠ 日誌可多次修改，建議認真記錄真實的學習感受。
+            </span>
+        </div>
+    </form>
+</div>
+
+{# ── 上次儲存的版本（有既存內容時顯示，讓學生對照）── #}
+{% if existing %}
+    <div style="background:#fff;border-radius:8px;padding:1.5rem 2rem;
+                box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:2rem;">
+        <h3 style="color:#1e8449;font-size:1rem;margin-bottom:0.8rem;
+                   border-bottom:2px solid #27ae60;padding-bottom:0.4rem;">
+            📄 上次儲存的內容
+            <span style="font-size:0.82rem;color:#888;font-weight:normal;">
+                （{{ existing.updated_at.strftime('%Y-%m-%d %H:%M') }}）
+            </span>
+        </h3>
+        <div class="saved-content">{{ existing.content }}</div>
+    </div>
+{% endif %}
+
+<script>
+/* ── 字數統計 ──────────────────────────────────────────────── */
+(function() {
+    const ta    = document.getElementById('content');
+    const count = document.getElementById('word-count');
+    if (!ta || !count) return;
+
+    function update() {
+        const len = ta.value.replace(/\s/g, '').length;
+        count.textContent = len + ' 字';
+        count.className = 'word-count';
+        if (len < 100) {
+            count.className += ' warn';
+        } else if (len >= 150) {
+            count.className += ' ok';
+        }
+    }
+
+    ta.addEventListener('input', update);
+    update();
+})();
+
+/* ── 防止重複提交 ─────────────────────────────────────────── */
+document.getElementById('journal-form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
+});
+</script>
+{% endblock %}

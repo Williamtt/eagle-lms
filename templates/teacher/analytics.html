@@ -1,256 +1,269 @@
 {% extends 'base.html' %}
 
-{% block title %}AI 分析 - EAGLE 2.0 LMS{% endblock %}
+{% block title %}學習分析 - EAGLE 2.0 LMS{% endblock %}
 
 {% block content %}
 <style>
     .page-header {
         background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
-        color: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 1rem;
     }
+    .page-header h1 { margin: 0; font-size: 1.7rem; }
 
-    .page-header h1 {
-        margin: 0;
-    }
-
-    .back-link {
-        color: #fff;
-        text-decoration: none;
-        font-weight: bold;
-    }
-
-    .back-link:hover {
-        opacity: 0.8;
-    }
-
+    /* ── 任務切換 ─────────────────────────────────────────────────── */
     .task-selector {
-        background: #fff;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
+        background: #fff; padding: 1.2rem 1.5rem; border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07); margin-bottom: 1.5rem;
+        display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
     }
-
-    .task-selector h2 {
-        color: #1a5276;
-        margin-bottom: 1rem;
-        font-size: 1.1rem;
+    .task-selector span { font-size: 0.9rem; color: #888; }
+    .task-btn {
+        padding: 0.5rem 1.1rem; border-radius: 20px; font-size: 0.9rem;
+        font-weight: 600; text-decoration: none;
+        border: 2px solid #2980b9; color: #2980b9; background: #fff;
+        transition: all 0.2s;
     }
+    .task-btn:hover { background: #2980b9; color: #fff; }
+    .task-btn.active { background: #2980b9; color: #fff; }
 
-    .task-buttons {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-    }
-
-    .task-button {
-        padding: 1rem;
-        background-color: #f0f4f8;
-        border: 2px solid #2980b9;
-        border-radius: 4px;
-        text-decoration: none;
-        color: #1a5276;
-        font-weight: bold;
-        text-align: center;
-        transition: all 0.3s;
-        cursor: pointer;
-    }
-
-    .task-button:hover {
-        background-color: #2980b9;
-        color: #fff;
-    }
-
-    .task-button.active {
-        background-color: #2980b9;
-        color: #fff;
-    }
-
-    .analysis-card {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-    }
-
-    .analysis-card h2 {
-        color: #1a5276;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .analysis-content {
-        line-height: 1.8;
-        color: #333;
-    }
-
-    .analysis-content p {
-        margin-bottom: 1rem;
-    }
-
-    .analysis-content ul,
-    .analysis-content ol {
-        margin-left: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .analysis-content li {
-        margin-bottom: 0.5rem;
-    }
-
+    /* ── 統計方格 ─────────────────────────────────────────────────── */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem; margin-bottom: 1.5rem;
     }
-
     .stat-box {
-        background: #f9f9f9;
-        padding: 1.5rem;
-        border-radius: 4px;
-        text-align: center;
+        background: #fff; padding: 1.3rem; border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07); text-align: center;
+    }
+    .stat-box .s-label { font-size: 0.78rem; color: #888; margin-bottom: 0.25rem; }
+    .stat-box .s-value { font-size: 1.8rem; font-weight: 800; color: #1a5276; }
+    .stat-box .s-sub   { font-size: 0.78rem; color: #aaa; }
+
+    /* ── AI 分析卡 ────────────────────────────────────────────────── */
+    .analysis-card {
+        background: #fff; padding: 1.8rem 2rem; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 1.5rem;
+    }
+    .analysis-card h2 {
+        color: #1a5276; font-size: 1.1rem;
+        border-bottom: 3px solid #2980b9;
+        padding-bottom: 0.5rem; margin-bottom: 1.2rem;
+    }
+    .analysis-text {
+        line-height: 1.8; color: #333; white-space: pre-wrap; font-size: 0.95rem;
     }
 
-    .stat-label {
-        font-size: 0.85rem;
-        color: #999;
-        text-transform: uppercase;
-        margin-bottom: 0.5rem;
+    /* ── 學生明細表 ──────────────────────────────────────────────── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table th {
+        background: #1a5276; color: #fff; padding: 0.7rem 0.9rem; text-align: left;
     }
+    .detail-table td {
+        padding: 0.65rem 0.9rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle;
+    }
+    .detail-table tbody tr:hover { background: #f9f9f9; }
 
-    .stat-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #1a5276;
+    .cl-bar {
+        height: 6px; background: #eee; border-radius: 3px;
+        overflow: hidden; min-width: 60px; display: inline-block;
     }
+    .cl-fill { height: 100%; background: #27ae60; border-radius: 3px; }
+    .pill-sm {
+        display: inline-block; padding: 0.15rem 0.5rem;
+        border-radius: 10px; font-size: 0.75rem; font-weight: 600;
+    }
+    .pill-rev  { background: #d4edda; color: #155724; }
+    .pill-pend { background: #fff3cd; color: #856404; }
+    .pill-none { background: #f8f9fa; color: #aaa; }
 
-    .insight-box {
-        background: #e8f4f8;
-        border-left: 4px solid #2980b9;
-        padding: 1.5rem;
-        border-radius: 4px;
-        margin-bottom: 1rem;
-    }
-
-    .insight-box strong {
-        color: #1a5276;
-    }
-
-    .no-data {
-        text-align: center;
-        padding: 3rem 2rem;
-        color: #999;
-    }
+    .no-data { text-align: center; padding: 3rem 2rem; color: #aaa; }
 
     @media (max-width: 768px) {
-        .page-header {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .task-buttons {
-            grid-template-columns: repeat(2, 1fr);
-        }
-
-        .analysis-card {
-            padding: 1.5rem;
-        }
+        .page-header { flex-direction: column; }
+        .detail-table { font-size: 0.8rem; }
     }
 </style>
 
+{# ── 頁首 ── #}
 <div class="page-header">
     <div>
-        <h1>AI 分析與洞察</h1>
-        <p>利用生成式 AI 進行學習分析</p>
+        <h1>📊 學習分析</h1>
+        <p style="opacity:0.85;margin-top:0.3rem;">任務結構化回答 × AI 評分 × 教師評閱</p>
     </div>
-    <a href="{{ url_for('teacher_dashboard') }}" class="back-link">← 返回儀表板</a>
+    <a href="{{ url_for('teacher_dashboard') }}"
+       style="color:#fff;text-decoration:none;opacity:0.85;">← 返回儀表板</a>
 </div>
 
+{# ── 任務切換 ── #}
 <div class="task-selector">
-    <h2>選擇任務以查看分析：</h2>
-    <div class="task-buttons">
-        <a href="{{ url_for('teacher_analytics', task=1) }}" class="task-button {% if current_task == 1 %}active{% endif %}">任務 1</a>
-        <a href="{{ url_for('teacher_analytics', task=2) }}" class="task-button {% if current_task == 2 %}active{% endif %}">任務 2</a>
-        <a href="{{ url_for('teacher_analytics', task=3) }}" class="task-button {% if current_task == 3 %}active{% endif %}">任務 3</a>
-        <a href="{{ url_for('teacher_analytics', task=4) }}" class="task-button {% if current_task == 4 %}active{% endif %}">任務 4</a>
+    <span>切換任務：</span>
+    {% for t_num, t_def in tasks.items() | sort %}
+        <a href="{{ url_for('teacher_analytics', task=t_num) }}"
+           class="task-btn {% if task_number == t_num %}active{% endif %}">
+            任務 {{ t_num }}
+        </a>
+    {% endfor %}
+</div>
+
+{# ── 統計（在 template 內計算，避免 context 變數命名混亂）── #}
+{% set total_subs = submissions | length %}
+
+{% set reviewed_count = namespace(n=0) %}
+{% set cl_total_sum   = namespace(n=0) %}
+{% set cl_max_sum     = namespace(n=0) %}
+{% set ai_score_sum   = namespace(n=0.0) %}
+{% set ai_score_cnt   = namespace(n=0) %}
+
+{% for sub in submissions %}
+    {# 已評閱 #}
+    {% if sub.latest_teacher_review %}
+        {% set reviewed_count.n = reviewed_count.n + 1 %}
+    {% endif %}
+    {# 檢核勾選 #}
+    {% for cr in sub.checklist_responses %}
+        {% if cr.checked %}{% set cl_total_sum.n = cl_total_sum.n + 1 %}{% endif %}
+        {% set cl_max_sum.n = cl_max_sum.n + 1 %}
+    {% endfor %}
+    {# AI 整體分數（如果有 overall 數字） #}
+    {% set ai_fb = sub.latest_ai_feedback %}
+    {% if ai_fb and ai_fb.scores %}
+        {# scores JSON 裡找 overall 或 total #}
+    {% endif %}
+{% endfor %}
+
+{% set cl_rate = ((cl_total_sum.n / cl_max_sum.n) * 100) | round(1) if cl_max_sum.n > 0 else 0 %}
+
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="s-label">已提交</div>
+        <div class="s-value">{{ total_subs }}</div>
+        <div class="s-sub">份</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">已評閱</div>
+        <div class="s-value" style="color:#27ae60;">{{ reviewed_count.n }}</div>
+        <div class="s-sub">/ {{ total_subs }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">待評閱</div>
+        <div class="s-value" style="color:#e67e22;">{{ total_subs - reviewed_count.n }}</div>
+        <div class="s-sub">份</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">平均檢核完成率</div>
+        <div class="s-value">{{ cl_rate }}</div>
+        <div class="s-sub">%</div>
     </div>
 </div>
 
-{% if current_task %}
-    <div class="stats-grid">
-        <div class="stat-box">
-            <div class="stat-label">總提交數</div>
-            <div class="stat-value">{{ submission_count }}</div>
-        </div>
-        {% if average_ai_score %}
-            <div class="stat-box">
-                <div class="stat-label">平均 AI 分數</div>
-                <div class="stat-value">{{ "%.1f"|format(average_ai_score) }}</div>
-            </div>
-        {% endif %}
-        <div class="stat-box">
-            <div class="stat-label">已評閱</div>
-            <div class="stat-value">{{ reviewed_count }}</div>
-        </div>
+{# ── AI 分析文字 ── #}
+{% if analysis %}
+    <div class="analysis-card">
+        <h2>🤖 AI 整體分析摘要 — 任務 {{ task_number }}：{{ task_def.name }}</h2>
+        <div class="analysis-text">{{ analysis }}</div>
     </div>
-
-    {% if analysis %}
-        <div class="analysis-card">
-            <h2>任務 {{ current_task }} 的學習分析</h2>
-            <div class="analysis-content">
-                {{ analysis }}
-            </div>
-        </div>
-    {% else %}
-        <div class="analysis-card">
-            <div class="no-data">
-                <p>此任務暫無 AI 分析資料</p>
-                <p>請確保有足夠的學生提交</p>
-            </div>
-        </div>
-    {% endif %}
-
-    {% if submissions_data %}
-        <div class="analysis-card">
-            <h2>詳細數據</h2>
-            <div class="analysis-content">
-                <p>此任務共有 <strong>{{ submissions_data|length }}</strong> 份提交，包括：</p>
-                <ul>
-                    {% set reflection_count = submissions_data | selectattr('submission_type', 'equalto', 'reflection') | list | length %}
-                    {% set question_count = submissions_data | selectattr('submission_type', 'equalto', 'question') | list | length %}
-                    {% set checklist_count = submissions_data | selectattr('submission_type', 'equalto', 'checklist') | list | length %}
-                    {% set self_assessment_count = submissions_data | selectattr('submission_type', 'equalto', 'self_assessment') | list | length %}
-                    {% if reflection_count %}
-                        <li>反思報告：{{ reflection_count }} 份</li>
-                    {% endif %}
-                    {% if question_count %}
-                        <li>提示問題回答：{{ question_count }} 份</li>
-                    {% endif %}
-                    {% if checklist_count %}
-                        <li>自我檢核：{{ checklist_count }} 份</li>
-                    {% endif %}
-                    {% if self_assessment_count %}
-                        <li>自我評量：{{ self_assessment_count }} 份</li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    {% endif %}
-{% else %}
+{% elif total_subs > 0 %}
     <div class="analysis-card">
         <div class="no-data">
-            <p>請選擇一個任務以查看分析</p>
-            <p>點擊上方任務按鈕開始</p>
+            <p>⚠ AI 分析尚未生成（API Key 未設定或提交數不足）</p>
         </div>
     </div>
 {% endif %}
+
+{# ── 學生明細表 ── #}
+{% if submissions %}
+    <div class="analysis-card">
+        <h2>📋 學生提交明細 — 任務 {{ task_number }}</h2>
+        <div style="overflow-x:auto;">
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th>學號</th>
+                    <th>姓名</th>
+                    <th>班</th>
+                    <th>更新時間</th>
+                    <th>版本</th>
+                    <th>檢核完成</th>
+                    <th>教師評閱</th>
+                    <th>AI 回饋</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                    {% set review = sub.latest_teacher_review %}
+                    {% set ai_fb  = sub.latest_ai_feedback %}
+
+                    {# 計算檢核勾選數 #}
+                    {% set cl_chk = namespace(n=0) %}
+                    {% set cl_tot = namespace(n=0) %}
+                    {% for cr in sub.checklist_responses %}
+                        {% set cl_tot.n = cl_tot.n + 1 %}
+                        {% if cr.checked %}{% set cl_chk.n = cl_chk.n + 1 %}{% endif %}
+                    {% endfor %}
+                    {% set pct = ((cl_chk.n / cl_tot.n) * 100) | int if cl_tot.n > 0 else 0 %}
+
+                    <tr>
+                        <td>{{ sub.author.student_id }}</td>
+                        <td>{{ sub.author.name }}</td>
+                        <td>{{ sub.author.class_group }}</td>
+                        <td>{{ sub.updated_at.strftime('%m/%d %H:%M') }}</td>
+                        <td style="color:#888;font-size:0.8rem;">v{{ sub.task_version }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:0.4rem;">
+                                <div class="cl-bar">
+                                    <div class="cl-fill" style="width:{{ pct }}%;"></div>
+                                </div>
+                                <span style="font-size:0.78rem;color:#888;">
+                                    {{ cl_chk.n }}/{{ cl_tot.n }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if review %}
+                                <span class="pill-sm pill-rev">
+                                    ✅{% if review.score is not none %} {{ review.score | int }}分{% endif %}
+                                </span>
+                            {% else %}
+                                <span class="pill-sm pill-pend">待評閱</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ai_fb %}
+                                <span class="pill-sm" style="background:#e8f4f8;color:#2980b9;">
+                                    🤖 有
+                                </span>
+                            {% else %}
+                                <span class="pill-sm pill-none">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:0.35rem;">
+                                <a href="{{ url_for('view_task_submission', submission_id=sub.id) }}"
+                                   class="btn btn-outline btn-small">查看</a>
+                                <a href="{{ url_for('teacher_review', submission_id=sub.id) }}"
+                                   class="btn btn-primary btn-small">評閱</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+{% else %}
+    <div class="analysis-card">
+        <div class="no-data">此任務尚無學生提交</div>
+    </div>
+{% endif %}
+
+{# ── 匯出連結 ── #}
+<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:2rem;">
+    <a href="{{ url_for('export_task', task_number=task_number) }}"
+       class="btn btn-secondary btn-small">⬇ 匯出任務 {{ task_number }} CSV</a>
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-outline btn-small">← 返回儀表板</a>
+</div>
 {% endblock %}

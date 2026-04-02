@@ -4,297 +4,261 @@
 
 {% block content %}
 <style>
-    .welcome-section {
+    .teacher-header {
         background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
-        color: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        margin-bottom: 3rem;
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
     }
+    .teacher-header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
 
-    .welcome-section h1 {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-    }
-
+    /* ── 統計數字列 ─────────────────────────────────────────────── */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 3rem;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem; margin-bottom: 2rem;
     }
-
     .stat-card {
-        background: #fff;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        text-align: center;
+        background: #fff; padding: 1.4rem; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-align: center;
     }
+    .stat-num   { font-size: 2.2rem; font-weight: 800; color: #1a5276; line-height: 1.1; }
+    .stat-label { color: #888; font-size: 0.88rem; margin-top: 0.3rem; }
 
-    .stat-number {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1a5276;
-        margin-bottom: 0.5rem;
+    /* ── 任務卡片 ────────────────────────────────────────────────── */
+    .section-heading {
+        font-size: 1.15rem; color: #1a5276; font-weight: 700;
+        border-left: 4px solid #2980b9; padding-left: 0.75rem;
+        margin: 2rem 0 1rem;
     }
-
-    .stat-label {
-        color: #666;
-        font-size: 0.9rem;
-    }
-
-    .task-cards {
+    .task-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 2rem;
-        margin-bottom: 3rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.2rem; margin-bottom: 2rem;
     }
-
     .task-card {
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transition: transform 0.3s, box-shadow 0.3s;
+        background: #fff; border-radius: 8px; overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-
-    .task-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .task-card-header {
+    .task-card:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+    .task-card-hd {
         background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
-        color: #fff;
-        padding: 1.5rem;
+        color: #fff; padding: 1.1rem 1.4rem;
+    }
+    .task-card-hd h3 { font-size: 1.05rem; margin: 0; }
+    .task-card-bd { padding: 1.1rem 1.4rem; }
+    .stat-row {
+        display: flex; justify-content: space-between;
+        padding: 0.55rem 0; border-bottom: 1px solid #f0f0f0;
+        font-size: 0.92rem;
+    }
+    .stat-row:last-of-type { border-bottom: none; }
+    .stat-row-label { color: #777; }
+    .stat-row-val   { font-weight: 700; color: #1a5276; }
+    .pending-badge {
+        display: inline-block; background: #fff3cd; color: #856404;
+        padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.78rem; font-weight: 600;
     }
 
-    .task-card-header h3 {
-        margin: 0 0 0.5rem 0;
-        font-size: 1.3rem;
-    }
-
-    .task-number {
-        display: inline-block;
-        background-color: rgba(255,255,255,0.2);
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-    }
-
-    .task-card-body {
-        padding: 1.5rem;
-    }
-
-    .stat-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #eee;
-    }
-
-    .stat-item:last-child {
-        border-bottom: none;
-    }
-
-    .stat-item-label {
-        color: #666;
-        font-size: 0.9rem;
-    }
-
-    .stat-item-value {
-        color: #1a5276;
-        font-weight: bold;
-    }
-
-    .task-action {
-        margin-top: 1.5rem;
-    }
-
-    .task-action .btn {
-        width: 100%;
-    }
-
+    /* ── 學生名單 ────────────────────────────────────────────────── */
     .students-section {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 3rem;
+        background: #fff; padding: 1.5rem 2rem; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 2rem;
     }
-
     .students-section h2 {
-        color: #1a5276;
-        margin-bottom: 1.5rem;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
+        color: #1a5276; font-size: 1.1rem;
+        border-bottom: 3px solid #2980b9; padding-bottom: 0.5rem; margin-bottom: 1rem;
     }
-
-    .students-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
+    .students-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
     .students-table th {
-        background-color: #1a5276;
-        color: #fff;
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
+        background: #1a5276; color: #fff;
+        padding: 0.75rem 1rem; text-align: left;
+    }
+    .students-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #eee; }
+    .students-table tbody tr:hover { background: #f9f9f9; }
+    .class-badge {
+        display: inline-block; padding: 0.15rem 0.5rem;
+        background: #e8f4f8; color: #2980b9;
+        border-radius: 10px; font-size: 0.8rem;
     }
 
-    .students-table td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #eee;
+    /* ── 工具列 ──────────────────────────────────────────────────── */
+    .tools-row {
+        display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
     }
+    .tool-card {
+        flex: 1; min-width: 200px; background: #fff; border-radius: 8px;
+        padding: 1.3rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        text-decoration: none; color: inherit;
+        border-left: 4px solid #2980b9;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: block;
+    }
+    .tool-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .tool-card h3 { color: #1a5276; font-size: 1rem; margin-bottom: 0.3rem; }
+    .tool-card p  { color: #888; font-size: 0.85rem; margin: 0; }
 
-    .students-table tbody tr:hover {
-        background-color: #f9f9f9;
-    }
-
-    .analytics-section {
-        background: #fff;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .analytics-section h2 {
-        color: #1a5276;
-        margin-bottom: 1.5rem;
-        border-bottom: 3px solid #2980b9;
-        padding-bottom: 1rem;
-    }
-
-    .analytics-link {
-        display: inline-block;
-        padding: 1rem 1.5rem;
-        background-color: #2980b9;
-        color: #fff;
-        text-decoration: none;
-        border-radius: 4px;
-        font-weight: bold;
-        transition: background-color 0.3s;
-    }
-
-    .analytics-link:hover {
-        background-color: #1f618d;
-    }
+    /* 問卷管理工具卡 */
+    .tool-card.questionnaire { border-left-color: #9b59b6; }
+    .tool-card.questionnaire h3 { color: #6c3483; }
 
     @media (max-width: 768px) {
-        .welcome-section h1 {
-            font-size: 1.5rem;
-        }
-
-        .stats-grid,
-        .task-cards {
-            grid-template-columns: 1fr;
-        }
-
-        .students-table {
-            font-size: 0.9rem;
-        }
-
-        .students-table th,
-        .students-table td {
-            padding: 0.5rem;
-        }
+        .task-grid { grid-template-columns: 1fr; }
+        .students-table { font-size: 0.85rem; }
+        .students-table th, .students-table td { padding: 0.5rem 0.75rem; }
     }
 </style>
 
-<div class="welcome-section">
-    <h1>歡迎，{{ current_user.name }}（教師）</h1>
-    <p>EAGLE 2.0 LMS 教師管理儀表板</p>
+{# ── 頁首 ── #}
+<div class="teacher-header">
+    <h1>👩‍🏫 教師儀表板</h1>
+    <p style="opacity:0.88;">{{ current_user.name }}・EAGLE 2.0 LMS 管理後台</p>
 </div>
 
+{# ── 統計數字 ── #}
+{% set total_students = students | length %}
+{% set pending = total_submissions - reviewed_count %}
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-number">{{ total_students }}</div>
-        <div class="stat-label">總學生人數</div>
+        <div class="stat-num">{{ total_students }}</div>
+        <div class="stat-label">學生人數</div>
     </div>
     <div class="stat-card">
-        <div class="stat-number">{{ total_submissions }}</div>
+        <div class="stat-num">{{ total_submissions }}</div>
         <div class="stat-label">總提交數</div>
     </div>
     <div class="stat-card">
-        <div class="stat-number">{{ reviewed_count }}</div>
-        <div class="stat-label">已評閱提交</div>
+        <div class="stat-num" style="color:#27ae60;">{{ reviewed_count }}</div>
+        <div class="stat-label">已評閱</div>
     </div>
     <div class="stat-card">
-        <div class="stat-number">{{ total_submissions - reviewed_count }}</div>
-        <div class="stat-label">待評閱提交</div>
+        <div class="stat-num" style="color:#e67e22;">{{ pending }}</div>
+        <div class="stat-label">待評閱</div>
     </div>
 </div>
 
-<div class="task-cards">
-    {% for task_num in [1, 2, 3, 4] %}
-        {% set task_stat = task_stats.get(task_num, {}) %}
+{# ── 各任務快覽 ── #}
+<div class="section-heading">各任務提交狀況</div>
+<div class="task-grid">
+    {% for t_num, ts in task_stats.items() | sort %}
+        {% set pending_t = ts.total_submissions - ts.reviewed %}
         <div class="task-card">
-            <div class="task-card-header">
-                <h3>任務 {{ task_num }}</h3>
-                <span class="task-number">
-                    {% if task_num == 1 %}
-                        專案建立
-                    {% elif task_num == 2 %}
-                        施工日誌填寫
-                    {% elif task_num == 3 %}
-                        工程進度計算
-                    {% elif task_num == 4 %}
-                        自主查核表填寫
-                    {% endif %}
-                </span>
+            <div class="task-card-hd">
+                <h3>任務 {{ t_num }}：{{ ts.name }}</h3>
             </div>
-            <div class="task-card-body">
-                <div class="stat-item">
-                    <span class="stat-item-label">總提交數</span>
-                    <span class="stat-item-value">{{ task_stat.get('total_submissions', 0) }}</span>
+            <div class="task-card-bd">
+                <div class="stat-row">
+                    <span class="stat-row-label">已提交</span>
+                    <span class="stat-row-val">{{ ts.total_submissions }}</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-item-label">參與學生</span>
-                    <span class="stat-item-value">{{ task_stat.get('unique_students', 0) }}</span>
+                <div class="stat-row">
+                    <span class="stat-row-label">參與學生</span>
+                    <span class="stat-row-val">{{ ts.unique_students }} / {{ total_students }}</span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-item-label">已評閱</span>
-                    <span class="stat-item-value">{{ task_stat.get('reviewed_count', 0) }}</span>
+                <div class="stat-row">
+                    <span class="stat-row-label">已評閱</span>
+                    <span class="stat-row-val">{{ ts.reviewed }}</span>
                 </div>
-                <div class="task-action">
-                    <a href="{{ url_for('teacher_task_submissions', task_number=task_num) }}" class="btn btn-primary">查看提交</a>
+                <div class="stat-row">
+                    <span class="stat-row-label">待評閱</span>
+                    <span class="stat-row-val">
+                        {% if pending_t > 0 %}
+                            <span class="pending-badge">{{ pending_t }} 份待處理</span>
+                        {% else %}
+                            <span style="color:#27ae60;">✅ 全數已評</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div style="margin-top:0.8rem;">
+                    <a href="{{ url_for('teacher_task_submissions', task_number=t_num) }}"
+                       class="btn btn-primary btn-small" style="width:100%;text-align:center;">
+                        查看提交列表
+                    </a>
                 </div>
             </div>
         </div>
     {% endfor %}
 </div>
 
+{# ── 快速工具 ── #}
+<div class="section-heading">工具與資料匯出</div>
+<div class="tools-row">
+    <a href="{{ url_for('teacher_analytics') }}" class="tool-card">
+        <h3>📊 學習分析</h3>
+        <p>查看各任務 AI 分析摘要、反思品質與當責態度趨勢</p>
+    </a>
+    <a href="{{ url_for('teacher_dashboard') }}" class="tool-card questionnaire">
+        <h3>📋 問卷管理</h3>
+        <p>開放 / 關閉問卷，查看填答率</p>
+    </a>
+</div>
+
+{# ── 資料匯出 ── #}
+<div style="background:#fff;border-radius:8px;padding:1.4rem 2rem;
+            box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:2rem;">
+    <h3 style="color:#1a5276;font-size:1rem;margin-bottom:1rem;
+               border-bottom:2px solid #2980b9;padding-bottom:0.4rem;">
+        📥 研究資料匯出（CSV，UTF-8 BOM）
+    </h3>
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;">
+        {# 四個任務 #}
+        {% for t_num, ts in task_stats.items() | sort %}
+            <a href="{{ url_for('export_task', task_number=t_num) }}"
+               class="btn btn-secondary btn-small">
+                ⬇ 任務 {{ t_num }} 回答
+            </a>
+        {% endfor %}
+        {# ARCSA 前後測配對 #}
+        <a href="{{ url_for('export_arcsa_paired') }}"
+           class="btn btn-secondary btn-small" style="background:#6c3483;">
+            ⬇ ARCSA 前後測配對
+        </a>
+        {# 滿意度問卷 #}
+        <a href="{{ url_for('export_questionnaire', q_code='satisfaction') }}"
+           class="btn btn-secondary btn-small" style="background:#6c3483;">
+            ⬇ 滿意度問卷
+        </a>
+        {# 學習日誌 #}
+        <a href="{{ url_for('export_journals') }}"
+           class="btn btn-secondary btn-small" style="background:#1e8449;">
+            ⬇ 學習日誌
+        </a>
+    </div>
+    <p style="font-size:0.8rem;color:#aaa;margin-top:0.75rem;">
+        以 Microsoft Excel 開啟時請選「以逗號分隔」，編碼選 UTF-8（含 BOM）。
+        可直接匯入 SPSS 或 Python pandas。
+    </p>
+</div>
+
+{# ── 學生名單 ── #}
 <div class="students-section">
-    <h2>學生名單</h2>
+    <h2>學生名單（{{ total_students }} 人）</h2>
     <table class="students-table">
         <thead>
             <tr>
                 <th>學號</th>
                 <th>姓名</th>
                 <th>班級</th>
+                <th>提交任務數</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
+                {# 計算該學生本學期已提交任務數 #}
+                {% set s_tasks = student.task_submissions.filter_by(semester='114-1').count() %}
                 <tr>
                     <td>{{ student.student_id }}</td>
                     <td>{{ student.name }}</td>
-                    <td>{{ student.class_group }}</td>
+                    <td><span class="class-badge">{{ student.class_group }}</span></td>
+                    <td>{{ s_tasks }} / {{ task_stats | length }}</td>
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="3" style="text-align: center; color: #999;">尚無學生資料</td>
+                    <td colspan="4" style="text-align:center;color:#999;padding:2rem;">
+                        尚無學生資料
+                    </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
-</div>
-
-<div class="analytics-section">
-    <h2>AI 分析與洞察</h2>
-    <p style="color: #666; margin-bottom: 1.5rem;">查看 EAGLE 2.0 LMS 利用生成式 AI 進行的自動分析和學習洞察。</p>
-    <a href="{{ url_for('teacher_analytics') }}" class="analytics-link">進入 AI 分析平台</a>
 </div>
 {% endblock %}

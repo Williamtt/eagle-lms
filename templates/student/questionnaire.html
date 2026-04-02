@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ q.name }} - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    /* ── 頁首 ────────────────────────────────────────────────────── */
+    .q-header {
+        background: linear-gradient(135deg, #6c3483 0%, #9b59b6 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+    }
+    .q-header h1 { font-size: 1.7rem; margin-bottom: 0.5rem; }
+    .q-meta {
+        display: flex; flex-wrap: wrap; gap: 1.5rem;
+        font-size: 0.88rem; opacity: 0.9; margin-top: 0.8rem;
+    }
+
+    /* ── 說明卡 ──────────────────────────────────────────────────── */
+    .q-desc-card {
+        background: #fdf5ff; border-left: 4px solid #9b59b6;
+        border-radius: 0 8px 8px 0; padding: 1.2rem 1.5rem;
+        margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.7;
+        color: #444;
+    }
+
+    /* ── 已填答 banner ─────────────────────────────────────────── */
+    .completed-banner {
+        background: #eaf4ec; border: 1px solid #a9d8b3; border-radius: 8px;
+        padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+        display: flex; align-items: center; gap: 1rem;
+        font-size: 0.95rem; color: #27ae60;
+    }
+
+    /* ── 構面區塊 ────────────────────────────────────────────────── */
+    .dimension-card {
+        background: #fff; border-radius: 8px; padding: 1.8rem 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 1.5rem;
+    }
+    .dimension-title {
+        font-size: 1.1rem; font-weight: 700; color: #6c3483;
+        border-bottom: 3px solid #9b59b6;
+        padding-bottom: 0.5rem; margin-bottom: 1.3rem;
+        display: flex; align-items: center; gap: 0.6rem;
+    }
+    .dim-count {
+        font-size: 0.78rem; background: #9b59b6; color: #fff;
+        padding: 0.15rem 0.55rem; border-radius: 10px; font-weight: normal;
+    }
+
+    /* ── 題目行 ──────────────────────────────────────────────────── */
+    .item-row {
+        display: grid;
+        grid-template-columns: 1.8rem 1fr auto;
+        gap: 0.6rem 1rem;
+        align-items: start;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-num {
+        width: 1.6rem; height: 1.6rem;
+        background: #9b59b6; color: #fff;
+        border-radius: 50%; display: flex;
+        align-items: center; justify-content: center;
+        font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem;
+    }
+    .item-text {
+        font-size: 0.95rem; line-height: 1.6; color: #333; padding-top: 0.05rem;
+    }
+    .item-activity {
+        font-size: 0.8rem; color: #9b59b6; font-weight: 600; margin-bottom: 0.2rem;
+    }
+
+    /* ── Likert 量表（橫排 radio 按鈕）────────────────────────── */
+    .likert-group {
+        display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+    }
+    .likert-option { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+    .likert-option input[type="radio"] {
+        width: 1.1rem; height: 1.1rem;
+        accent-color: #6c3483; cursor: pointer;
+    }
+    .likert-option .likert-label {
+        font-size: 0.72rem; color: #666; text-align: center;
+        max-width: 5rem; line-height: 1.2;
+    }
+    /* 已選中時強調 */
+    .likert-option input[type="radio"]:checked + .likert-label {
+        color: #6c3483; font-weight: 600;
+    }
+
+    /* ── 開放式文字 ─────────────────────────────────────────────── */
+    .open-textarea {
+        width: 100%; min-height: 100px; padding: 0.7rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-family: inherit; font-size: 0.93rem; resize: vertical;
+        grid-column: 2 / -1;
+    }
+    .open-textarea:focus {
+        outline: none; border-color: #9b59b6;
+        box-shadow: 0 0 0 3px rgba(155,89,182,0.12);
+    }
+
+    /* ── 進度條 ──────────────────────────────────────────────────── */
+    .q-progress-wrap {
+        position: sticky; top: 0; z-index: 10;
+        background: #fff; border-radius: 0 0 8px 8px;
+        padding: 0.6rem 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;
+    }
+    .q-progress-bar {
+        flex: 1; background: #eee; border-radius: 8px; height: 8px; overflow: hidden;
+    }
+    .q-progress-fill {
+        background: #9b59b6; height: 100%; border-radius: 8px;
+        transition: width 0.3s ease; width: 0%;
+    }
+    .q-progress-text { font-size: 0.82rem; color: #888; white-space: nowrap; }
+
+    /* ── 提交列 ──────────────────────────────────────────────────── */
+    .submit-bar {
+        display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+        padding: 1.5rem 2rem; background: #fff;
+        border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        margin-bottom: 2rem;
+    }
+    .submit-note { font-size: 0.84rem; color: #888; }
+
+    @media (max-width: 768px) {
+        .item-row { grid-template-columns: 1.4rem 1fr; }
+        .likert-group { flex-direction: column; align-items: flex-start; }
+        .likert-option { flex-direction: row; gap: 0.4rem; }
+        .likert-option .likert-label { max-width: none; }
+    }
+</style>
+
+{# ── 頁首 ── #}
+<div class="q-header">
+    <h1>{{ q.name }}</h1>
+    <div class="q-meta">
+        <span>📋 共 {{ q.items | length }} 題</span>
+        {% if q.timing %}<span>🕐 {{ q.timing }}</span>{% endif %}
+        <span>📌 版本 v{{ q.version }}</span>
+        {% if existing %}
+            <span style="background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:4px;">
+                ✅ 已於 {{ existing.submitted_at.strftime('%Y-%m-%d %H:%M') }} 填答
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 問卷說明 ── #}
+{% if q.description %}
+    <div class="q-desc-card">{{ q.description }}</div>
+{% endif %}
+
+{# ── 已填答提示 ── #}
+{% if existing %}
+    <div class="completed-banner">
+        <span style="font-size:1.4rem;">✅</span>
+        <div>
+            <strong>你已完成此問卷</strong>（{{ existing.submitted_at.strftime('%Y-%m-%d %H:%M') }}）<br>
+            <span style="font-size:0.9rem;color:#555;">問卷僅能填答一次，以下為你的作答紀錄，供參考。</span>
+        </div>
+    </div>
+{% endif %}
+
+{# ── 進度列（僅未填答時顯示）── #}
+{% if not existing %}
+    <div class="q-progress-wrap" id="progress-wrap">
+        <div class="q-progress-bar">
+            <div class="q-progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="q-progress-text" id="progress-text">0 / {{ q.items | length }} 題已作答</span>
+    </div>
+{% endif %}
+
+{# ── 主體（表單或唯讀）── #}
+{% if not existing %}
+<form method="POST"
+      action="{{ url_for('view_questionnaire', q_code=q.code) }}"
+      id="q-form">
+{% endif %}
+
+{# ── 將題目依 dimension 分組 ── #}
+{% set ns = namespace(current_dim='', dim_label='', item_count=0) %}
+
+{% for item in q.items %}
+    {# ── 遇到新構面：先收尾舊構面，再開新卡片 ── #}
+    {% if item.dimension != ns.current_dim %}
+        {# 收尾舊卡片（不是第一題） #}
+        {% if ns.current_dim != '' %}
+                </div>{# .dimension-card #}
+        {% endif %}
+
+        {# 開新卡片 #}
+        {% set ns.current_dim   = item.dimension %}
+        {% set ns.dim_label     = item.dimension_label if item.dimension_label else item.dimension %}
+
+        {# 計算本構面題數 #}
+        {% set ns.item_count = q.items | selectattr('dimension', 'equalto', item.dimension) | list | length %}
+
+        <div class="dimension-card">
+            <div class="dimension-title">
+                {{ ns.dim_label }}
+                <span class="dim-count">{{ ns.item_count }} 題</span>
+            </div>
+    {% endif %}
+
+    {# ── 渲染單題 ── #}
+    <div class="item-row">
+        <div class="item-num">{{ loop.index }}</div>
+        <div class="item-text">
+            {% if item.activity %}
+                <div class="item-activity">【{{ item.activity }}】</div>
+            {% endif %}
+            {{ item.text }}
+        </div>
+
+        {# Likert 量表 #}
+        {% if item.scale_type == 'likert5' %}
+            {% set choices = item.choices | from_json %}
+            <div class="likert-group" role="group" aria-label="{{ item.item_code }}">
+                {% for choice in choices %}
+                    <label class="likert-option">
+                        <input type="radio"
+                               name="q_{{ item.item_code }}"
+                               value="{{ choice.value }}"
+                               {% if existing %}
+                                   {% if existing_answers.get(item.item_code) == choice.value %}checked{% endif %}
+                                   disabled
+                               {% else %}
+                                   required
+                               {% endif %}>
+                        <span class="likert-label">{{ choice.label }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+
+        {# 開放文字 #}
+        {% elif item.scale_type == 'text' %}
+            <textarea class="open-textarea"
+                      name="q_{{ item.item_code }}"
+                      placeholder="請在此填寫你的想法…"
+                      {% if existing %}disabled{% endif %}>{% if existing %}{{ existing_answers.get(item.item_code, '') }}{% endif %}</textarea>
+
+        {# 選擇題（choice 型） #}
+        {% elif item.scale_type == 'choice' %}
+            {% set choices = item.choices | from_json %}
+            {% for choice in choices %}
+                <label style="display:block;margin-bottom:0.4rem;font-size:0.92rem;">
+                    <input type="radio"
+                           name="q_{{ item.item_code }}"
+                           value="{{ choice.value }}"
+                           {% if existing %}
+                               {% if existing_answers.get(item.item_code) == choice.value %}checked{% endif %}
+                               disabled
+                           {% else %}
+                               required
+                           {% endif %}>
+                    {{ choice.label }}
+                </label>
+            {% endfor %}
+        {% endif %}
+    </div>
+{% endfor %}
+
+{# 收尾最後一張卡片 #}
+{% if ns.current_dim != '' %}
+        </div>{# .dimension-card #}
+{% endif %}
+
+{# ── 提交按鈕（僅未填答時） ── #}
+{% if not existing %}
+    <div class="submit-bar">
+        <button type="submit" class="btn btn-primary"
+                style="background:#6c3483;font-size:1.05rem;padding:0.85rem 2rem;"
+                id="submit-btn">
+            📤 提交問卷
+        </button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
+        <span class="submit-note">
+            ⚠ 問卷提交後無法修改，請確認所有題目均已作答。
+        </span>
+    </div>
+</form>
+{% else %}
+    <div style="margin-bottom:2rem;">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline">← 返回儀表板</a>
+    </div>
+{% endif %}
+
+<script>
+/* ── 作答進度追蹤 ─────────────────────────────────────────── */
+(function() {
+    const form     = document.getElementById('q-form');
+    const fill     = document.getElementById('progress-fill');
+    const text     = document.getElementById('progress-text');
+    if (!form || !fill) return;
+
+    const total = {{ q.items | length }};
+
+    function countAnswered() {
+        let answered = 0;
+        const names = new Set();
+        form.querySelectorAll('input[type="radio"], textarea').forEach(el => {
+            names.add(el.name);
+        });
+        names.forEach(name => {
+            const inputs = form.querySelectorAll(`[name="${name}"]`);
+            let filled = false;
+            inputs.forEach(input => {
+                if (input.type === 'radio' && input.checked) filled = true;
+                if (input.tagName === 'TEXTAREA' && input.value.trim()) filled = true;
+            });
+            if (filled) answered++;
+        });
+        return answered;
+    }
+
+    function update() {
+        const answered = countAnswered();
+        const pct = total > 0 ? Math.round(answered / total * 100) : 0;
+        fill.style.width = pct + '%';
+        text.textContent = answered + ' / ' + total + ' 題已作答';
+    }
+
+    form.addEventListener('change', update);
+    form.addEventListener('input',  update);
+    update();
+})();
+
+/* ── 防止重複提交 ─────────────────────────────────────────── */
+(function() {
+    const form = document.getElementById('q-form');
+    if (!form) return;
+    form.addEventListener('submit', function() {
+        const btn = document.getElementById('submit-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '提交中，請稍候…'; }
+    });
+})();
+</script>
+{% endblock %}
