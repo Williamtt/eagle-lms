@@ -1110,6 +1110,129 @@ def download_deliverable_file(submission_id, deliverable_id):
                                download_name=du.file_name or filename)
 
 
+# ─── Teacher Questionnaire Management ────────────────────────────────────────
+
+@app.route('/teacher/questionnaires')
+@login_required
+def manage_questionnaires():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    total_students = User.query.filter_by(role='student').count()
+    questionnaires = Questionnaire.query.order_by(Questionnaire.id).all()
+
+    q_stats = []
+    for q in questionnaires:
+        submitted = QuestionnaireSubmission.query.filter_by(
+            questionnaire_id=q.id).count()
+        q_stats.append({
+            'q':         q,
+            'submitted': submitted,
+            'total':     total_students,
+            'rate':      round(submitted / total_students * 100, 1) if total_students else 0,
+        })
+
+    return render_template('teacher/questionnaire_mgmt.html',
+                           q_stats=q_stats,
+                           total_students=total_students)
+
+
+@app.route('/teacher/questionnaires/<int:q_id>/toggle', methods=['POST'])
+@login_required
+def toggle_questionnaire(q_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    q = db.session.get(Questionnaire, q_id)
+    if not q:
+        flash('找不到此問卷。', 'error')
+        return redirect(url_for('manage_questionnaires'))
+
+    q.is_active = not q.is_active
+    db.session.commit()
+    status = '已開放' if q.is_active else '已關閉'
+    flash(f'《{q.name}》{status}。', 'success')
+    return redirect(url_for('manage_questionnaires'))
+
+
+@app.route('/teacher/questionnaires/<int:q_id>/results')
+@login_required
+def view_questionnaire_results(q_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    q = db.session.get(Questionnaire, q_id)
+    if not q:
+        flash('找不到此問卷。', 'error')
+        return redirect(url_for('manage_questionnaires'))
+
+    total_students = User.query.filter_by(role='student').count()
+    submissions = (QuestionnaireSubmission.query
+                   .filter_by(questionnaire_id=q.id)
+                   .order_by(QuestionnaireSubmission.submitted_at)
+                   .all())
+    submitted_ids = {s.user_id for s in submissions}
+
+    # 各題平均分數（Likert 題）
+    item_stats = []
+    for item in q.items:
+        answers = (QuestionnaireAnswer.query
+                   .join(QuestionnaireSubmission)
+                   .filter(QuestionnaireSubmission.questionnaire_id == q.id,
+                           QuestionnaireAnswer.item_code == item.item_code)
+                   .all())
+        values = [int(a.value) for a in answers if a.value and a.value.isdigit()]
+        item_stats.append({
+            'item':   item,
+            'mean':   round(sum(values) / len(values), 2) if values else None,
+            'n':      len(values),
+        })
+
+    # 學生填答狀況
+    all_students = User.query.filter_by(role='student')\
+        .order_by(User.class_group, User.student_id).all()
+    student_rows = []
+    sub_by_uid = {s.user_id: s for s in submissions}
+    for stu in all_students:
+        student_rows.append({
+            'student': stu,
+            'submission': sub_by_uid.get(stu.id),
+        })
+
+    return render_template('teacher/questionnaire_results.html',
+                           q=q,
+                           item_stats=item_stats,
+                           student_rows=student_rows,
+                           total_students=total_students,
+                           submitted_count=len(submissions))
+
+
+@app.route('/teacher/questionnaires/<int:q_id>/student/<int:uid>')
+@login_required
+def view_student_questionnaire_response(q_id, uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    q = db.session.get(Questionnaire, q_id)
+    student = db.session.get(User, uid)
+    if not q or not student:
+        flash('找不到資料。', 'error')
+        return redirect(url_for('manage_questionnaires'))
+
+    sub = QuestionnaireSubmission.query.filter_by(
+        questionnaire_id=q.id, user_id=uid).first()
+    if not sub:
+        flash('此學生尚未填答。', 'warning')
+        return redirect(url_for('view_questionnaire_results', q_id=q_id))
+
+    existing_answers = {a.item_code: a.value for a in sub.answers}
+
+    return render_template('student/questionnaire.html',
+                           q=q,
+                           existing=sub,
+                           existing_answers=existing_answers)
+
+
 # ─── API ──────────────────────────────────────────────────────────────────────
 
 @app.route('/api/regenerate-feedback/<int:submission_id>', methods=['POST'])

@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ q.name }} 結果 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #6c3483 0%, #9b59b6 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 1rem;
+    }
+    .page-header h1 { margin: 0; font-size: 1.6rem; }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-box {
+        background: #fff; padding: 1.2rem; border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.07); text-align: center;
+    }
+    .stat-box .s-label { font-size: 0.78rem; color: #888; margin-bottom: 0.25rem; }
+    .stat-box .s-value { font-size: 1.8rem; font-weight: 800; color: #6c3483; }
+    .stat-box .s-sub   { font-size: 0.78rem; color: #aaa; }
+
+    .section-card {
+        background: #fff; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 1.5rem 1.8rem; margin-bottom: 1.5rem;
+    }
+    .section-card h2 {
+        color: #6c3483; font-size: 1.05rem;
+        border-bottom: 3px solid #9b59b6;
+        padding-bottom: 0.5rem; margin-bottom: 1.2rem;
+    }
+
+    /* 各題平均表 */
+    .items-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .items-table th {
+        background: #6c3483; color: #fff;
+        padding: 0.65rem 0.9rem; text-align: left;
+    }
+    .items-table td { padding: 0.6rem 0.9rem; border-bottom: 1px solid #f0f0f0; }
+    .items-table tbody tr:hover { background: #fdf2ff; }
+
+    .score-bar-wrap {
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .score-bar {
+        width: 80px; height: 8px; background: #eee;
+        border-radius: 4px; overflow: hidden; flex-shrink: 0;
+    }
+    .score-fill { height: 100%; border-radius: 4px; }
+
+    .dim-label {
+        display: inline-block; padding: 0.1rem 0.45rem;
+        background: #f5eef8; color: #7d3c98;
+        border-radius: 6px; font-size: 0.78rem; font-weight: 600;
+    }
+
+    /* 學生列表 */
+    .stu-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .stu-table th {
+        background: #6c3483; color: #fff;
+        padding: 0.65rem 0.9rem; text-align: left;
+    }
+    .stu-table td { padding: 0.6rem 0.9rem; border-bottom: 1px solid #f0f0f0; }
+    .stu-table tbody tr:hover { background: #fdf2ff; }
+
+    .pill-done { background: #d4edda; color: #155724; }
+    .pill-miss { background: #f8f9fa; color: #aaa; }
+    .pill-sm {
+        display: inline-block; padding: 0.15rem 0.5rem;
+        border-radius: 10px; font-size: 0.75rem; font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .items-table, .stu-table { font-size: 0.8rem; }
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1>📊 {{ q.name }}</h1>
+        <p style="opacity:0.85;margin-top:0.3rem;">v{{ q.version }} · {{ q.semester }}</p>
+    </div>
+    <a href="{{ url_for('manage_questionnaires') }}"
+       style="color:#fff;text-decoration:none;opacity:0.85;">← 返回問卷管理</a>
+</div>
+
+{# 統計數字 #}
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="s-label">已填答</div>
+        <div class="s-value">{{ submitted_count }}</div>
+        <div class="s-sub">/ {{ total_students }} 人</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">填答率</div>
+        <div class="s-value">
+            {{ (submitted_count / total_students * 100) | round(1) if total_students else 0 }}
+        </div>
+        <div class="s-sub">%</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">未填</div>
+        <div class="s-value" style="color:#e67e22;">{{ total_students - submitted_count }}</div>
+        <div class="s-sub">人</div>
+    </div>
+    <div class="stat-box">
+        <div class="s-label">題數</div>
+        <div class="s-value">{{ item_stats | length }}</div>
+        <div class="s-sub">題</div>
+    </div>
+</div>
+
+{# 各題平均（Likert 題） #}
+{% set likert_items = item_stats | selectattr('item.scale_type', 'equalto', 'likert5') | list %}
+{% if likert_items %}
+<div class="section-card">
+    <h2>各題平均分數（Likert 1–5）</h2>
+    <div style="overflow-x:auto;">
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width:6rem;">題號</th>
+                <th style="width:7rem;">構面</th>
+                <th>題目</th>
+                <th style="width:5rem;">平均</th>
+                <th style="width:9rem;">分佈</th>
+            </tr>
+        </thead>
+        <tbody>
+            {# 按構面分組顯示 #}
+            {% set prev_dim = namespace(v='') %}
+            {% for row in item_stats %}
+                {% if row.item.scale_type == 'likert5' %}
+                    <tr>
+                        <td style="color:#888;font-size:0.8rem;">{{ row.item.item_code }}</td>
+                        <td>
+                            {% if row.item.dimension_label %}
+                                <span class="dim-label">{{ row.item.dimension_label }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.item.text }}</td>
+                        <td style="font-weight:700;color:#6c3483;">
+                            {% if row.mean is not none %}
+                                {{ row.mean }}
+                            {% else %}
+                                <span style="color:#aaa;">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.mean is not none %}
+                                <div class="score-bar-wrap">
+                                    <div class="score-bar">
+                                        <div class="score-fill"
+                                             style="width:{{ (row.mean / 5 * 100) | int }}%;
+                                                    background:{% if row.mean >= 4 %}#27ae60{% elif row.mean >= 3 %}#f39c12{% else %}#e74c3c{% endif %};">
+                                        </div>
+                                    </div>
+                                    <span style="font-size:0.75rem;color:#888;">n={{ row.n }}</span>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{# 學生填答狀況 #}
+<div class="section-card">
+    <h2>📋 學生填答狀況</h2>
+    <div style="overflow-x:auto;">
+    <table class="stu-table">
+        <thead>
+            <tr>
+                <th>學號</th>
+                <th>姓名</th>
+                <th>班</th>
+                <th>填答時間</th>
+                <th>狀態</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in student_rows %}
+                <tr>
+                    <td>{{ row.student.student_id }}</td>
+                    <td>{{ row.student.name }}</td>
+                    <td>{{ row.student.class_group }}</td>
+                    <td>
+                        {% if row.submission %}
+                            {{ row.submission.submitted_at.strftime('%m/%d %H:%M') }}
+                        {% else %}
+                            <span style="color:#ccc;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.submission %}
+                            <span class="pill-sm pill-done">✅ 已填</span>
+                        {% else %}
+                            <span class="pill-sm pill-miss">未填</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.submission %}
+                            <a href="{{ url_for('view_student_questionnaire_response',
+                                               q_id=q.id, uid=row.student.id) }}"
+                               class="btn btn-outline btn-small">查看答案</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+{# 操作列 #}
+<div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:2rem;">
+    {% if q.code == 'arcsa_pre' or q.code == 'arcsa_post' %}
+        <a href="{{ url_for('export_arcsa_paired') }}"
+           class="btn btn-secondary btn-small">⬇ 匯出 ARCSA 配對 CSV</a>
+    {% else %}
+        <a href="{{ url_for('export_questionnaire', q_code=q.code) }}"
+           class="btn btn-secondary btn-small">⬇ 匯出 CSV</a>
+    {% endif %}
+    <a href="{{ url_for('manage_questionnaires') }}"
+       class="btn btn-outline btn-small">← 返回問卷管理</a>
+</div>
+
+{% endblock %}

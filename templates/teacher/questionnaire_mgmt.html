@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}問卷管理 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #6c3483 0%, #9b59b6 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 2rem;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 1rem;
+    }
+    .page-header h1 { margin: 0; font-size: 1.7rem; }
+
+    .q-card {
+        background: #fff; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        margin-bottom: 1.2rem; overflow: hidden;
+    }
+    .q-card-hd {
+        padding: 1.2rem 1.6rem;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 0.75rem;
+        border-left: 5px solid #9b59b6;
+    }
+    .q-card-hd.active { border-left-color: #27ae60; }
+    .q-title { font-size: 1.05rem; font-weight: 700; color: #1a1a1a; }
+    .q-meta  { font-size: 0.82rem; color: #888; margin-top: 0.15rem; }
+
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.3rem 0.8rem; border-radius: 20px;
+        font-size: 0.82rem; font-weight: 700;
+    }
+    .status-open   { background: #d4edda; color: #155724; }
+    .status-closed { background: #f8d7da; color: #721c24; }
+
+    .q-card-bd {
+        padding: 1rem 1.6rem 1.2rem;
+        border-top: 1px solid #f0f0f0;
+    }
+    .fill-bar-wrap {
+        display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem;
+    }
+    .fill-bar {
+        flex: 1; height: 10px; background: #eee; border-radius: 5px; overflow: hidden;
+    }
+    .fill-fill { height: 100%; background: #27ae60; border-radius: 5px; }
+    .fill-label { font-size: 0.85rem; color: #555; white-space: nowrap; }
+
+    .q-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    .timing-hint {
+        font-size: 0.8rem; color: #7d3c98; background: #f5eef8;
+        padding: 0.35rem 0.75rem; border-radius: 6px;
+        display: inline-block; margin-bottom: 0.75rem;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1>📋 問卷管理</h1>
+        <p style="opacity:0.85;margin-top:0.3rem;">開放 / 關閉問卷 · 查看填答率</p>
+    </div>
+    <a href="{{ url_for('teacher_dashboard') }}"
+       style="color:#fff;text-decoration:none;opacity:0.85;">← 返回儀表板</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for cat, msg in messages %}
+            <div class="alert alert-{{ 'success' if cat == 'success' else 'danger' }}"
+                 style="padding:0.75rem 1rem;border-radius:6px;margin-bottom:1rem;
+                        background:{{ '#d4edda' if cat == 'success' else '#f8d7da' }};
+                        color:{{ '#155724' if cat == 'success' else '#721c24' }};">
+                {{ msg }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<p style="color:#777;font-size:0.88rem;margin-bottom:1.5rem;">
+    共 {{ total_students }} 位學生。開放問卷後學生即可在個人儀表板填答；關閉後立即停止作答。
+</p>
+
+{% for row in q_stats %}
+    {% set q = row.q %}
+    <div class="q-card">
+        <div class="q-card-hd {{ 'active' if q.is_active else '' }}">
+            <div>
+                <div class="q-title">{{ q.name }}</div>
+                <div class="q-meta">
+                    代碼：{{ q.code }} &nbsp;|&nbsp;
+                    版本：v{{ q.version }} &nbsp;|&nbsp;
+                    學期：{{ q.semester }}
+                </div>
+            </div>
+            <span class="status-badge {{ 'status-open' if q.is_active else 'status-closed' }}">
+                {{ '🟢 開放中' if q.is_active else '🔴 已關閉' }}
+            </span>
+        </div>
+        <div class="q-card-bd">
+            {% if q.timing %}
+                <div class="timing-hint">⏰ 建議填答時機：{{ q.timing }}</div>
+            {% endif %}
+
+            <div class="fill-bar-wrap">
+                <div class="fill-bar">
+                    <div class="fill-fill" style="width:{{ row.rate }}%;"></div>
+                </div>
+                <span class="fill-label">
+                    {{ row.submitted }} / {{ row.total }} 人已填（{{ row.rate }}%）
+                </span>
+            </div>
+
+            <div class="q-actions">
+                {# 開放／關閉切換 #}
+                <form method="POST"
+                      action="{{ url_for('toggle_questionnaire', q_id=q.id) }}"
+                      style="display:inline;">
+                    <button type="submit"
+                            class="btn {{ 'btn-secondary' if q.is_active else 'btn-primary' }} btn-small"
+                            onclick="return confirm('確定要{{ '關閉' if q.is_active else '開放' }}《{{ q.name }}》嗎？')">
+                        {{ '🔒 關閉問卷' if q.is_active else '🔓 開放填答' }}
+                    </button>
+                </form>
+
+                {# 查看結果 #}
+                <a href="{{ url_for('view_questionnaire_results', q_id=q.id) }}"
+                   class="btn btn-outline btn-small">📊 查看結果</a>
+
+                {# 匯出 #}
+                {% if q.code == 'arcsa_pre' or q.code == 'arcsa_post' %}
+                    <a href="{{ url_for('export_arcsa_paired') }}"
+                       class="btn btn-outline btn-small">⬇ 匯出 ARCSA 配對</a>
+                {% else %}
+                    <a href="{{ url_for('export_questionnaire', q_code=q.code) }}"
+                       class="btn btn-outline btn-small">⬇ 匯出 CSV</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div style="text-align:center;padding:3rem;color:#aaa;">尚無問卷資料（請先執行 seed_db.py）</div>
+{% endfor %}
+
+{% endblock %}
