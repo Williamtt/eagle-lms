@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ student.name }} 學習歷程 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 1.8rem 2rem; border-radius: 8px; margin-bottom: 2rem;
+        display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+    }
+    .profile-header h1 { font-size: 1.6rem; margin: 0 0 0.3rem; }
+    .profile-header .meta { font-size: 0.9rem; opacity: 0.88; }
+    .back-btn {
+        background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+        padding: 0.45rem 1rem; border-radius: 5px; text-decoration: none; font-size: 0.88rem;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.35); }
+
+    .section-card {
+        background: #fff; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .section-card-hd {
+        background: #f4f6f7; padding: 0.9rem 1.5rem;
+        border-bottom: 1px solid #eaecee;
+        font-weight: 700; font-size: 1rem; color: #1a5276;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .section-card-bd { padding: 1.2rem 1.5rem; }
+
+    /* Tasks grid */
+    .tasks-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;
+    }
+    .task-tile {
+        border: 1.5px solid #eaecee; border-radius: 7px; padding: 1rem 1.2rem;
+        position: relative;
+    }
+    .task-tile.done  { border-color: #27ae60; }
+    .task-tile.none  { border-color: #ddd; background: #fafafa; }
+    .task-tile-num   { font-size: 0.78rem; color: #888; margin-bottom: 0.25rem; }
+    .task-tile-name  { font-weight: 700; font-size: 0.93rem; color: #1a5276; margin-bottom: 0.6rem; }
+    .task-tile-meta  { font-size: 0.82rem; color: #555; line-height: 1.7; }
+    .score-badge {
+        display: inline-block; padding: 0.15rem 0.55rem; border-radius: 10px;
+        font-weight: 700; font-size: 0.8rem;
+    }
+    .score-ai     { background: #e8f8f5; color: #1e8449; }
+    .score-teacher{ background: #eaf2fb; color: #1a5276; }
+    .tag-done { background: #27ae60; color: #fff; font-size: 0.72rem;
+                padding: 0.1rem 0.4rem; border-radius: 8px; }
+    .tag-none { background: #bdc3c7; color: #fff; font-size: 0.72rem;
+                padding: 0.1rem 0.4rem; border-radius: 8px; }
+    .view-link {
+        display: inline-block; margin-top: 0.7rem;
+        font-size: 0.8rem; color: #2980b9; text-decoration: none;
+    }
+    .view-link:hover { text-decoration: underline; }
+
+    /* Questionnaire & journal rows */
+    .item-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 0.6rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.92rem;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-label { color: #444; }
+    .tag-ok   { background: #d5f5e3; color: #1e8449;
+                font-size: 0.78rem; padding: 0.15rem 0.55rem; border-radius: 8px; font-weight: 600; }
+    .tag-miss { background: #f2f3f4; color: #7f8c8d;
+                font-size: 0.78rem; padding: 0.15rem 0.55rem; border-radius: 8px; }
+
+    /* Progress bar */
+    .prog-bar-wrap { background: #eaecee; border-radius: 10px; height: 8px; margin: 0.5rem 0; }
+    .prog-bar      { background: #27ae60; height: 8px; border-radius: 10px; transition: width 0.4s; }
+
+    @media (max-width: 600px) {
+        .tasks-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+{# ── 頁首 ── #}
+<div class="profile-header">
+    <div>
+        <h1>{{ student.name }}</h1>
+        <div class="meta">
+            學號：{{ student.student_id }}　｜　班級：{{ student.class_group }}
+            　｜　狀態：
+            {% if student.status == 'active' %}正常
+            {% elif student.status == 'disabled' %}已停用
+            {% else %}待審核{% endif %}
+            　｜　註冊時間：{{ student.created_at.strftime('%Y-%m-%d') if student.created_at else '—' }}
+        </div>
+    </div>
+    <a href="{{ url_for('teacher_dashboard') }}" class="back-btn">← 返回儀表板</a>
+</div>
+
+{# ── 任務提交 ── #}
+{% set done_count = task_submissions.values() | selectattr('id') | list | length %}
+<div class="section-card">
+    <div class="section-card-hd">
+        任務完成進度
+        <span style="font-weight:400;font-size:0.88rem;color:#555;margin-left:0.5rem;">
+            {{ done_count }} / {{ tasks | length }} 已提交
+        </span>
+    </div>
+    <div class="section-card-bd">
+        {% set pct = (done_count / tasks | length * 100) | int %}
+        <div class="prog-bar-wrap"><div class="prog-bar" style="width:{{ pct }}%;"></div></div>
+        <div class="tasks-grid" style="margin-top:1rem;">
+            {% for t_num, t_def in tasks.items() | sort %}
+                {% set sub = task_submissions[t_num] %}
+                <div class="task-tile {% if sub %}done{% else %}none{% endif %}">
+                    <div class="task-tile-num">
+                        任務 {{ t_num }}
+                        {% if sub %}<span class="tag-done">已提交</span>
+                        {% else %}<span class="tag-none">未提交</span>{% endif %}
+                    </div>
+                    <div class="task-tile-name">{{ t_def.name }}</div>
+                    {% if sub %}
+                        <div class="task-tile-meta">
+                            提交：{{ sub.submitted_at.strftime('%Y-%m-%d') }}<br>
+                            {% set ai_fb = sub.latest_ai_feedback %}
+                            {% if ai_fb %}
+                                {% set scores = ai_fb.scores | from_json %}
+                                {% if scores %}
+                                    AI：
+                                    {% for dim, val in scores.items() %}
+                                        <span class="score-badge score-ai">{{ dim }} {{ val }}</span>
+                                    {% endfor %}
+                                    <br>
+                                {% endif %}
+                            {% endif %}
+                            {% set tr = sub.latest_teacher_review %}
+                            {% if tr %}
+                                <span class="score-badge score-teacher">教師評分 {{ tr.score | int }}</span>
+                            {% else %}
+                                <span style="color:#aaa;font-size:0.8rem;">尚未評閱</span>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('teacher_review', submission_id=sub.id) }}"
+                           class="view-link">查看 / 評閱 →</a>
+                    {% else %}
+                        <div class="task-tile-meta" style="color:#bbb;">尚未提交</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# ── 問卷填答 ── #}
+<div class="section-card">
+    <div class="section-card-hd">問卷填答狀態</div>
+    <div class="section-card-bd">
+        {% if questionnaire_status %}
+            {% for code, info in questionnaire_status.items() %}
+            <div class="item-row">
+                <span class="item-label">{{ info.questionnaire.name }}</span>
+                <span>
+                    {% if info.submission %}
+                        <span class="tag-ok">已填寫
+                            （{{ info.submission.submitted_at.strftime('%Y-%m-%d') }}）
+                        </span>
+                        <a href="{{ url_for('view_student_questionnaire_response',
+                                            q_id=info.questionnaire.id, uid=student.id) }}"
+                           style="font-size:0.8rem;color:#2980b9;margin-left:0.5rem;">查看答卷</a>
+                    {% else %}
+                        <span class="tag-miss">未填寫</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#aaa;text-align:center;padding:1rem 0;">本學期尚無問卷</p>
+        {% endif %}
+    </div>
+</div>
+
+{# ── 學習日誌 ── #}
+{% set journal_done = journal_map | length %}
+<div class="section-card">
+    <div class="section-card-hd">
+        學習日誌
+        <span style="font-weight:400;font-size:0.88rem;color:#555;margin-left:0.5rem;">
+            {{ journal_done }} / {{ total_journals }} 篇已提交
+        </span>
+    </div>
+    <div class="section-card-bd">
+        {% for n in range(1, total_journals + 1) %}
+            {% set j = journal_map.get(n) %}
+            <div class="item-row">
+                <span class="item-label">第 {{ n }} 篇日誌
+                    {% if j %}（第 {{ j.week }} 週）{% endif %}
+                </span>
+                <span>
+                    {% if j %}
+                        <span class="tag-ok">已提交（{{ j.submitted_at.strftime('%Y-%m-%d') }}）</span>
+                        <span style="font-size:0.78rem;color:#888;margin-left:0.5rem;">
+                            {{ j.content | length }} 字
+                        </span>
+                    {% else %}
+                        <span class="tag-miss">未提交</span>
+                    {% endif %}
+                </span>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

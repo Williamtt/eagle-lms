@@ -17,7 +17,8 @@ class User(UserMixin, db.Model):
     name         = db.Column(db.String(80), nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role         = db.Column(db.String(10), default='student')   # student / teacher
-    class_group  = db.Column(db.String(10), default='A')         # A / B
+    class_group  = db.Column(db.String(20), default='A')         # 營建管理A班 / 營建管理B班
+    status       = db.Column(db.String(10), default='active')    # pending / active / disabled
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
     # relationships

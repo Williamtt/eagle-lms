@@ -18,4 +18,11 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
     # Teacher credentials
-    TEACHER_CODE = os.environ.get('TEACHER_CODE', 'eagle2025')
+    TEACHER_CODE  = os.environ.get('TEACHER_CODE', 'eagle2025')
+
+    # Email notifications (leave blank to disable)
+    TEACHER_EMAIL = os.environ.get('TEACHER_EMAIL', '')
+    SMTP_HOST     = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+    SMTP_PORT     = int(os.environ.get('SMTP_PORT', '587'))
+    SMTP_USER     = os.environ.get('SMTP_USER', '')
+    SMTP_PASS     = os.environ.get('SMTP_PASS', '')

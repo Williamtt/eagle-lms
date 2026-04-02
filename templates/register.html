@@ -5,36 +5,48 @@
 {% block content %}
 <style>
     .register-container {
-        max-width: 500px;
-        margin: 4rem auto;
+        max-width: 540px;
+        margin: 3rem auto;
     }
+
+    .dual-reg-notice {
+        background: #eaf4fb;
+        border-left: 4px solid #2980b9;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.93rem;
+        color: #1a4a6e;
+        line-height: 1.6;
+    }
+    .dual-reg-notice strong { display: block; margin-bottom: 0.3rem; font-size: 0.97rem; }
 
     .register-card {
         background: #fff;
-        padding: 3rem;
+        padding: 2.5rem;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
 
     .register-card h1 {
         color: #1a5276;
         text-align: center;
-        margin-bottom: 2rem;
-        font-size: 2rem;
+        margin-bottom: 1.8rem;
+        font-size: 1.8rem;
     }
 
     .register-card .form-group {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.4rem;
     }
 
     .register-card .btn {
         width: 100%;
-        margin-top: 1rem;
+        margin-top: 0.75rem;
     }
 
     .register-footer {
         text-align: center;
-        margin-top: 2rem;
+        margin-top: 1.5rem;
         color: #666;
     }
 
@@ -49,20 +61,47 @@
     }
 
     .form-hint {
-        font-size: 0.85rem;
+        font-size: 0.83rem;
         color: #999;
         margin-top: 0.25rem;
+    }
+
+    .pending-notice {
+        background: #fff8e1;
+        border-left: 4px solid #f39c12;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        color: #7d5a00;
+        line-height: 1.6;
     }
 </style>
 
 <div class="register-container">
+
+    {# ── 雙系統註冊說明 ── #}
+    <div class="dual-reg-notice">
+        <strong>注意：EAGLE 平台與 LMS 帳號相互獨立</strong>
+        您需要在 <b>EAGLE 任務平台</b> 與 <b>本 LMS 系統</b> 分別完成註冊，兩邊帳號各自獨立，無法互通。
+        若您已在 EAGLE 平台建立帳號，仍須在此另行註冊 LMS 帳號才能提交任務與填寫問卷。
+    </div>
+
+    <div class="pending-notice">
+        學生帳號註冊後須等待<strong>教師審核</strong>，審核通過後方可登入。請如實填寫學號與班級，以利教師核對身份。
+    </div>
+
     <div class="register-card">
-        <h1>註冊帳號</h1>
+        <h1>註冊 LMS 帳號</h1>
 
         <form method="POST" action="{{ url_for('register') }}">
+
             <div class="form-group">
                 <label for="student_id">學號</label>
-                <input type="text" id="student_id" name="student_id" required>
+                <input type="text" id="student_id" name="student_id"
+                       placeholder="例如：409380572" required
+                       pattern="\d{9}" title="請輸入 9 碼數字學號（教師可輸入任意代號）">
+                <div class="form-hint">學生請輸入 9 碼數字學號（例如：409380572）</div>
             </div>
 
             <div class="form-group">
@@ -71,9 +110,14 @@
             </div>
 
             <div class="form-group" id="class_group_field">
-                <label for="class_group">班級（學生請填寫）</label>
-                <input type="text" id="class_group" name="class_group" placeholder="例如：營建三A">
-                <div class="form-hint">教師可留空</div>
+                <label for="class_group">班級</label>
+                <select id="class_group" name="class_group">
+                    <option value="">── 請選擇班級（學生必選）──</option>
+                    {% for cg in valid_class_groups %}
+                        <option value="{{ cg }}">{{ cg }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-hint">教師不需選擇班級</div>
             </div>
 
             <div class="form-group">
@@ -90,10 +134,10 @@
             <div class="form-group">
                 <label for="teacher_code">教師代碼（可選）</label>
                 <input type="text" id="teacher_code" name="teacher_code">
-                <div class="form-hint">若為教師，請輸入教師代碼；否則請留空</div>
+                <div class="form-hint">若為教師，請輸入教師代碼；學生請留空</div>
             </div>
 
-            <button type="submit" class="btn btn-primary">註冊</button>
+            <button type="submit" class="btn btn-primary">送出申請</button>
         </form>
 
         <div class="register-footer">

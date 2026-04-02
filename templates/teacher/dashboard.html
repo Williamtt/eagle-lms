@@ -101,6 +101,33 @@
     .tool-card.questionnaire { border-left-color: #9b59b6; }
     .tool-card.questionnaire h3 { color: #6c3483; }
 
+    /* ── 待審核區塊 ─────────────────────────────────────────────── */
+    .pending-section {
+        background: #fff8e1; border: 1.5px solid #f39c12;
+        border-radius: 8px; padding: 1.4rem 2rem; margin-bottom: 2rem;
+    }
+    .pending-section h2 {
+        color: #856404; font-size: 1.05rem;
+        border-bottom: 2px solid #f39c12; padding-bottom: 0.4rem; margin-bottom: 1rem;
+    }
+    .btn-approve { background: #27ae60; color: #fff; border: none;
+                   padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.82rem; }
+    .btn-approve:hover { background: #1e8449; }
+    .btn-reject  { background: #e74c3c; color: #fff; border: none;
+                   padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.82rem; }
+    .btn-reject:hover  { background: #c0392b; }
+    .btn-action  { background: #7f8c8d; color: #fff; border: none;
+                   padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem; }
+    .btn-action:hover  { background: #566573; }
+    .btn-danger  { background: #e74c3c; color: #fff; border: none;
+                   padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem; }
+    .btn-danger:hover  { background: #c0392b; }
+    .btn-profile { background: #2980b9; color: #fff; border: none;
+                   padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+                   text-decoration: none; display: inline-block; }
+    .btn-profile:hover { background: #1a5276; }
+    .status-disabled { color: #e74c3c; font-size: 0.8rem; font-weight: 600; }
+
     @media (max-width: 768px) {
         .task-grid { grid-template-columns: 1fr; }
         .students-table { font-size: 0.85rem; }
@@ -135,6 +162,45 @@
         <div class="stat-label">待評閱</div>
     </div>
 </div>
+
+{# ── 待審核帳號 ── #}
+{% if pending_users %}
+<div class="pending-section">
+    <h2>待審核帳號（{{ pending_users | length }} 人）</h2>
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th>學號</th><th>姓名</th><th>班級</th><th>申請時間</th><th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in pending_users %}
+            <tr>
+                <td>{{ u.student_id }}</td>
+                <td>{{ u.name }}</td>
+                <td><span class="class-badge">{{ u.class_group }}</span></td>
+                <td style="font-size:0.83rem;color:#888;">
+                    {{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '—' }}
+                </td>
+                <td style="white-space:nowrap;">
+                    <form method="POST"
+                          action="{{ url_for('teacher_approve_user', uid=u.id) }}"
+                          style="display:inline;">
+                        <button type="submit" class="btn-approve">核准</button>
+                    </form>
+                    <form method="POST"
+                          action="{{ url_for('teacher_reject_user', uid=u.id) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('確定拒絕並刪除 {{ u.name }} 的申請？');">
+                        <button type="submit" class="btn-reject">拒絕</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 {# ── 各任務快覽 ── #}
 <div class="section-heading">各任務提交狀況</div>
@@ -239,21 +305,36 @@
                 <th>姓名</th>
                 <th>班級</th>
                 <th>提交任務數</th>
+                <th>操作</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
-                {# 計算該學生本學期已提交任務數 #}
                 {% set s_tasks = student.task_submissions.filter_by(semester='114-1').count() %}
                 <tr>
                     <td>{{ student.student_id }}</td>
                     <td>{{ student.name }}</td>
                     <td><span class="class-badge">{{ student.class_group }}</span></td>
                     <td>{{ s_tasks }} / {{ task_stats | length }}</td>
+                    <td style="white-space:nowrap;">
+                        <a href="{{ url_for('teacher_student_profile', uid=student.id) }}"
+                           class="btn-profile">學習歷程</a>
+                        <form method="POST"
+                              action="{{ url_for('teacher_toggle_user', uid=student.id) }}"
+                              style="display:inline;">
+                            <button type="submit" class="btn-action">停用</button>
+                        </form>
+                        <form method="POST"
+                              action="{{ url_for('teacher_delete_user', uid=student.id) }}"
+                              style="display:inline;"
+                              onsubmit="return confirm('確定刪除 {{ student.name }} 的帳號及所有資料？此操作不可還原。');">
+                            <button type="submit" class="btn-danger">刪除</button>
+                        </form>
+                    </td>
                 </tr>
             {% else %}
                 <tr>
-                    <td colspan="4" style="text-align:center;color:#999;padding:2rem;">
+                    <td colspan="5" style="text-align:center;color:#999;padding:2rem;">
                         尚無學生資料
                     </td>
                 </tr>
@@ -261,4 +342,38 @@
         </tbody>
     </table>
 </div>
+
+{# ── 停用學生 ── #}
+{% if disabled_users %}
+<div class="students-section" style="opacity:0.8;">
+    <h2 style="color:#7f8c8d;">已停用帳號（{{ disabled_users | length }} 人）</h2>
+    <table class="students-table">
+        <thead>
+            <tr><th>學號</th><th>姓名</th><th>班級</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+            {% for u in disabled_users %}
+            <tr>
+                <td>{{ u.student_id }}</td>
+                <td>{{ u.name }} <span class="status-disabled">（停用中）</span></td>
+                <td><span class="class-badge">{{ u.class_group }}</span></td>
+                <td style="white-space:nowrap;">
+                    <form method="POST"
+                          action="{{ url_for('teacher_toggle_user', uid=u.id) }}"
+                          style="display:inline;">
+                        <button type="submit" class="btn-approve">重新啟用</button>
+                    </form>
+                    <form method="POST"
+                          action="{{ url_for('teacher_delete_user', uid=u.id) }}"
+                          style="display:inline;"
+                          onsubmit="return confirm('確定刪除 {{ u.name }} 的帳號？');">
+                        <button type="submit" class="btn-danger">刪除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 {% endblock %}

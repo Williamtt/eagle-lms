@@ -20,12 +20,33 @@ from models import (db, User,
                     LearningJournal,
                     Submission)   # Submission 保留供舊資料查詢
 import ai_service
+import notify
 from task_definitions import TASKS, SEMESTER, SYSTEM_VERSION, LEARNING_JOURNALS
+
+# 允許的班級選項（學生註冊用）
+VALID_CLASS_GROUPS = ['營建管理A班', '營建管理B班']
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
 db.init_app(app)
+
+
+def _run_migrations():
+    """Add new columns to existing tables without Flask-Migrate."""
+    from sqlalchemy import inspect, text
+    with app.app_context():
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'users' in tables:
+            cols = [c['name'] for c in inspector.get_columns('users')]
+            if 'status' not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN status VARCHAR(10) DEFAULT 'active'"
+                    ))
+                    conn.commit()
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -59,36 +80,59 @@ def load_user(user_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        import re
         student_id   = request.form.get('student_id', '').strip()
         name         = request.form.get('name', '').strip()
         password     = request.form.get('password', '')
         confirm      = request.form.get('confirm_password', '')
-        class_group  = request.form.get('class_group', '').strip() or '未分班'
+        class_group  = request.form.get('class_group', '').strip()
         teacher_code = request.form.get('teacher_code', '').strip()
 
+        is_teacher = (teacher_code == app.config['TEACHER_CODE'])
+
+        # 必填欄位
         if not student_id or not name or not password:
             flash('請填寫所有必填欄位。', 'error')
-            return render_template('register.html')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
+
+        # 學號格式：9碼純數字（教師不限制）
+        if not is_teacher and not re.fullmatch(r'\d{9}', student_id):
+            flash('學號格式錯誤，請輸入 9 碼數字（例如：409380572）。', 'error')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
+
+        # 班級：學生必須選擇有效班級
+        if not is_teacher and class_group not in VALID_CLASS_GROUPS:
+            flash('請選擇正確的班級。', 'error')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
+
         if password != confirm:
             flash('兩次密碼不一致。', 'error')
-            return render_template('register.html')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
         if len(password) < 6:
             flash('密碼至少需要 6 個字元。', 'error')
-            return render_template('register.html')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
         if User.query.filter_by(student_id=student_id).first():
             flash('此學號已被註冊。', 'error')
-            return render_template('register.html')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
 
-        role = 'teacher' if teacher_code == app.config['TEACHER_CODE'] else 'student'
+        role   = 'teacher' if is_teacher else 'student'
+        status = 'active'  if is_teacher else 'pending'
+        cg     = class_group if class_group else '未分班'
+
         user = User(student_id=student_id, name=name,
-                    role=role, class_group=class_group)
+                    role=role, class_group=cg, status=status)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
-        flash('註冊成功！請登入。', 'success')
+
+        if role == 'student':
+            notify.notify_new_registration(name, student_id, cg, app.config)
+            flash('註冊申請已送出！請等待教師審核後即可登入。', 'success')
+        else:
+            flash('教師帳號建立成功！請登入。', 'success')
         return redirect(url_for('login'))
 
-    return render_template('register.html')
+    return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -100,6 +144,12 @@ def login():
         password   = request.form.get('password', '')
         user = User.query.filter_by(student_id=student_id).first()
         if user and user.check_password(password):
+            if user.status == 'pending':
+                flash('帳號尚待教師審核，審核通過後即可登入。', 'warning')
+                return render_template('login.html')
+            if user.status == 'disabled':
+                flash('帳號已停用，請聯繫教師。', 'error')
+                return render_template('login.html')
             login_user(user)
             return redirect(url_for('dashboard'))
         flash('學號或密碼錯誤。', 'error')
@@ -386,6 +436,9 @@ def submit_task(task_number):
     else:
         flash('提交成功！', 'success')
 
+    notify.notify_new_submission(
+        current_user.name, current_user.student_id, task_number, app.config
+    )
     return redirect(url_for('view_task', task_number=task_number))
 
 
@@ -614,7 +667,11 @@ def teacher_dashboard():
         flash('無教師權限。', 'error')
         return redirect(url_for('dashboard'))
 
-    students = User.query.filter_by(role='student')\
+    pending_users = User.query.filter_by(role='student', status='pending')\
+        .order_by(User.created_at.asc()).all()
+    students = User.query.filter_by(role='student', status='active')\
+        .order_by(User.class_group, User.student_id).all()
+    disabled_users = User.query.filter_by(role='student', status='disabled')\
         .order_by(User.class_group, User.student_id).all()
     total_subs    = TaskSubmission.query.filter_by(semester=SEMESTER).count()
     reviewed_count = TeacherReview.query.filter_by(published=True).count()
@@ -635,10 +692,149 @@ def teacher_dashboard():
 
     return render_template('teacher/dashboard.html',
                            students=students,
+                           pending_users=pending_users,
+                           disabled_users=disabled_users,
                            total_submissions=total_subs,
                            reviewed_count=reviewed_count,
                            task_stats=task_stats,
                            tasks=TASKS)
+
+
+@app.route('/teacher/user/<int:uid>/approve', methods=['POST'])
+@login_required
+def teacher_approve_user(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    user = db.session.get(User, uid)
+    if user and user.status == 'pending':
+        user.status = 'active'
+        db.session.commit()
+        flash(f'已核准 {user.name}（{user.student_id}）的帳號。', 'success')
+    return redirect(url_for('teacher_dashboard'))
+
+
+@app.route('/teacher/user/<int:uid>/reject', methods=['POST'])
+@login_required
+def teacher_reject_user(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    user = db.session.get(User, uid)
+    if user and user.status == 'pending':
+        name = user.name
+        sid  = user.student_id
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'已拒絕並刪除 {name}（{sid}）的帳號申請。', 'success')
+    return redirect(url_for('teacher_dashboard'))
+
+
+@app.route('/teacher/user/<int:uid>/toggle', methods=['POST'])
+@login_required
+def teacher_toggle_user(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    user = db.session.get(User, uid)
+    if user and user.role == 'student':
+        user.status = 'disabled' if user.status == 'active' else 'active'
+        db.session.commit()
+        state = '停用' if user.status == 'disabled' else '啟用'
+        flash(f'已{state} {user.name}（{user.student_id}）的帳號。', 'success')
+    return redirect(url_for('teacher_dashboard'))
+
+
+@app.route('/teacher/user/<int:uid>/delete', methods=['POST'])
+@login_required
+def teacher_delete_user(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    user = db.session.get(User, uid)
+    if user and user.role == 'student':
+        name = user.name
+        sid  = user.student_id
+
+        # 用 raw SQL 按外鍵依賴順序刪除，避免所有 NOT NULL 衝突
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            # 問卷答案 → 問卷提交
+            conn.execute(text("""
+                DELETE FROM questionnaire_answers
+                WHERE submission_id IN (
+                    SELECT id FROM questionnaire_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM questionnaire_submissions WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # 學習日誌
+            conn.execute(text(
+                "DELETE FROM learning_journals WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # v2 任務提交的所有子表
+            conn.execute(text("""
+                DELETE FROM ai_feedbacks
+                WHERE task_submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM teacher_reviews
+                WHERE task_submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM question_responses
+                WHERE submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM checklist_responses
+                WHERE submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM reflection_responses
+                WHERE submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM deliverable_uploads
+                WHERE submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM task_submissions WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # v1 舊提交的子表
+            conn.execute(text("""
+                DELETE FROM ai_feedbacks
+                WHERE submission_id IN (
+                    SELECT id FROM submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM teacher_reviews
+                WHERE submission_id IN (
+                    SELECT id FROM submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM submissions WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # 最後刪除使用者
+            conn.execute(text("DELETE FROM users WHERE id = :uid"), {'uid': uid})
+            conn.commit()
+
+        flash(f'已刪除 {name}（{sid}）的帳號及所有資料。', 'success')
+    return redirect(url_for('teacher_dashboard'))
 
 
 @app.route('/teacher/task/<int:task_number>')
@@ -720,6 +916,52 @@ def teacher_review(submission_id):
                            ai_feedback=ai_fb,
                            existing_review=existing_review,
                            ai_suggestion=ai_suggestion)
+
+
+@app.route('/teacher/student/<int:uid>')
+@login_required
+def teacher_student_profile(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    student = db.session.get(User, uid)
+    if not student or student.role != 'student':
+        flash('找不到此學生。', 'error')
+        return redirect(url_for('teacher_dashboard'))
+
+    # 各任務提交（含最新 AI 回饋與教師評分）
+    task_submissions = {}
+    for t_num in TASKS:
+        sub = TaskSubmission.query.filter_by(
+            user_id=student.id, task_number=t_num, semester=SEMESTER
+        ).order_by(TaskSubmission.submitted_at.desc()).first()
+        task_submissions[t_num] = sub
+
+    # 問卷填答狀態
+    questionnaires = Questionnaire.query.filter_by(semester=SEMESTER).all()
+    questionnaire_status = {}
+    for q in questionnaires:
+        submission = QuestionnaireSubmission.query.filter_by(
+            user_id=student.id, questionnaire_id=q.id
+        ).first()
+        questionnaire_status[q.code] = {
+            'questionnaire': q,
+            'submission': submission,
+        }
+
+    # 學習日誌
+    journals = LearningJournal.query.filter_by(
+        user_id=student.id, semester=SEMESTER
+    ).order_by(LearningJournal.journal_number).all()
+    journal_map = {j.journal_number: j for j in journals}
+
+    return render_template('teacher/student_profile.html',
+                           student=student,
+                           task_submissions=task_submissions,
+                           tasks=TASKS,
+                           questionnaire_status=questionnaire_status,
+                           journal_map=journal_map,
+                           total_journals=5)
 
 
 @app.route('/teacher/analytics')
@@ -1264,6 +1506,7 @@ def regenerate_feedback(submission_id):
 
 with app.app_context():
     db.create_all()
+    _run_migrations()
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
