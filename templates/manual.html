@@ -372,7 +372,7 @@
     <table>
         <tr><th>原始案例日期</th><th>模擬日期（EAGLE 填寫用）</th><th>說明</th></tr>
         <tr><td>2023 年 1 月 30 日</td><td>2026 年 3 月 1 日</td><td>模擬第 1 天（開工日）</td></tr>
-        <tr><td>2023 年 2 月 28 日</td><td>2026 年 3 月 31 日</td><td>模擬第 30 天</td></tr>
+        <tr><td>2023 年 2 月 28 日</td><td>2026 年 3 月 30 日</td><td>模擬第 30 天</td></tr>
         <tr><td>2023 年 3 月 31 日</td><td>2026 年 4 月 30 日</td><td>模擬第 61 天（任務 2 Phase B 截止，進度約 30%）</td></tr>
         <tr><td>2023 年 7 月 28 日</td><td>2026 年 8 月 28 日</td><td>模擬完工日</td></tr>
     </table>
@@ -576,15 +576,26 @@
         <li>點擊右上角「編輯」按鈕，切換為編輯模式。</li>
         <li>依照開工報告表中的資料，填入以下欄位：
             <table>
-                <tr><th>欄位</th><th>填入內容</th></tr>
-                <tr><td>工程名稱</td><td>磺港溪再造步道整建工程（奇岩抽水站至西安橋）</td></tr>
-                <tr><td>設計單位</td><td>（依開工報告表填寫）</td></tr>
-                <tr><td>監造單位</td><td>任泰技術顧問有限公司</td></tr>
-                <tr><td>施工廠商</td><td>永溢營造股份有限公司</td></tr>
-                <tr><td>工程概要</td><td>河岸護岸整建、步道鋪面、景觀設施及排水設施改善工程</td></tr>
-                <tr><td>開工日期</td><td><strong>2026 年 3 月 1 日</strong>（模擬開工日，非原始案例日期）</td></tr>
-                <tr><td>工期（天）</td><td>180</td></tr>
+                <tr><th>欄位</th><th>填入內容</th><th>區塊</th></tr>
+                <tr><td>工程名稱</td><td>磺港溪再造步道整建工程（奇岩抽水站至西安橋）</td><td>基本資訊</td></tr>
+                <tr><td>契約編號</td><td>（依開工報告表填寫）</td><td>基本資訊</td></tr>
+                <tr><td>主辦機關</td><td>臺北市政府工務局水利工程處</td><td>基本資訊</td></tr>
+                <tr><td>設計單位</td><td>（依開工報告表填寫）</td><td>基本資訊</td></tr>
+                <tr><td>監造單位</td><td>任泰技術顧問有限公司</td><td>基本資訊</td></tr>
+                <tr><td>施工廠商</td><td>永溢營造股份有限公司</td><td>基本資訊</td></tr>
+                <tr><td>工程概要</td><td>河岸護岸整建、步道鋪面、景觀設施及排水設施改善工程</td><td>工程內容</td></tr>
+                <tr><td>開工日期</td><td><strong>2026 年 3 月 1 日</strong>（模擬開工日，非原始案例日期）</td><td>工期</td></tr>
+                <tr><td>工期（天）</td><td>180</td><td>工期</td></tr>
+                <tr><td>原契約工程費（元）</td><td>22,700,000</td><td>契約金額</td></tr>
+                <tr><td>原契約設計相關費（元）</td><td>（依開工報告表填寫）</td><td>契約金額</td></tr>
+                <tr><td>工地負責人</td><td>（依開工報告表填寫）</td><td>聯絡與人員</td></tr>
+                <tr><td>聯絡電話</td><td>（依開工報告表填寫）</td><td>聯絡與人員</td></tr>
+                <tr><td>專案工程人員</td><td>（依開工報告表填寫）</td><td>聯絡與人員</td></tr>
             </table>
+            <div class="box box-tip" style="margin-top:0.75rem;">
+                <span class="box-label">契約金額為什麼要填？</span>
+                「原契約工程費」與「原契約設計相關費」這兩個欄位是為了支援<strong>任務 2 的監造報表功能</strong>而新增的。系統會在每份監造報表中自動帶入這些金額資料。請務必依開工報告表確實填寫，系統將自動計算「契約總價」（工程費 + 設計費）。
+            </div>
         </li>
         <li>系統會自動計算「預定完工日期」。請確認計算結果是否為 <strong>2026 年 8 月 28 日</strong>。
             <div class="box box-tip" style="margin-top:0.75rem;">
@@ -653,7 +664,8 @@
 
     <h3>1.7 自我檢核清單</h3>
     <ul class="checklist">
-        <li>專案基本資料（工程名稱、單位、金額、工期、日期）與開工報告表完全一致。</li>
+        <li>專案基本資料（工程名稱、契約編號、主辦機關、設計 / 監造 / 施工單位、工期、開工日期）與開工報告表完全一致。</li>
+        <li>契約金額區塊（原契約工程費、原契約設計相關費）已依開工報告表填寫，系統顯示的「契約總價」計算正確。</li>
         <li>契約工項已透過 XML 正確匯入，項次、說明、單位、數量、單價均與原始資料吻合。</li>
         <li>預定進度計畫已上傳，系統可顯示正確的預定進度 S 曲線。</li>
         <li>儀表板上的「累計天數」與「整體進度」資訊顯示正常。</li>
@@ -747,7 +759,6 @@
             <li><strong>歷史監工日報表</strong>（<a href="https://drive.google.com/drive/folders/19bGfZAEt_wXRT4hs4PbPUTL5TcYPjnr7" target="_blank">2.施工日誌/資料夾 📂</a>）：112 年 1 月 30 日至 7 月 24 日的監工日報表第一聯 Excel 檔案，共約 26 週的紀錄。<strong>【Phase B 主要參考資料】</strong></li>
             <li><strong>原契約工項</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/原契約.csv 📂</a>）：了解各施工項目的契約數量與金額。<strong>【Phase A + B 均需使用】</strong></li>
             <li><strong>進度曲線表</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/進度曲線表.pdf 📂</a>）：預定進度 S 曲線，用於計算每日預定進度。</li>
-            <li><strong>工程網狀圖</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/工程網狀圖.pdf 📂</a>）：各工項的排程與先後關係。</li>
             <li><strong>施工日誌樣板</strong>（17.樣板/施工日誌第一聯(預設樣板).xlsx）：了解施工日誌的格式。<strong>【Phase A 參考】</strong></li>
         </ul>
         <div class="box box-info" style="margin-top: 1rem;">
@@ -788,10 +799,10 @@
     <div style="border-left:4px solid #2980b9;padding-left:1rem;margin-bottom:2rem;">
         <h4 style="color:#1a5276;">Phase A：施工日誌（承攬廠商視角）</h4>
 
-        <h4>步驟 A：研讀歷史日誌，了解施工日誌格式</h4>
+        <h4>步驟 A：研讀歷史監工日報表，了解施工日誌欄位</h4>
         <ol class="steps">
-            <li>開啟 1–2 份歷史施工日誌樣板，了解施工日誌（承攬廠商填寫）的欄位格式，特別注意：施工項目填寫方式、材料進場紀錄、人員機具記錄、安全衛生紀錄。</li>
-            <li>對照歷史監工日報表，觀察同一天的「施工日誌（第二聯，承攬廠商）」與「監工日報表（第一聯，監造工程師）」之間有何異同。</li>
+            <li>開啟 1–2 份歷史監工日報表（第一聯，監造工程師填寫），了解監造工程師當天記錄了哪些施工項目與查驗情形，以及天氣、進度、安全衛生等欄位的填寫方式。</li>
+            <li>同時開啟施工日誌樣板，對照系統的欄位結構（施工項目、材料、人員機具、安全衛生），思考：如果你是當天的工地主任（承攬廠商），根據監工日報表所記錄的施工情形，你的施工日誌會如何填寫？</li>
         </ol>
 
         <h4>步驟 B：在 EAGLE 2.0 中填寫施工日誌（1–2 天）</h4>
@@ -815,15 +826,15 @@
     <div style="border-left:4px solid #27ae60;padding-left:1rem;margin-bottom:2rem;">
         <h4 style="color:#1e8449;">Phase B：監造報表（監造工程師視角）</h4>
 
-        <h4>步驟 C：理解 WBS 與契約工項的對應關係</h4>
+        <h4>步驟 C：瀏覽契約工項清單，了解主要施工工項</h4>
         <ol class="steps">
-            <li>對照「工程網狀圖」與「原契約工項 CSV」，建立甘特圖工作項目與契約詳細價目表的對應關係。</li>
-            <li>列出模擬第 1–61 天涉及的主要施工項目（整備工程、土建景觀初期等），供後續監造報表的工項填寫使用。</li>
+            <li>從左側選單進入「施工管理」→「契約工項」（或「施工管理」→「契約工項」頁籤），瀏覽任務 1 已匯入的完整契約工項清單，記錄各工項的名稱、單位及契約數量。</li>
+            <li>對照歷史監工日報表，了解工程進行初期（前 61 天）主要施作的工項類別，例如整備工程（機械拆除、圍籬設置等）及土建景觀初期（混凝土、鋼筋等），以便在後續監造報表中合理選取每日施作工項。</li>
         </ol>
 
-        <div class="box box-highlight">
-            <span class="box-label">關鍵問題</span>
-            甘特圖的工程名稱跟契約項目不一樣，為什麼？——因為公司內部排程以「工作面 / 施工階段」分類，契約以「計價項目」分類，邏輯不同，但透過 WBS 可建立對應關係。
+        <div class="box box-tip">
+            <span class="box-label">選取工項的原則</span>
+            你不需要建立正式的對應關係表，只需根據歷史監工日報表中描述的施工情形，在 EAGLE 的契約工項清單中找到「看起來最合理」的對應工項即可。判斷依據是施工項目的名稱與單位是否符合當日施工情形。
         </div>
 
         <h4>步驟 D：計算每日預定進度與實際進度</h4>
@@ -885,7 +896,7 @@
     <p><strong>Phase B：</strong></p>
     <ul class="checklist">
         <li>已研讀至少 3 份歷史監造報表，了解各節（查驗、材料、職安衛）的填寫脈絡。</li>
-        <li>已建立 WBS 與契約工項的對應關係，可正確選取每日施作工項。</li>
+        <li>已瀏覽 EAGLE 中已匯入的契約工項清單，能根據歷史監工日報表合理判斷並選取各日施作工項。</li>
         <li>已在監造報表模組中完成工程進度 30% 前所有工作天的監造報表填寫，每份均包含施工項目、查驗紀錄、監造工程師簽核。</li>
         <li>每份監造報表的施工項目查驗數量合理且與歷史資料一致；若與 Phase A 施工日誌有差異，已在查驗紀錄中說明。</li>
         <li>所有進度數值（施工預定 / 施工實際）均經過計算驗證，非隨意填寫。</li>
