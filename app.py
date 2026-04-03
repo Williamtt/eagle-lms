@@ -18,7 +18,9 @@ from models import (db, User,
                     Questionnaire, QuestionnaireItem,
                     QuestionnaireSubmission, QuestionnaireAnswer,
                     LearningJournal,
-                    Submission)   # Submission 保留供舊資料查詢
+                    Submission,          # Submission 保留供舊資料查詢
+                    TutorConversation)
+import requests as http_requests
 import ai_service
 import notify
 from task_definitions import TASKS, SEMESTER, SYSTEM_VERSION, LEARNING_JOURNALS
@@ -1500,6 +1502,79 @@ def regenerate_feedback(submission_id):
     ))
     db.session.commit()
     return jsonify({'success': True, 'feedback': result.get('feedback', '')})
+
+
+# ─── AI Tutor API ────────────────────────────────────────────────────────────
+
+@app.route('/api/tutor/chat', methods=['POST'])
+@login_required
+def tutor_chat():
+    data = request.get_json()
+    user_message = (data.get('message') or '').strip()
+    if not user_message:
+        return jsonify({'error': '請輸入問題'}), 400
+
+    page_context = data.get('page_context', '')
+
+    # Load or create conversation
+    conv = TutorConversation.query.filter_by(user_id=current_user.id)\
+        .order_by(TutorConversation.updated_at.desc()).first()
+    if not conv:
+        conv = TutorConversation(user_id=current_user.id, messages='[]')
+        db.session.add(conv)
+        db.session.flush()
+
+    messages = json.loads(conv.messages)
+
+    # Sliding window: last 5 rounds (10 messages)
+    recent = messages[-10:] if len(messages) > 10 else messages
+
+    # Call ai-tutor-service
+    try:
+        resp = http_requests.post(
+            f"{app.config['AI_TUTOR_URL']}/api/ai-tutor/chat",
+            json={
+                'message': user_message,
+                'system': 'eagle-lms',
+                'conversation_history': recent,
+                'page_context': page_context,
+            },
+            headers={'X-Service-Key': app.config['AI_TUTOR_SERVICE_KEY']},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': 'AI 服務暫時無法使用'}), 502
+        result = resp.json()
+    except Exception:
+        return jsonify({'error': 'AI 服務連線失敗'}), 502
+
+    # Append both messages to conversation
+    messages.append({'role': 'user', 'content': user_message})
+    messages.append({'role': 'assistant', 'content': result['answer']})
+    conv.messages = json.dumps(messages, ensure_ascii=False)
+    conv.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify(result)
+
+
+@app.route('/api/tutor/history', methods=['GET'])
+@login_required
+def tutor_history():
+    conv = TutorConversation.query.filter_by(user_id=current_user.id)\
+        .order_by(TutorConversation.updated_at.desc()).first()
+    if not conv:
+        return jsonify({'messages': []})
+    return jsonify({'messages': json.loads(conv.messages)})
+
+
+@app.route('/api/tutor/new', methods=['POST'])
+@login_required
+def tutor_new_conversation():
+    conv = TutorConversation(user_id=current_user.id, messages='[]')
+    db.session.add(conv)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────

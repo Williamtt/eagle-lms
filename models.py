@@ -263,3 +263,16 @@ class Submission(db.Model):
                                      foreign_keys='AIFeedback.submission_id', lazy='dynamic')
     teacher_reviews = db.relationship('TeacherReview', backref='old_submission',
                                       foreign_keys='TeacherReview.submission_id', lazy='dynamic')
+
+
+# ─── AI Tutor Conversations ─────────────────────────────────────────────────
+
+class TutorConversation(db.Model):
+    __tablename__ = 'tutor_conversations'
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    messages   = db.Column(db.Text, default='[]')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', backref='tutor_conversations')

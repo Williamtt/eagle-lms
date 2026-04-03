@@ -381,5 +381,10 @@
         <p>&copy; 2025 EAGLE 2.0 LMS - 磺港溪工程案例自主學習平台 | 淡江大學土木工程學系</p>
         <p>114 學年度 營建管理課程</p>
     </footer>
+
+    {% if current_user.is_authenticated %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-tutor.css') }}">
+    <script src="{{ url_for('static', filename='js/ai-tutor.js') }}"></script>
+    {% endif %}
 </body>
 </html>

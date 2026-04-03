@@ -20,6 +20,10 @@ class Config:
     # Teacher credentials
     TEACHER_CODE  = os.environ.get('TEACHER_CODE', 'eagle2025')
 
+    # AI Tutor Service
+    AI_TUTOR_URL = os.environ.get('AI_TUTOR_URL', 'http://localhost:8000')
+    AI_TUTOR_SERVICE_KEY = os.environ.get('AI_TUTOR_SERVICE_KEY', '')
+
     # Email notifications (leave blank to disable)
     TEACHER_EMAIL = os.environ.get('TEACHER_EMAIL', '')
     SMTP_HOST     = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
