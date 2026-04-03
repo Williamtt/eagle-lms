@@ -199,6 +199,38 @@
     </div>
 </div>
 
+{# ── 操作步驟（僅在有 operation_steps 時顯示） ── #}
+{% if task_def.operation_steps is defined and task_def.operation_steps %}
+<div class="form-card" style="border-left:4px solid #2980b9;background:#f0f6ff;">
+    <h2 class="section-title" style="color:#1a5276;">
+        <span class="section-badge" style="background:#2980b9;">操</span>
+        EAGLE 2.0 操作步驟
+    </h2>
+    <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
+        請依照以下步驟在 EAGLE 2.0 系統中完成實際操作，再回答下方的提示問題與反思。
+    </p>
+    {% for phase in task_def.operation_steps %}
+        <div style="margin-bottom:1.8rem;">
+            <h3 style="font-size:1rem;font-weight:700;color:#1a5276;margin-bottom:0.8rem;
+                        border-bottom:2px solid #aed6f1;padding-bottom:0.4rem;">
+                {{ phase.phase }}
+            </h3>
+            <ol style="padding-left:1.4rem;line-height:2;">
+                {% for step in phase.steps %}
+                    <li style="font-size:0.95rem;color:#2c3e50;margin-bottom:0.4rem;">{{ step }}</li>
+                {% endfor %}
+            </ol>
+            {% if phase.note is defined and phase.note %}
+                <div style="margin-top:0.8rem;padding:0.7rem 1rem;background:#fef9e7;
+                            border-left:3px solid #f39c12;border-radius:4px;font-size:0.9rem;color:#7d6608;">
+                    💡 {{ phase.note }}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 {# ── 已有提交標記 ── #}
 {% if existing_sub %}
     <div class="submitted-banner">
