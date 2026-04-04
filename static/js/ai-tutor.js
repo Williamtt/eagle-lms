@@ -35,6 +35,11 @@
   var newBtn = document.getElementById('aiTutorNew');
 
   var sending = false;
+  var composing = false;
+
+  // ── IME composition guards ────────────────────────────────────────────────
+  input.addEventListener('compositionstart', function () { composing = true; });
+  input.addEventListener('compositionend', function () { composing = false; });
 
   // ── Toggle panel ─────────────────────────────────────────────────────────
   fab.addEventListener('click', function () {
@@ -61,7 +66,7 @@
   // ── Send message ─────────────────────────────────────────────────────────
   sendBtn.addEventListener('click', sendMessage);
   input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !composing) {
       e.preventDefault();
       sendMessage();
     }
