@@ -523,5 +523,45 @@ document.getElementById('task-form').addEventListener('submit', function() {
     btn.disabled = true;
     btn.textContent = '提交中，請稍候…';
 });
+
+/* ── 作答欄禁止貼上與拖放 ─────────────────────────────── */
+(function() {
+    function showNoPasteNotice() {
+        var notice = document.getElementById('no-paste-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'no-paste-notice';
+            notice.style.cssText = [
+                'position:fixed', 'bottom:80px', 'left:50%',
+                'transform:translateX(-50%)',
+                'background:#c0392b', 'color:#fff',
+                'padding:0.6rem 1.6rem', 'border-radius:6px',
+                'font-size:0.9rem', 'font-weight:600',
+                'z-index:9999', 'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
+                'pointer-events:none'
+            ].join(';');
+            notice.textContent = '⚠ 本作答欄位禁止貼上，請以自己的文字作答。';
+            document.body.appendChild(notice);
+        }
+        clearTimeout(notice._hideTimer);
+        notice.style.opacity = '1';
+        notice._hideTimer = setTimeout(function() {
+            notice.style.transition = 'opacity 0.4s';
+            notice.style.opacity = '0';
+            setTimeout(function() { notice.remove(); }, 400);
+        }, 2500);
+    }
+
+    document.querySelectorAll('textarea.answer-input').forEach(function(ta) {
+        ta.addEventListener('paste', function(e) {
+            e.preventDefault();
+            showNoPasteNotice();
+        });
+        ta.addEventListener('drop', function(e) {
+            e.preventDefault();
+            showNoPasteNotice();
+        });
+    });
+})();
 </script>
 {% endblock %}
