@@ -153,13 +153,20 @@
     }
     .submit-note { font-size: 0.85rem; color: #888; }
 
-    /* ── 已提交標記 ──────────────────────────────────────────────────── */
+    /* ── 已提交 / 草稿標記 ──────────────────────────────────────────────── */
     .submitted-banner {
         background: #eaf4ec; border: 1px solid #a9d8b3;
         border-radius: 8px; padding: 1rem 1.5rem;
         margin-bottom: 1.5rem; display: flex;
         align-items: center; gap: 1rem;
         font-size: 0.95rem; color: #27ae60;
+    }
+    .draft-banner {
+        background: #fef9e7; border: 1px solid #f0c040;
+        border-radius: 8px; padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem; display: flex;
+        align-items: center; gap: 1rem;
+        font-size: 0.95rem; color: #856404;
     }
 </style>
 
@@ -172,9 +179,15 @@
         <span>⏱ 預估 {{ task_def.estimated_hours }} 小時</span>
         <span>⚡ 難度：{{ task_def.difficulty }}</span>
         {% if existing_sub %}
-            <span style="background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:4px;">
-                ✅ 已於 {{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }} 提交
-            </span>
+            {% if existing_sub.status == 'draft' %}
+                <span style="background:rgba(255,220,50,0.25);padding:0.2rem 0.6rem;border-radius:4px;">
+                    📝 草稿暫存於 {{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                </span>
+            {% else %}
+                <span style="background:rgba(255,255,255,0.2);padding:0.2rem 0.6rem;border-radius:4px;">
+                    ✅ 已於 {{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }} 提交
+                </span>
+            {% endif %}
         {% endif %}
     </div>
 </div>
@@ -231,17 +244,27 @@
 </div>
 {% endif %}
 
-{# ── 已有提交標記 ── #}
+{# ── 已有提交 / 草稿標記 ── #}
 {% if existing_sub %}
-    <div class="submitted-banner">
-        <span style="font-size:1.4rem;">✅</span>
-        <div>
-            <strong>你已提交本任務</strong>（最後更新：{{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }}）<br>
-            修改後重新按下方「儲存並提交」可覆蓋上一次的回答。
-            <a href="{{ url_for('view_task_submission', submission_id=existing_sub.id) }}"
-               style="margin-left:1rem;color:#1a5276;font-weight:600;">查看完整提交 →</a>
+    {% if existing_sub.status == 'draft' %}
+        <div class="draft-banner">
+            <span style="font-size:1.4rem;">📝</span>
+            <div>
+                <strong>草稿已暫存</strong>（最後暫存：{{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }}）<br>
+                你的作答已暫時儲存，但<strong>尚未正式提交</strong>。完成後請點下方「正式提交」。
+            </div>
         </div>
-    </div>
+    {% else %}
+        <div class="submitted-banner">
+            <span style="font-size:1.4rem;">✅</span>
+            <div>
+                <strong>你已提交本任務</strong>（最後更新：{{ existing_sub.updated_at.strftime('%Y-%m-%d %H:%M') }}）<br>
+                修改後重新按下方「更新並重新提交」可覆蓋上一次的回答。
+                <a href="{{ url_for('view_task_submission', submission_id=existing_sub.id) }}"
+                   style="margin-left:1rem;color:#1a5276;font-weight:600;">查看完整提交 →</a>
+            </div>
+        </div>
+    {% endif %}
 {% endif %}
 
 {# ── 主表單 ── #}
@@ -423,13 +446,23 @@
 
         {# ── 提交按鈕 ── #}
         <div class="submit-bar">
-            <button type="submit" class="btn btn-primary" style="font-size:1.05rem;padding:0.85rem 2rem;">
-                {% if existing_sub %}🔄 更新並重新提交{% else %}📤 儲存並提交{% endif %}
+            {# 正式提交按鈕 #}
+            <button type="submit" name="submit_action" value="submit"
+                    class="btn btn-primary" style="font-size:1.05rem;padding:0.85rem 2rem;">
+                {% if existing_sub and existing_sub.status != 'draft' %}🔄 更新並重新提交{% else %}📤 正式提交{% endif %}
+            </button>
+            {# 暫存草稿按鈕（略過 HTML5 必填驗證） #}
+            <button type="submit" name="submit_action" value="draft"
+                    formnovalidate
+                    class="btn btn-outline"
+                    style="padding:0.85rem 1.5rem;">
+                💾 暫存草稿
             </button>
             <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
             <span class="submit-note">
-                ⚠ 提交後 AI 助教將自動產生初步回饋，供你參考。
-                {% if existing_sub %}本次提交將覆蓋上次所有文字回答。{% endif %}
+                💾 暫存草稿可隨時回來繼續，不會觸發 AI 回饋。<br>
+                ⚠ 正式提交後 AI 助教將自動產生初步回饋。
+                {% if existing_sub and existing_sub.status != 'draft' %}本次提交將覆蓋上次所有文字回答。{% endif %}
             </span>
         </div>
     </div>
@@ -524,13 +557,13 @@ document.getElementById('task-form').addEventListener('submit', function() {
     btn.textContent = '提交中，請稍候…';
 });
 
-/* ── 作答欄禁止貼上與拖放 ─────────────────────────────── */
+/* ── 作答欄禁止複製、貼上、剪下與拖放 ──────────────── */
 (function() {
-    function showNoPasteNotice() {
-        var notice = document.getElementById('no-paste-notice');
+    function showNotice(msg) {
+        var notice = document.getElementById('copy-paste-notice');
         if (!notice) {
             notice = document.createElement('div');
-            notice.id = 'no-paste-notice';
+            notice.id = 'copy-paste-notice';
             notice.style.cssText = [
                 'position:fixed', 'bottom:80px', 'left:50%',
                 'transform:translateX(-50%)',
@@ -540,26 +573,37 @@ document.getElementById('task-form').addEventListener('submit', function() {
                 'z-index:9999', 'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
                 'pointer-events:none'
             ].join(';');
-            notice.textContent = '⚠ 本作答欄位禁止貼上，請以自己的文字作答。';
             document.body.appendChild(notice);
         }
+        notice.textContent = msg;
         clearTimeout(notice._hideTimer);
+        notice.style.transition = 'none';
         notice.style.opacity = '1';
         notice._hideTimer = setTimeout(function() {
             notice.style.transition = 'opacity 0.4s';
             notice.style.opacity = '0';
-            setTimeout(function() { notice.remove(); }, 400);
+            setTimeout(function() {
+                if (notice.parentNode) notice.parentNode.removeChild(notice);
+            }, 400);
         }, 2500);
     }
 
     document.querySelectorAll('textarea.answer-input').forEach(function(ta) {
+        ta.addEventListener('copy', function(e) {
+            e.preventDefault();
+            showNotice('⚠ 本作答欄位禁止複製。');
+        });
+        ta.addEventListener('cut', function(e) {
+            e.preventDefault();
+            showNotice('⚠ 本作答欄位禁止剪下。');
+        });
         ta.addEventListener('paste', function(e) {
             e.preventDefault();
-            showNoPasteNotice();
+            showNotice('⚠ 本作答欄位禁止貼上，請以自己的文字作答。');
         });
         ta.addEventListener('drop', function(e) {
             e.preventDefault();
-            showNoPasteNotice();
+            showNotice('⚠ 本作答欄位禁止拖放，請以自己的文字作答。');
         });
     });
 })();

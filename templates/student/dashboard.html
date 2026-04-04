@@ -48,6 +48,7 @@
     }
     .task-card-header.reviewed  { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
     .task-card-header.submitted { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); }
+    .task-card-header.draft     { background: linear-gradient(135deg, #b7950b 0%, #d4ac0d 100%); }
     .task-card-header.pending   { background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%); }
 
     .task-num-badge {
@@ -65,6 +66,7 @@
     }
     .pill-reviewed  { background: #d4edda; color: #155724; }
     .pill-submitted { background: #d1ecf1; color: #0c5460; }
+    .pill-draft     { background: #fef9e7; color: #856404; border: 1px solid #f0c040; }
     .pill-pending   { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
 
     .task-updated { font-size: 0.8rem; color: #aaa; margin-bottom: 0.8rem; }
@@ -199,6 +201,10 @@
             {% set header_cls = 'submitted' %}
             {% set pill_cls   = 'pill-submitted' %}
             {% set pill_text  = '🕐 待評閱' %}
+        {% elif ts.is_draft %}
+            {% set header_cls = 'draft' %}
+            {% set pill_cls   = 'pill-draft' %}
+            {% set pill_text  = '📝 草稿暫存中' %}
         {% else %}
             {% set header_cls = 'pending' %}
             {% set pill_cls   = 'pill-pending' %}
@@ -228,6 +234,10 @@
                             <a href="{{ url_for('view_task', task_number=t_num) }}"
                                class="btn btn-secondary btn-small" style="flex:1;text-align:center;">修改</a>
                         </div>
+                    {% elif ts.is_draft %}
+                        <a href="{{ url_for('view_task', task_number=t_num) }}"
+                           class="btn btn-primary" style="background:#b7950b;border-color:#b7950b;">
+                           繼續編輯草稿</a>
                     {% else %}
                         <a href="{{ url_for('view_task', task_number=t_num) }}"
                            class="btn btn-primary">開始任務</a>

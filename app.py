@@ -201,10 +201,12 @@ def dashboard():
             reviewed = sub.teacher_reviews.filter_by(
                 published=True).first() is not None
 
+        is_draft = sub is not None and sub.status == 'draft'
         task_status[t_num] = {
             'name':          t_def['name'],
             'week_range':    t_def['week_range'],
-            'submitted':     sub is not None,
+            'submitted':     sub is not None and not is_draft,
+            'is_draft':      is_draft,
             'reviewed':      reviewed,
             'submission_id': sub.id if sub else None,
             'updated_at':    sub.updated_at if sub else None,
@@ -413,7 +415,16 @@ def submit_task(task_number):
                 file_name      = new_file_name,
             ))
 
+    # ── 判斷暫存或正式提交 ────────────────────────────────────────────────────
+    submit_action = request.form.get('submit_action', 'submit')
+    is_draft = (submit_action == 'draft')
+    sub.status = 'draft' if is_draft else 'submitted'
+
     db.session.commit()
+
+    if is_draft:
+        flash('草稿已暫存。你可以隨時回來繼續編輯，完成後請記得點「正式提交」。', 'info')
+        return redirect(url_for('view_task', task_number=task_number))
 
     # ── AI 整體回饋 ────────────────────────────────────────────────────────────
     if app.config.get('ANTHROPIC_API_KEY'):
@@ -675,13 +686,19 @@ def teacher_dashboard():
         .order_by(User.class_group, User.student_id).all()
     disabled_users = User.query.filter_by(role='student', status='disabled')\
         .order_by(User.class_group, User.student_id).all()
-    total_subs    = TaskSubmission.query.filter_by(semester=SEMESTER).count()
+    total_subs    = TaskSubmission.query.filter(
+        TaskSubmission.semester == SEMESTER,
+        TaskSubmission.status != 'draft'
+    ).count()
     reviewed_count = TeacherReview.query.filter_by(published=True).count()
 
     task_stats = {}
     for t_num, t_def in TASKS.items():
-        subs = TaskSubmission.query.filter_by(
-            task_number=t_num, semester=SEMESTER).all()
+        subs = TaskSubmission.query.filter(
+            TaskSubmission.task_number == t_num,
+            TaskSubmission.semester == SEMESTER,
+            TaskSubmission.status != 'draft'
+        ).all()
         task_stats[t_num] = {
             'name':              t_def['name'],
             'total_submissions': len(subs),
@@ -845,8 +862,10 @@ def teacher_task_submissions(task_number):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
     task_def = TASKS.get(task_number, {})
-    subs = TaskSubmission.query.filter_by(
-        task_number=task_number, semester=SEMESTER
+    subs = TaskSubmission.query.filter(
+        TaskSubmission.task_number == task_number,
+        TaskSubmission.semester == SEMESTER,
+        TaskSubmission.status != 'draft'
     ).order_by(TaskSubmission.submitted_at.desc()).all()
     return render_template('teacher/submissions.html',
                            task_number=task_number,

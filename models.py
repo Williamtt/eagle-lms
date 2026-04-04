@@ -54,7 +54,7 @@ class TaskSubmission(db.Model):
     task_number  = db.Column(db.Integer, nullable=False)         # 1–4（或未來更多）
     task_version = db.Column(db.String(20), nullable=False)      # 對應 task_definitions 中的版本號，如 "2.0.0"
     semester     = db.Column(db.String(10), nullable=False)      # 如 "114-1"
-    status       = db.Column(db.String(20), default='submitted') # submitted / reviewed
+    status       = db.Column(db.String(20), default='submitted') # draft / submitted / reviewed
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
