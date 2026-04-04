@@ -596,19 +596,15 @@ document.getElementById('task-form').addEventListener('submit', function() {
         return false;
     }
 
-    /* copy / cut：在 document 層攔截，確保跨瀏覽器有效 */
+    /* copy / cut：整頁禁止，確保題目與作答內容均無法複製 */
     document.addEventListener('copy', function(e) {
-        if (isInsideAnswerInput(e.target)) {
-            e.preventDefault();
-            showNotice('⚠ 本作答欄位禁止複製。');
-        }
+        e.preventDefault();
+        showNotice('⚠ 本頁面禁止複製。');
     }, true);
 
     document.addEventListener('cut', function(e) {
-        if (isInsideAnswerInput(e.target)) {
-            e.preventDefault();
-            showNotice('⚠ 本作答欄位禁止剪下。');
-        }
+        e.preventDefault();
+        showNotice('⚠ 本頁面禁止剪下。');
     }, true);
 
     /* paste / drop：綁定在元素上即可 */
