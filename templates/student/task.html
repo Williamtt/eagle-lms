@@ -588,15 +588,31 @@ document.getElementById('task-form').addEventListener('submit', function() {
         }, 2500);
     }
 
-    document.querySelectorAll('textarea.answer-input').forEach(function(ta) {
-        ta.addEventListener('copy', function(e) {
+    function isInsideAnswerInput(el) {
+        while (el && el !== document) {
+            if (el.classList && el.classList.contains('answer-input')) return true;
+            el = el.parentNode;
+        }
+        return false;
+    }
+
+    /* copy / cut：在 document 層攔截，確保跨瀏覽器有效 */
+    document.addEventListener('copy', function(e) {
+        if (isInsideAnswerInput(e.target)) {
             e.preventDefault();
             showNotice('⚠ 本作答欄位禁止複製。');
-        });
-        ta.addEventListener('cut', function(e) {
+        }
+    }, true);
+
+    document.addEventListener('cut', function(e) {
+        if (isInsideAnswerInput(e.target)) {
             e.preventDefault();
             showNotice('⚠ 本作答欄位禁止剪下。');
-        });
+        }
+    }, true);
+
+    /* paste / drop：綁定在元素上即可 */
+    document.querySelectorAll('textarea.answer-input').forEach(function(ta) {
         ta.addEventListener('paste', function(e) {
             e.preventDefault();
             showNotice('⚠ 本作答欄位禁止貼上，請以自己的文字作答。');
