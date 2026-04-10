@@ -106,7 +106,7 @@ def generate_instant_feedback(task_number, submission_type, content, student_nam
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=1500,
             system=system_prompt,
             messages=[{
@@ -155,7 +155,7 @@ def generate_teacher_analysis(submissions_data):
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=2000,
             system=system_prompt,
             messages=[{
@@ -188,7 +188,7 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=800,
             system=system_prompt,
             messages=[{
@@ -197,5 +197,6 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
             }]
         )
         return json.loads(message.content[0].text)
-    except Exception:
-        return {"suggestion": "AI 建議生成失敗", "suggested_score": None}
+    except Exception as e:
+        print(f"[ai_service] generate_review_suggestion error: {e}")
+        return {"suggestion": f"AI 建議生成失敗：{e}", "suggested_score": None}

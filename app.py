@@ -912,6 +912,8 @@ def teacher_review(submission_id):
                 score              = float(score) if score else None,
                 published          = publish,
             ))
+        if publish:
+            sub.status = 'reviewed'
         db.session.commit()
         flash('評閱已儲存。' + (' 已發布給學生。' if publish else ''), 'success')
         return redirect(url_for('teacher_task_submissions',
