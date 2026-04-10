@@ -196,7 +196,14 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
                 "content": f"學生提交內容：\n\n{submission_content}"
             }]
         )
-        return json.loads(message.content[0].text)
+        raw = message.content[0].text.strip()
+        # 有時 Claude 會在 JSON 前後加 markdown code fence，先移除
+        if raw.startswith('```'):
+            raw = raw.split('```')[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+            raw = raw.strip()
+        return json.loads(raw)
     except Exception as e:
         print(f"[ai_service] generate_review_suggestion error: {e}")
         return {"suggestion": f"AI 建議生成失敗：{e}", "suggested_score": None}
