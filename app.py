@@ -930,9 +930,14 @@ def teacher_review(submission_id):
     if sub and app.config.get('ANTHROPIC_API_KEY'):
         submission_text = _build_submission_text_for_ai(sub, task_def)
         if submission_text.strip():
-            ai_suggestion = ai_service.generate_review_suggestion(
+            result = ai_service.generate_review_suggestion(
                 submission_text, sub.task_number, 'structured'
             )
+            # result 是 dict，取出 suggestion 字串供底稿使用
+            if isinstance(result, dict):
+                ai_suggestion = result.get('suggestion') or result.get('rubric_notes') or str(result)
+            else:
+                ai_suggestion = result
 
     return render_template('teacher/review.html',
                            sub=sub,
