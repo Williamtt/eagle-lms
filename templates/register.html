@@ -76,6 +76,105 @@
         color: #7d5a00;
         line-height: 1.6;
     }
+
+    /* ── 知情同意書 ── */
+    .consent-section {
+        margin-bottom: 1.4rem;
+    }
+    .consent-section label.consent-toggle {
+        font-weight: bold;
+        color: #1a5276;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    .consent-scroll-box {
+        border: 1.5px solid #aac4e0;
+        border-radius: 6px;
+        max-height: 380px;
+        overflow-y: scroll;
+        padding: 1rem 1.2rem;
+        background: #f8fbff;
+        font-size: 0.85rem;
+        line-height: 1.75;
+        color: #222;
+        scroll-behavior: smooth;
+    }
+    .consent-scroll-box h3 {
+        font-size: 1rem;
+        color: #1a5276;
+        margin: 1rem 0 0.4rem;
+        border-bottom: 1px solid #cde;
+        padding-bottom: 0.2rem;
+    }
+    .consent-scroll-box h3:first-child { margin-top: 0; }
+    .consent-scroll-box p  { margin: 0.4rem 0; }
+    .consent-scroll-box ul { margin: 0.3rem 0 0.3rem 1.4rem; }
+    .consent-scroll-box li { margin: 0.2rem 0; }
+    .consent-scroll-box .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0;
+        font-size: 0.84rem;
+    }
+    .consent-scroll-box .info-table td {
+        padding: 0.3rem 0.6rem;
+        border: 1px solid #c5d8ea;
+    }
+    .consent-scroll-box .info-table td:first-child {
+        background: #e8f2fa;
+        font-weight: bold;
+        white-space: nowrap;
+        width: 7rem;
+    }
+    .consent-scroll-box .highlight {
+        font-weight: bold;
+        text-decoration: underline;
+    }
+    .consent-scroll-indicator {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 0.3rem;
+        margin-bottom: 0.6rem;
+    }
+    .consent-check-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        background: #eaf4fb;
+        border: 1.5px solid #aac4e0;
+        border-radius: 6px;
+        padding: 0.8rem 1rem;
+        margin-top: 0.5rem;
+    }
+    .consent-check-row input[type="checkbox"] {
+        width: 1.1rem;
+        height: 1.1rem;
+        margin-top: 0.15rem;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+    .consent-check-row input[type="checkbox"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+    .consent-check-row label {
+        font-size: 0.88rem;
+        color: #1a4a6e;
+        line-height: 1.55;
+        cursor: pointer;
+    }
+    .consent-scroll-hint {
+        font-size: 0.8rem;
+        color: #b06000;
+        margin-top: 0.35rem;
+        display: none;
+    }
+    .consent-scroll-hint.show { display: block; }
 </style>
 
 <div class="register-container">
@@ -137,6 +236,136 @@
                 <div class="form-hint">若為教師，請輸入教師代碼；學生請留空</div>
             </div>
 
+            {# ── 研究參與者知情同意書（僅學生需要，教師隱藏） ── #}
+            <div class="consent-section" id="consent_section">
+                <label class="consent-toggle">研究參與者知情同意書
+                    <span style="font-size:0.8rem;font-weight:normal;color:#888">（請捲動閱讀至底部後方可勾選）</span>
+                </label>
+
+                <div class="consent-scroll-box" id="consentScrollBox">
+                    <h3>研究計畫名稱</h3>
+                    <p><strong>中文：</strong>結合專案管理資訊系統與生成式 AI 的營建管理情境式學習教學法：專業當責核心素養的建構與實踐</p>
+                    <p><strong>英文：</strong>Establishing a Situated Learning Teaching Framework for Construction Management: Integrating Project Management Information Systems and Generative AI to Foster Professional Accountability</p>
+
+                    <table class="info-table">
+                        <tr><td>研究機構</td><td>淡江大學</td><td>經費來源</td><td>教育部</td></tr>
+                        <tr><td>計畫主持人</td><td>蔡明佑</td><td>職稱</td><td>助理教授</td></tr>
+                        <tr><td>聯絡人</td><td>蔡明佑</td><td>電話</td><td>02-26215656 ext.3261</td></tr>
+                    </table>
+
+                    <p>歡迎您參與本研究！此份文件名為「研究參與者知情同意書」，它將詳述您本研究之相關資訊及您的權利。在研究開始進行及您簽署本同意書之前，研究主持人或研究人員會為您說明研究內容，並回答您的任何問題。</p>
+
+                    <h3>一、研究目的</h3>
+                    <p>在土木工程專業學科中，營建管理課程具有獨特且關鍵的地位，但在教學上面臨諸多挑戰：理論與實務脫節、學習動機不足、專業視野受限、學生缺乏實際工程經驗等問題。傳統教學方法往往無法有效解決這些問題。</p>
+                    <p>本研究旨在探討「如何透過情境式學習法，結合實務工程資訊系統與 AI 學習助理，建構一個能提升土木系學生營建管理素養的學習環境？」具體而言，本研究將：</p>
+                    <ul>
+                        <li>透過 EAGLE 工程智慧管理系統建構真實工程情境，幫助學生連結理論與實務</li>
+                        <li>運用生成式 AI（如 ChatGPT）作為學習助理，提供即時回饋與個性化學習支援</li>
+                        <li>採用情境式學習法，整合工程資訊系統與 AI 學習助理，評估對學生營建管理知識掌握、實務問題解決能力、專業認同感及自主學習能力的影響</li>
+                    </ul>
+
+                    <h3>二、參與研究之條件與限制</h3>
+                    <p>本研究預定要招收修讀淡江大學土木工程學系大二「營建管理」課程同學為研究參與者，重修或外系的同學不適合參與本研究。</p>
+                    <p><strong>研究流程：</strong></p>
+                    <ul>
+                        <li>教學策略與情境工具設計：規劃教學策略，設計 EAGLE 系統學習任務</li>
+                        <li>課程實施與學習任務執行：進行 18 週課程，包含專家演講、工地參觀、EAGLE 系統自主學習任務</li>
+                        <li>學習成效與動機評估：前後測量化評估及質化訪談</li>
+                        <li>數據蒐集與分析：透過量化與質化結合分析，驗證教學策略有效性</li>
+                    </ul>
+                    <p><strong>研究執行期間：</strong>114 年 8 月 1 日至 115 年 7 月 31 日。</p>
+                    <p><strong>預估參與人數：</strong>120 人（AB 兩班各 60 人）。</p>
+
+                    <h3>三、研究參與者所需付出之時間</h3>
+                    <ul>
+                        <li>正常課堂時間：每週 2 小時，共 18 週</li>
+                        <li>自主學習任務（自願參加）：約 6–8 小時課後時間</li>
+                        <li>問卷填寫：前後測各約 15 分鐘</li>
+                        <li>訪談（部分學生）：約 30–45 分鐘</li>
+                    </ul>
+
+                    <h3>四、參與研究時之禁忌、限制及應以配合事項</h3>
+                    <ul>
+                        <li>參與本計畫之同學須配合課程大綱及授課要求</li>
+                        <li>自願參加 EAGLE 系統自主學習任務的同學需完成相關任務</li>
+                        <li>需配合前後測問卷填寫及可能的訪談</li>
+                    </ul>
+                    <p><strong>研究參與者可能需自行負擔之相關費用：無。</strong></p>
+
+                    <h3>五、研究潛在風險、發生率及救濟措施</h3>
+                    <p><strong>潛在風險：</strong></p>
+                    <ul>
+                        <li><strong>心理層面：</strong>在學習新系統或參與討論時可能感到困擾或挫折</li>
+                        <li><strong>學習負擔：</strong>額外的自主學習任務可能增加學習壓力</li>
+                        <li><strong>隱私風險：</strong>學習紀錄和成績資料的收集</li>
+                    </ul>
+                    <p><strong>風險發生率：</strong>極低，大部分活動屬於正常教學範圍。</p>
+                    <p><strong>救濟措施：</strong></p>
+                    <ul>
+                        <li>您可隨時表達不適並退出任何討論或活動</li>
+                        <li>可隨時退出自主學習任務，不影響正常課程成績</li>
+                        <li>退出研究不會產生任何不良後果或影響您的權益</li>
+                        <li>研究團隊將密切注意您的狀況，必要時建議您退出研究</li>
+                    </ul>
+
+                    <h3>六、研究效益與對研究參與者之益處</h3>
+                    <p><strong>研究之科學效益：</strong>建立結合專案管理資訊系統、生成式 AI 與情境式學習的創新教學模式，為營建管理教育提供新的解決方案，促進理論與實務的有效結合。</p>
+                    <p><strong>研究參與者之益處：</strong></p>
+                    <ul>
+                        <li>體驗創新的數位學習環境和 AI 輔助學習</li>
+                        <li>接觸實務工程專案管理系統（EAGLE）</li>
+                        <li>參與業界專家演講和工地參觀</li>
+                        <li>提升營建管理實務能力和專業認同</li>
+                        <li>無金錢補助，但可獲得豐富的學習體驗</li>
+                    </ul>
+
+                    <h3>七、研究可能衍生的商業利益及其拓展應用之約定</h3>
+                    <p>不適用本研究。</p>
+
+                    <h3>八、研究材料保存期限、運用規劃及機密性</h3>
+                    <p>研究計畫主持人將依法把任何可辨識您身分之紀錄與您個人隱私之資料視同機密處理，<strong>絕對不會公開</strong>。將來發表研究結果時，您的身份將被充分保密。<span class="highlight">凡簽署了知情同意書，即表示您同意各項原始紀錄可直接受監測者、稽核者、研究倫理委員會及主管機關檢閱，以確保研究過程與數據符合相關法律和各種規範要求；上述人員承諾絕對維繫您身分之機密性。</span></p>
+
+                    <h3>九、損害補償或保險</h3>
+                    <ul>
+                        <li>本研究依計畫執行，無預期之不良事件，本研究不提供其他形式之補償。</li>
+                        <li>您簽署本知情同意書後，在法律上的任何權利不會因此受影響。</li>
+                    </ul>
+
+                    <h3>十、研究之退出方式及處理</h3>
+                    <p>您可自由決定是否參加本研究，研究過程中不需要任何理由，可隨時撤回同意或退出研究。如果您拒絕參加或退出，將不會引起任何不愉快，或影響日後研究計畫主持人對您的評價，更不會損及您的任何權利。若您決定撤回同意或退出研究，可透過申請轉換至同課程 C 班（未參與本計畫）之方式繼續完成該課程之進行，計畫主持人將會協助進行轉班授課。</p>
+
+                    <h3>十一、研究參與者權利</h3>
+                    <ul>
+                        <li>本研究已經過國立臺灣大學行為與社會科學研究倫理委員會審查，審查內容包含利益與風險評估、研究參與者照護及隱私保護等，並已獲得核准。若您於研究過程中有任何疑問，或認為權利受到影響、傷害，可直接與國立臺灣大學研究倫理中心聯絡，電話號碼為：(02)3366-9956、(02)3366-9980。</li>
+                        <li>研究計畫主持人或研究人員已經妥善地向您說明了研究內容與相關資訊，並告知可能影響您參與研究意願的所有資訊。若您有任何疑問，可向研究人員詢問，研究人員將據實回答。</li>
+                        <li>研究計畫主持人已將您簽署之<strong>一式兩份</strong>同意書其中一份交給您留存。</li>
+                    </ul>
+
+                    <h3>十二、研究計畫主持人/研究人員簽名</h3>
+                    <p>研究計畫主持人或研究人員已詳細解釋有關本研究計畫中上述研究方法的性質與目的，以及可能產生的危險與利益。</p>
+                    <p>研究人員簽名：蔡明佑　　日期：2025 年 7 月 8 日</p>
+
+                    <h3>十三、20 歲以上成年研究參與者簽名同意</h3>
+                    <p>本人已充分瞭解上述研究方法及其可能的益處與風險，有關本研究計畫的疑問，皆已獲得詳細說明與解釋。<strong>本人同意成為本研究計畫的自願研究參與者。</strong></p>
+                    <p style="font-size:0.78rem;color:#888;">同意書版本 2019/07/22/Version01</p>
+                </div>
+
+                <div class="consent-scroll-indicator" id="consentScrollIndicator">
+                    請向下捲動閱讀全部內容後，方可勾選同意
+                </div>
+
+                <div class="consent-check-row">
+                    <input type="checkbox" id="consent_agreed" name="consent_agreed"
+                           value="1" disabled>
+                    <label for="consent_agreed">
+                        本人已充分閱讀上述研究參與者知情同意書，瞭解研究目的、方法、潛在風險及退出權利，<strong>同意自願參與本研究計畫</strong>（本人年滿 20 歲）。
+                    </label>
+                </div>
+                <div class="consent-scroll-hint" id="consentScrollHint">
+                    請先捲動閱讀知情同意書至底部，再勾選同意。
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary">送出申請</button>
         </form>
 
@@ -145,4 +374,54 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const scrollBox    = document.getElementById('consentScrollBox');
+    const checkbox     = document.getElementById('consent_agreed');
+    const indicator    = document.getElementById('consentScrollIndicator');
+    const hint         = document.getElementById('consentScrollHint');
+    const consentSec   = document.getElementById('consent_section');
+    const teacherInput = document.getElementById('teacher_code');
+    const form         = document.querySelector('form');
+
+    // ── 教師代碼填入時隱藏同意書區塊 ──
+    function toggleConsentSection() {
+        const isTeacher = teacherInput.value.trim().length > 0;
+        consentSec.style.display = isTeacher ? 'none' : '';
+    }
+    teacherInput.addEventListener('input', toggleConsentSection);
+    toggleConsentSection();
+
+    // ── 捲動到底解鎖 checkbox ──
+    function checkScrolled() {
+        const threshold = 30; // px tolerance
+        const scrolledToBottom =
+            scrollBox.scrollHeight - scrollBox.scrollTop - scrollBox.clientHeight <= threshold;
+        if (scrolledToBottom) {
+            checkbox.disabled = false;
+            indicator.textContent = '已閱讀完畢，請勾選下方同意';
+            indicator.style.color = '#27ae60';
+        }
+    }
+    scrollBox.addEventListener('scroll', checkScrolled);
+    // 初始判斷（以防同意書內容很短，無需捲動）
+    checkScrolled();
+
+    // ── 送出前驗證 ──
+    form.addEventListener('submit', function (e) {
+        const isTeacher = teacherInput.value.trim().length > 0;
+        if (!isTeacher && !checkbox.checked) {
+            e.preventDefault();
+            hint.classList.add('show');
+            if (checkbox.disabled) {
+                scrollBox.scrollTo({ top: scrollBox.scrollHeight, behavior: 'smooth' });
+            }
+            consentSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+})();
+</script>
 {% endblock %}

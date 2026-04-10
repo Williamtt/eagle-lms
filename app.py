@@ -91,10 +91,16 @@ def register():
         teacher_code = request.form.get('teacher_code', '').strip()
 
         is_teacher = (teacher_code == app.config['TEACHER_CODE'])
+        consent_agreed = request.form.get('consent_agreed')
 
         # 必填欄位
         if not student_id or not name or not password:
             flash('請填寫所有必填欄位。', 'error')
+            return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
+
+        # 學生必須同意知情同意書
+        if not is_teacher and not consent_agreed:
+            flash('請先閱讀並勾選同意研究參與者知情同意書，才能完成註冊。', 'error')
             return render_template('register.html', valid_class_groups=VALID_CLASS_GROUPS)
 
         # 學號格式：9碼純數字（教師不限制）
@@ -122,7 +128,8 @@ def register():
         cg     = class_group if class_group else '未分班'
 
         user = User(student_id=student_id, name=name,
-                    role=role, class_group=cg, status=status)
+                    role=role, class_group=cg, status=status,
+                    consent_agreed_at=datetime.utcnow() if not is_teacher else None)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()

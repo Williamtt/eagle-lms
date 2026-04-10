@@ -386,5 +386,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-tutor.css') }}">
     <script src="{{ url_for('static', filename='js/ai-tutor.js') }}"></script>
     {% endif %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>
