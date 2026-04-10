@@ -246,7 +246,17 @@
 
 {# ── 已有提交 / 草稿標記 ── #}
 {% if existing_sub %}
-    {% if existing_sub.status == 'draft' %}
+    {% if existing_sub.status == 'reviewed' %}
+        <div class="submitted-banner" style="background:#eafaf1;border-left-color:#27ae60;">
+            <span style="font-size:1.4rem;">🏆</span>
+            <div>
+                <strong>此任務已完成評閱，不可再修改。</strong><br>
+                教師已完成評閱，作答內容已鎖定。
+                <a href="{{ url_for('view_task_submission', submission_id=existing_sub.id) }}"
+                   style="margin-left:1rem;color:#1a5276;font-weight:600;">查看完整提交與評閱 →</a>
+            </div>
+        </div>
+    {% elif existing_sub.status == 'draft' %}
         <div class="draft-banner">
             <span style="font-size:1.4rem;">📝</span>
             <div>
@@ -446,24 +456,32 @@
 
         {# ── 提交按鈕 ── #}
         <div class="submit-bar">
-            {# 正式提交按鈕 #}
-            <button type="submit" name="submit_action" value="submit"
-                    class="btn btn-primary" style="font-size:1.05rem;padding:0.85rem 2rem;">
-                {% if existing_sub and existing_sub.status != 'draft' %}🔄 更新並重新提交{% else %}📤 正式提交{% endif %}
-            </button>
-            {# 暫存草稿按鈕（略過 HTML5 必填驗證） #}
-            <button type="submit" name="submit_action" value="draft"
-                    formnovalidate
-                    class="btn btn-outline"
-                    style="padding:0.85rem 1.5rem;">
-                💾 暫存草稿
-            </button>
-            <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
-            <span class="submit-note">
-                💾 暫存草稿可隨時回來繼續，不會觸發 AI 回饋。<br>
-                ⚠ 正式提交後 AI 助教將自動產生初步回饋。
-                {% if existing_sub and existing_sub.status != 'draft' %}本次提交將覆蓋上次所有文字回答。{% endif %}
-            </span>
+            {% if existing_sub and existing_sub.status == 'reviewed' %}
+                {# 已評閱：只顯示返回，不顯示提交/暫存 #}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
+                <span class="submit-note" style="color:#c0392b;">
+                    🔒 此任務已完成評閱，作答內容已鎖定，無法再修改或重新提交。
+                </span>
+            {% else %}
+                {# 正式提交按鈕 #}
+                <button type="submit" name="submit_action" value="submit"
+                        class="btn btn-primary" style="font-size:1.05rem;padding:0.85rem 2rem;">
+                    {% if existing_sub and existing_sub.status != 'draft' %}🔄 更新並重新提交{% else %}📤 正式提交{% endif %}
+                </button>
+                {# 暫存草稿按鈕（略過 HTML5 必填驗證） #}
+                <button type="submit" name="submit_action" value="draft"
+                        formnovalidate
+                        class="btn btn-outline"
+                        style="padding:0.85rem 1.5rem;">
+                    💾 暫存草稿
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline">返回儀表板</a>
+                <span class="submit-note">
+                    💾 暫存草稿可隨時回來繼續，不會觸發 AI 回饋。<br>
+                    ⚠ 正式提交後 AI 助教將自動產生初步回饋。
+                    {% if existing_sub and existing_sub.status != 'draft' %}本次提交將覆蓋上次所有文字回答。{% endif %}
+                </span>
+            {% endif %}
         </div>
     </div>
 
@@ -549,6 +567,17 @@ function toggleChecked(itemId) {
         container.innerHTML = html;
     } catch(e) { /* 無法解析則靜默略過 */ }
 })();
+
+/* ── 已評閱：鎖定所有欄位 ───────────────────────────── */
+{% if existing_sub and existing_sub.status == 'reviewed' %}
+(function() {
+    const form = document.getElementById('task-form');
+    form.querySelectorAll('input, textarea, select').forEach(el => {
+        el.setAttribute('readonly', true);
+        el.setAttribute('disabled', true);
+    });
+})();
+{% endif %}
 
 /* ── 防止重複提交 ─────────────────────────────────────── */
 document.getElementById('task-form').addEventListener('submit', function() {

@@ -329,6 +329,11 @@ def submit_task(task_number):
         semester=SEMESTER
     ).first()
 
+    # 已評閱的任務不可再提交
+    if sub and sub.status == 'reviewed':
+        flash('此任務已完成評閱，不可再修改或重新提交。', 'error')
+        return redirect(url_for('task_page', task_number=task_number))
+
     is_update = sub is not None
 
     if is_update:
