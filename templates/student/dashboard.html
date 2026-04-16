@@ -104,6 +104,27 @@
     .q-name  { font-weight: 600; color: #1a5276; }
     .q-timing { font-size: 0.85rem; color: #888; margin-top: 0.15rem; }
 
+    /* ── 前測問卷提醒橫幅 ────────────────────────────────────────── */
+    .pre-test-alert {
+        background: #fff3cd; border-left: 5px solid #e67e22;
+        border-radius: 6px; padding: 1.1rem 1.5rem;
+        margin-bottom: 1.5rem; display: flex;
+        align-items: flex-start; gap: 1rem; flex-wrap: wrap;
+    }
+    .pre-test-alert .alert-icon { font-size: 1.6rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .pre-test-alert .alert-body { flex: 1; min-width: 200px; }
+    .pre-test-alert .alert-title {
+        font-weight: 700; color: #7d4e00; font-size: 1.05rem; margin-bottom: 0.3rem;
+    }
+    .pre-test-alert .alert-desc { font-size: 0.92rem; color: #7d4e00; line-height: 1.6; }
+    .pre-test-alert .btn-alert {
+        display: inline-block; margin-top: 0.75rem;
+        padding: 0.5rem 1.2rem; background: #e67e22; color: #fff;
+        border-radius: 4px; font-weight: 600; font-size: 0.92rem;
+        text-decoration: none; transition: background 0.2s;
+    }
+    .pre-test-alert .btn-alert:hover { background: #ca6f1e; }
+
     /* ── 整體進度摘要 ─────────────────────────────────────────────── */
     .summary-row {
         display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
@@ -162,6 +183,22 @@
         </div>
     {% endif %}
 </div>
+
+{# ── 前測問卷提醒 ── #}
+{% if pre_test_pending %}
+<div class="pre-test-alert">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-body">
+        <div class="alert-title">請先完成前測問卷！</div>
+        <div class="alert-desc">
+            你尚未填寫「ARCSA 學習動機前測問卷」。<br>
+            本問卷需在開始任務<strong>之前</strong>完成，是課程研究的重要資料，請於第 1–2 週內填答。
+        </div>
+        <a href="{{ url_for('view_questionnaire', q_code='arcsa_pre') }}"
+           class="btn-alert">立即填寫前測問卷 →</a>
+    </div>
+</div>
+{% endif %}
 
 {# ── 數字摘要 ── #}
 <div class="summary-row">

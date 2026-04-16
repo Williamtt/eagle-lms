@@ -245,11 +245,21 @@ def dashboard():
                 questionnaire_id=q.id).first():
             completed_q_codes.add(q.code)
 
+    # 前測問卷提醒：arcsa_pre 已開放且學生尚未完成
+    pre_test_pending = False
+    pre_q = Questionnaire.query.filter_by(code='arcsa_pre', is_active=True).first()
+    if pre_q:
+        pre_test_pending = not QuestionnaireSubmission.query.filter_by(
+            user_id=current_user.id,
+            questionnaire_id=pre_q.id
+        ).first()
+
     return render_template('student/dashboard.html',
                            task_status=task_status,
                            journal_status=journal_status,
                            active_questionnaires=active_questionnaires,
                            completed_q_codes=completed_q_codes,
+                           pre_test_pending=pre_test_pending,
                            tasks=TASKS)
 
 
