@@ -10,6 +10,16 @@
 
 QUESTIONNAIRE_VERSION_LOG = [
     {
+        "version": "1.1.0",
+        "date": "2026-04-16",
+        "semester": "114-1",
+        "changes": (
+            "滿意度問卷新增「小組合作學習」活動項目（sat_imp_group_learning / sat_sat_group_learning），"
+            "以及開放式題目 sat_open_group（回顧最有價值的小組討論並提出改進建議），"
+            "使問卷能評估小組合作學習機制的感知重要性與學習效果。"
+        ),
+    },
+    {
         "version": "1.0.0",
         "date": "2026-04-02",
         "semester": "114-1",
@@ -300,6 +310,7 @@ _SATISFACTION_ACTIVITIES = [
     {"code": "ai_assistant",     "label": "AI 助教（任務即時回饋）"},
     {"code": "task_handbook",    "label": "任務手冊（自主學習指引）"},
     {"code": "learning_journal", "label": "學習日誌撰寫"},
+    {"code": "group_learning",   "label": "小組合作學習（組員互動與討論）"},
 ]
 
 _SATISFACTION_ITEMS = []
@@ -328,7 +339,23 @@ for act in _SATISFACTION_ACTIVITIES:
     })
     _order += 1
 
-# 加一題開放式
+# 加一題小組學習開放式
+_SATISFACTION_ITEMS.append({
+    "item_code": "sat_open_group",
+    "dimension": "open",
+    "dimension_label": "小組學習回饋",
+    "activity": "小組合作學習",
+    "text": (
+        "回顧整個學期的小組互動：哪一次討論對你的學習最有幫助？"
+        "如果你是課程設計者，你會如何調整分組學習的方式，讓它對學習更有幫助？"
+    ),
+    "scale_type": "text",
+    "choices": [],
+    "order": _order,
+})
+_order += 1
+
+# 加一題整體開放式
 _SATISFACTION_ITEMS.append({
     "item_code": "sat_open1",
     "dimension": "open",
@@ -373,9 +400,9 @@ QUESTIONNAIRES = {
         "name": "課程活動滿意度與重要性問卷",
         "description": (
             "本問卷調查你對各項課程活動的重要性感知與滿意程度，"
-            "用於評估教學設計的成效，作為未來課程改進的依據。共 13 題。"
+            "用於評估教學設計的成效，作為未來課程改進的依據。共 16 題。"
         ),
-        "version": "1.0.0",
+        "version": "1.1.0",
         "semester": "114-1",
         "timing": "學期末（第 16–17 週）",
         "items": _SATISFACTION_ITEMS,
