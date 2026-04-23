@@ -45,11 +45,14 @@ def notify_new_registration(student_name: str, student_id: str,
     _send(subject, body, cfg)
 
 
-def notify_forgot_password(student_name: str, student_id: str, cfg: dict) -> None:
+def notify_forgot_password(student_name: str, student_id: str,
+                            contact_email: str, cfg: dict) -> None:
     subject = f'密碼重設申請：{student_name}（{student_id}）'
+    email_line = f'學生聯絡 Email：{contact_email}' if contact_email else '學生未提供聯絡 Email'
     body = (
         f'{student_name}（{student_id}）在登入頁面申請重設密碼。\n\n'
-        f'請至教師儀表板 → 學生名單 → 找到該學生 → 點擊「重設密碼」。\n'
+        f'{email_line}\n\n'
+        f'請至教師儀表板查看「密碼重設申請」區塊，點擊「重設密碼」即可處理。\n'
         f'重設後系統會自動傳私訊通知學生臨時密碼。'
     )
     _send(subject, body, cfg)

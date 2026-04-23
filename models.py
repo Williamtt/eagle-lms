@@ -20,7 +20,9 @@ class User(UserMixin, db.Model):
     class_group  = db.Column(db.String(20), default='A')         # 營建管理A班 / 營建管理B班
     status       = db.Column(db.String(10), default='active')    # pending / active / disabled
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
-    consent_agreed_at = db.Column(db.DateTime, nullable=True)    # 學生同意知情同意書的時間戳記
+    consent_agreed_at    = db.Column(db.DateTime, nullable=True)
+    reset_requested_at   = db.Column(db.DateTime, nullable=True)
+    reset_contact_email  = db.Column(db.String(120), nullable=True)
 
     # relationships
     task_submissions          = db.relationship('TaskSubmission', backref='author', lazy='dynamic')

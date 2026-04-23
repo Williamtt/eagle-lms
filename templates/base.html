@@ -359,7 +359,11 @@
         <ul class="nav-links">
             <li><a href="{{ url_for('manual') }}">任務手冊</a></li>
             {% if current_user.is_authenticated %}
-                <li><a href="{{ url_for('dashboard') }}">儀表板</a></li>
+                <li>
+                    <a href="{{ url_for('dashboard') }}">
+                        儀表板{% if reset_request_count > 0 %}<span class="msg-badge">{{ reset_request_count }}</span>{% endif %}
+                    </a>
+                </li>
                 <li>
                     <a href="{{ url_for('messages') if not current_user.is_teacher else url_for('teacher_messages') }}">
                         訊息{% if unread_count > 0 %}<span class="msg-badge">{{ unread_count }}</span>{% endif %}

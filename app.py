@@ -44,12 +44,20 @@ def _run_migrations():
         tables = inspector.get_table_names()
         if 'users' in tables:
             cols = [c['name'] for c in inspector.get_columns('users')]
-            if 'status' not in cols:
-                with db.engine.connect() as conn:
+            with db.engine.connect() as conn:
+                if 'status' not in cols:
                     conn.execute(text(
                         "ALTER TABLE users ADD COLUMN status VARCHAR(10) DEFAULT 'active'"
                     ))
-                    conn.commit()
+                if 'reset_requested_at' not in cols:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN reset_requested_at DATETIME"
+                    ))
+                if 'reset_contact_email' not in cols:
+                    conn.execute(text(
+                        "ALTER TABLE users ADD COLUMN reset_contact_email VARCHAR(120)"
+                    ))
+                conn.commit()
 
 
 login_manager = LoginManager()
@@ -79,19 +87,24 @@ def _student_msg_filter(user):
 @app.context_processor
 def inject_unread_count():
     if not current_user.is_authenticated:
-        return {'unread_count': 0}
+        return {'unread_count': 0, 'reset_request_count': 0}
     read_ids = db.session.query(MessageRead.message_id).filter_by(user_id=current_user.id)
     if current_user.is_teacher:
-        count = Message.query.filter(
+        msg_count = Message.query.filter(
             Message.recipient_id == current_user.id,
             Message.id.notin_(read_ids)
         ).count()
+        reset_count = User.query.filter(
+            User.role == 'student',
+            User.reset_requested_at != None
+        ).count()
+        return {'unread_count': msg_count, 'reset_request_count': reset_count}
     else:
         count = Message.query.filter(
             Message.id.notin_(read_ids),
             _student_msg_filter(current_user)
         ).count()
-    return {'unread_count': count}
+        return {'unread_count': count, 'reset_request_count': 0}
 
 # Jinja2 custom filter：將 JSON 字串解析為 Python 物件（供問卷選項使用）
 @app.template_filter('from_json')
@@ -206,12 +219,16 @@ def forgot_password():
         return redirect(url_for('dashboard'))
     if request.method == 'POST':
         student_id = request.form.get('student_id', '').strip()
+        contact_email = request.form.get('contact_email', '').strip()
         user = User.query.filter_by(student_id=student_id, role='student').first()
         if not user:
             flash('找不到此學號，請確認後再試。', 'error')
             return render_template('forgot_password.html')
-        notify.notify_forgot_password(user.name, user.student_id, app.config)
-        flash('已通知教師，請等候老師透過課程管道告知您臨時密碼。', 'success')
+        user.reset_requested_at  = datetime.utcnow()
+        user.reset_contact_email = contact_email or None
+        db.session.commit()
+        notify.notify_forgot_password(user.name, user.student_id, contact_email, app.config)
+        flash('已通知教師，請等候老師重設密碼後告知您。', 'success')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
 
@@ -759,6 +776,10 @@ def teacher_dashboard():
         .order_by(User.class_group, User.student_id).all()
     disabled_users = User.query.filter_by(role='student', status='disabled')\
         .order_by(User.class_group, User.student_id).all()
+    reset_requests = User.query.filter(
+        User.role == 'student',
+        User.reset_requested_at != None
+    ).order_by(User.reset_requested_at.asc()).all()
     total_subs    = TaskSubmission.query.filter(
         TaskSubmission.semester == SEMESTER,
         TaskSubmission.status != 'draft'
@@ -786,6 +807,7 @@ def teacher_dashboard():
                            students=students,
                            pending_users=pending_users,
                            disabled_users=disabled_users,
+                           reset_requests=reset_requests,
                            total_submissions=total_subs,
                            reviewed_count=reviewed_count,
                            task_stats=task_stats,
@@ -943,6 +965,8 @@ def teacher_reset_password(uid):
         flash('新密碼至少需要 6 個字元。', 'error')
         return redirect(url_for('teacher_dashboard'))
     user.set_password(new_password)
+    user.reset_requested_at  = None
+    user.reset_contact_email = None
     msg = Message(
         sender_id=current_user.id,
         recipient_id=user.id,

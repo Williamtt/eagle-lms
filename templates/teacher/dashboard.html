@@ -202,6 +202,45 @@
 </div>
 {% endif %}
 
+{# ── 密碼重設申請 ── #}
+{% if reset_requests %}
+<div class="pending-section" style="border-left:4px solid #e74c3c;">
+    <h2 style="color:#c0392b;">密碼重設申請（{{ reset_requests | length }} 人）</h2>
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th>學號</th><th>姓名</th><th>班級</th><th>聯絡 Email</th><th>申請時間</th><th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in reset_requests %}
+            <tr>
+                <td>{{ u.student_id }}</td>
+                <td>{{ u.name }}</td>
+                <td><span class="class-badge">{{ u.class_group }}</span></td>
+                <td style="font-size:0.88rem;">
+                    {% if u.reset_contact_email %}
+                        <a href="mailto:{{ u.reset_contact_email }}"
+                           style="color:#2980b9;">{{ u.reset_contact_email }}</a>
+                    {% else %}
+                        <span style="color:#aaa;">未提供</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:0.83rem;color:#888;">
+                    {{ u.reset_requested_at.strftime('%Y-%m-%d %H:%M') if u.reset_requested_at else '—' }}
+                </td>
+                <td>
+                    <button type="button" class="btn-action"
+                            style="background:#e74c3c;color:#fff;"
+                            onclick="openResetModal({{ u.id }}, '{{ u.name }}')">重設密碼</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 {# ── 各任務快覽 ── #}
 <div class="section-heading">各任務提交狀況</div>
 <div class="task-grid">
