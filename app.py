@@ -200,6 +200,22 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        student_id = request.form.get('student_id', '').strip()
+        user = User.query.filter_by(student_id=student_id, role='student').first()
+        if not user:
+            flash('找不到此學號，請確認後再試。', 'error')
+            return render_template('forgot_password.html')
+        notify.notify_forgot_password(user.name, user.student_id, app.config)
+        flash('已通知教師，請等候老師透過課程管道告知您臨時密碼。', 'success')
+        return redirect(url_for('login'))
+    return render_template('forgot_password.html')
+
+
 @app.route('/logout')
 @login_required
 def logout():

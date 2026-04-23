@@ -340,7 +340,7 @@ function switchTab(name, btn) {
 
 function onScopeChange() {
     const scope = document.getElementById('scopeSelect').value;
-    document.getElementById('recipientRow').style.display = scope === 'personal' ? '' : 'none';
+    document.getElementById('recipientRow').style.display = scope === 'personal' ? 'block' : 'none';
 }
 
 function toggleTeacherMsg(msgId) {
