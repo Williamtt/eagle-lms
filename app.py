@@ -913,6 +913,56 @@ def teacher_delete_user(uid):
     return redirect(url_for('teacher_dashboard'))
 
 
+@app.route('/teacher/user/<int:uid>/reset-password', methods=['POST'])
+@login_required
+def teacher_reset_password(uid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    user = db.session.get(User, uid)
+    if not user or user.role != 'student':
+        flash('找不到此學生帳號。', 'error')
+        return redirect(url_for('teacher_dashboard'))
+    new_password = request.form.get('new_password', '').strip()
+    if len(new_password) < 6:
+        flash('新密碼至少需要 6 個字元。', 'error')
+        return redirect(url_for('teacher_dashboard'))
+    user.set_password(new_password)
+    msg = Message(
+        sender_id=current_user.id,
+        recipient_id=user.id,
+        scope='personal',
+        subject='密碼已由教師重設',
+        body=f'您的帳號密碼已由教師重設。\n\n臨時密碼：{new_password}\n\n請登入後盡快至「修改密碼」頁面更改為您自己的密碼。'
+    )
+    db.session.add(msg)
+    db.session.commit()
+    flash(f'已重設 {user.name} 的密碼，並已傳送私訊通知。', 'success')
+    return redirect(url_for('teacher_dashboard'))
+
+
+@app.route('/profile/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        current_pw  = request.form.get('current_password', '')
+        new_pw      = request.form.get('new_password', '').strip()
+        confirm_pw  = request.form.get('confirm_password', '').strip()
+        if not current_user.check_password(current_pw):
+            flash('目前密碼不正確。', 'error')
+            return render_template('student/change_password.html')
+        if len(new_pw) < 6:
+            flash('新密碼至少需要 6 個字元。', 'error')
+            return render_template('student/change_password.html')
+        if new_pw != confirm_pw:
+            flash('兩次輸入的新密碼不一致。', 'error')
+            return render_template('student/change_password.html')
+        current_user.set_password(new_pw)
+        db.session.commit()
+        flash('密碼已更新。', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('student/change_password.html')
+
+
 @app.route('/teacher/task/<int:task_number>')
 @login_required
 def teacher_task_submissions(task_number):
@@ -1726,9 +1776,11 @@ def teacher_messages():
     read_ids = {r.message_id for r in MessageRead.query.filter_by(user_id=current_user.id).all()}
     students = User.query.filter_by(role='student', status='active')\
         .order_by(User.class_group, User.student_id).all()
+    preset_to = request.args.get('to', type=int)
     return render_template('teacher/messages.html',
                            inbox=inbox, sent=sent,
-                           read_ids=read_ids, students=students)
+                           read_ids=read_ids, students=students,
+                           preset_to=preset_to)
 
 
 @app.route('/teacher/messages/send', methods=['POST'])

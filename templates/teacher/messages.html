@@ -43,6 +43,17 @@
         box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
     }
     #recipientRow { display: none; }
+    #studentSearchInput { position: relative; }
+    .student-dropdown {
+        position: absolute; background: #fff; border: 1px solid #ddd;
+        border-radius: 4px; max-height: 200px; overflow-y: auto;
+        z-index: 100; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        display: none;
+    }
+    .student-dropdown-item {
+        padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.88rem;
+    }
+    .student-dropdown-item:hover { background: #eaf4fb; }
 
     /* Tabs */
     .tab-bar { display: flex; gap: 0; margin-bottom: 1rem; }
@@ -136,12 +147,14 @@
             </div>
             <div class="form-row" id="recipientRow">
                 <label>收件學生</label>
-                <select name="recipient_id">
-                    <option value="">— 請選擇 —</option>
-                    {% for s in students %}
-                    <option value="{{ s.id }}">{{ s.name }}（{{ s.student_id }}，{{ s.class_group }}）</option>
-                    {% endfor %}
-                </select>
+                <div id="studentSearchInput" style="position:relative;">
+                    <input type="text" id="studentQuery" placeholder="輸入姓名或學號搜尋…"
+                           autocomplete="off" oninput="filterStudents()"
+                           onfocus="filterStudents()" onblur="hideDropdown()">
+                    <div class="student-dropdown" id="studentDropdown"></div>
+                </div>
+                <input type="hidden" name="recipient_id" id="recipientId">
+                <div id="recipientLabel" style="font-size:0.8rem;color:#2980b9;margin-top:0.3rem;"></div>
             </div>
             <div class="form-row">
                 <label>主旨（選填）</label>
@@ -273,6 +286,51 @@
 
 {% block scripts %}
 <script>
+// ── 學生搜尋 ──────────────────────────────────────────────
+const STUDENTS = [
+    {% for s in students %}
+    {id: {{ s.id }}, name: "{{ s.name }}", sid: "{{ s.student_id }}", cg: "{{ s.class_group }}"},
+    {% endfor %}
+];
+
+function filterStudents() {
+    const q = document.getElementById('studentQuery').value.trim().toLowerCase();
+    const dropdown = document.getElementById('studentDropdown');
+    const matches = q
+        ? STUDENTS.filter(s => s.name.toLowerCase().includes(q) || s.sid.includes(q))
+        : STUDENTS;
+    if (!matches.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = matches.map(s =>
+        `<div class="student-dropdown-item"
+              onmousedown="selectStudent(${s.id}, '${s.name}', '${s.sid}')">${s.name}（${s.sid}，${s.cg}）</div>`
+    ).join('');
+    dropdown.style.display = 'block';
+}
+
+function selectStudent(id, name, sid) {
+    document.getElementById('recipientId').value = id;
+    document.getElementById('studentQuery').value = name + '（' + sid + '）';
+    document.getElementById('recipientLabel').textContent = '';
+    document.getElementById('studentDropdown').style.display = 'none';
+}
+
+function hideDropdown() {
+    setTimeout(() => document.getElementById('studentDropdown').style.display = 'none', 150);
+}
+
+// 從學習歷程頁帶入預選學生
+{% if preset_to %}
+window.addEventListener('DOMContentLoaded', () => {
+    const s = STUDENTS.find(x => x.id === {{ preset_to }});
+    if (s) {
+        document.getElementById('scopeSelect').value = 'personal';
+        onScopeChange();
+        selectStudent(s.id, s.name, s.sid);
+    }
+});
+{% endif %}
+
+// ── 原有功能 ───────────────────────────────────────────────
 function switchTab(name, btn) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

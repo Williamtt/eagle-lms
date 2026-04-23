@@ -165,10 +165,18 @@
 
 {# ── 歡迎列 ── #}
 <div class="welcome-section">
-    <h1>歡迎，{{ current_user.name }}！</h1>
-    <p style="opacity:0.85;">
-        {{ current_user.class_group }} 班・學號 {{ current_user.student_id }}
-    </p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.8rem;">
+        <div>
+            <h1>歡迎，{{ current_user.name }}！</h1>
+            <p style="opacity:0.85;">
+                {{ current_user.class_group }} 班・學號 {{ current_user.student_id }}
+            </p>
+        </div>
+        <a href="{{ url_for('change_password') }}"
+           style="background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.5);
+                  padding:0.4rem 0.9rem;border-radius:5px;text-decoration:none;font-size:0.85rem;
+                  white-space:nowrap;align-self:flex-start;">🔑 修改密碼</a>
+    </div>
     {% set total_items = total_tasks + total_journals + total_q %}
     {% set done_items  = submitted_tasks.n + submitted_journals.n + completed_q %}
     {% if total_items > 0 %}
