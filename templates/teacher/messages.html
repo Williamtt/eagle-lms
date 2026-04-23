@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}訊息管理 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .msg-page-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 2rem;
+    }
+    .msg-page-header h1 { font-size: 1.5rem; margin: 0; }
+
+    .msg-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (max-width: 900px) {
+        .msg-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Compose panel */
+    .compose-panel {
+        background: #fff; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        padding: 1.4rem;
+    }
+    .compose-panel h2 {
+        font-size: 1rem; color: #1a5276; margin-bottom: 1rem;
+        border-bottom: 2px solid #2980b9; padding-bottom: 0.4rem;
+    }
+    .form-row { margin-bottom: 0.8rem; }
+    .form-row label { display: block; font-size: 0.83rem; color: #555; margin-bottom: 0.25rem; }
+    .form-row input, .form-row select, .form-row textarea {
+        width: 100%; padding: 0.55rem 0.7rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-size: 0.9rem; font-family: inherit;
+    }
+    .form-row textarea { min-height: 80px; resize: vertical; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+        outline: none; border-color: #2980b9;
+        box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
+    }
+    #recipientRow { display: none; }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 0; margin-bottom: 1rem; }
+    .tab-btn {
+        flex: 1; padding: 0.65rem; border: none; cursor: pointer;
+        background: #e8f4f8; color: #1a5276; font-size: 0.9rem; font-weight: 600;
+        border-bottom: 3px solid transparent; transition: all 0.15s;
+    }
+    .tab-btn.active { background: #fff; border-bottom-color: #2980b9; color: #2980b9; }
+    .tab-btn:first-child { border-radius: 8px 0 0 0; }
+    .tab-btn:last-child  { border-radius: 0 8px 0 0; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Right panel */
+    .right-panel {
+        background: #fff; border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .right-panel-inner { padding: 1.4rem; }
+
+    /* Message list */
+    .msg-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .msg-item {
+        border: 1px solid #eee; border-radius: 6px;
+        padding: 0.85rem 1rem; cursor: pointer;
+        border-left: 4px solid #ddd; transition: box-shadow 0.15s;
+    }
+    .msg-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.09); }
+    .msg-item.unread { border-left-color: #e74c3c; background: #fff8f8; }
+
+    .msg-meta { display: flex; justify-content: space-between; align-items: center; }
+    .msg-from { font-size: 0.88rem; color: #1a5276; font-weight: 600; }
+    .msg-time { font-size: 0.78rem; color: #aaa; }
+    .msg-subject { font-size: 0.9rem; color: #333; margin-top: 0.2rem; }
+    .msg-subject.bold { font-weight: 700; }
+    .msg-body-preview { font-size: 0.83rem; color: #777; margin-top: 0.2rem;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Expanded */
+    .msg-detail {
+        display: none; margin-top: 0.75rem; padding-top: 0.75rem;
+        border-top: 1px solid #eee;
+    }
+    .msg-full-body {
+        font-size: 0.9rem; color: #333; white-space: pre-wrap;
+        word-break: break-word; margin-bottom: 0.75rem;
+    }
+    .reply-form { display: none; margin-top: 0.5rem; }
+    .reply-form textarea {
+        width: 100%; padding: 0.5rem 0.7rem;
+        border: 1px solid #ddd; border-radius: 4px;
+        font-size: 0.88rem; font-family: inherit;
+        min-height: 60px; resize: vertical; margin-bottom: 0.5rem;
+    }
+    .reply-form textarea:focus { outline: none; border-color: #2980b9; }
+    .action-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* Scope badge */
+    .scope-badge {
+        display: inline-block; padding: 0.1rem 0.45rem; border-radius: 10px;
+        font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem;
+    }
+    .scope-all  { background: #d4edda; color: #155724; }
+    .scope-a    { background: #d1ecf1; color: #0c5460; }
+    .scope-b    { background: #fff3cd; color: #856404; }
+    .scope-priv { background: #e2d9f3; color: #4a235a; }
+
+    .msg-empty { color: #aaa; font-size: 0.9rem; padding: 1rem 0; }
+</style>
+
+<div class="msg-page-header">
+    <h1>📬 訊息管理</h1>
+</div>
+
+<div class="msg-layout">
+
+    <!-- Left: compose -->
+    <div class="compose-panel">
+        <h2>撰寫訊息</h2>
+        <form method="POST" action="{{ url_for('teacher_send_message') }}">
+            <div class="form-row">
+                <label>類型</label>
+                <select name="scope" id="scopeSelect" onchange="onScopeChange()">
+                    <option value="all">📢 公告（全班）</option>
+                    <option value="class_a">📢 公告（A班）</option>
+                    <option value="class_b">📢 公告（B班）</option>
+                    <option value="personal">💬 私訊（指定學生）</option>
+                </select>
+            </div>
+            <div class="form-row" id="recipientRow">
+                <label>收件學生</label>
+                <select name="recipient_id">
+                    <option value="">— 請選擇 —</option>
+                    {% for s in students %}
+                    <option value="{{ s.id }}">{{ s.name }}（{{ s.student_id }}，{{ s.class_group }}）</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-row">
+                <label>主旨（選填）</label>
+                <input type="text" name="subject" placeholder="例：任務 3 截止日提醒">
+            </div>
+            <div class="form-row">
+                <label>內容 <span style="color:#e74c3c">*</span></label>
+                <textarea name="body" placeholder="請輸入訊息內容…" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-small" style="width:100%">發送</button>
+        </form>
+    </div>
+
+    <!-- Right: inbox / sent tabs -->
+    <div class="right-panel">
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('inbox', this)">
+                收件匣
+                {% set unread_inbox = inbox | rejectattr('id', 'in', read_ids) | list %}
+                {% if unread_inbox %}
+                <span class="msg-badge">{{ unread_inbox|length }}</span>
+                {% endif %}
+            </button>
+            <button class="tab-btn" onclick="switchTab('sent', this)">已發送</button>
+        </div>
+
+        <div class="right-panel-inner">
+
+            <!-- Inbox -->
+            <div id="tab-inbox" class="tab-panel active">
+                <div class="msg-list">
+                {% if inbox %}
+                    {% for msg in inbox %}
+                    {% set is_unread = msg.id not in read_ids %}
+                    <div class="msg-item {% if is_unread %}unread{% endif %}"
+                         id="msg-{{ msg.id }}">
+                        <div onclick="toggleTeacherMsg({{ msg.id }})">
+                            <div class="msg-meta">
+                                <span class="msg-from">
+                                    {% if is_unread %}<span style="color:#e74c3c">● </span>{% endif %}
+                                    {{ msg.sender.name }}（{{ msg.sender.student_id }}）
+                                </span>
+                                <span class="msg-time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            <div class="msg-subject {% if is_unread %}bold{% endif %}">
+                                {% if msg.subject %}{{ msg.subject }}{% else %}（無主旨）{% endif %}
+                            </div>
+                            <div class="msg-body-preview">{{ msg.body[:60] }}{% if msg.body|length > 60 %}…{% endif %}</div>
+                        </div>
+                        <div class="msg-detail" id="detail-{{ msg.id }}">
+                            <div class="msg-full-body">{{ msg.body }}</div>
+                            <div class="action-row">
+                                <button class="btn btn-secondary btn-small"
+                                        onclick="toggleReply({{ msg.id }})">回覆</button>
+                                <form method="POST"
+                                      action="{{ url_for('teacher_delete_message', msg_id=msg.id) }}"
+                                      onsubmit="return confirm('確定刪除？')">
+                                    <button class="btn btn-accent btn-small" type="submit">刪除</button>
+                                </form>
+                            </div>
+                            <div class="reply-form" id="reply-{{ msg.id }}">
+                                <form method="POST"
+                                      action="{{ url_for('teacher_reply_message', msg_id=msg.id) }}">
+                                    <textarea name="body" placeholder="輸入回覆內容…" required></textarea>
+                                    <button class="btn btn-success btn-small" type="submit">送出回覆</button>
+                                    <button type="button" class="btn btn-outline btn-small"
+                                            onclick="toggleReply({{ msg.id }})">取消</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="msg-empty">目前沒有學生訊息。</p>
+                {% endif %}
+                </div>
+            </div>
+
+            <!-- Sent -->
+            <div id="tab-sent" class="tab-panel">
+                <div class="msg-list">
+                {% if sent %}
+                    {% for msg in sent %}
+                    <div class="msg-item" id="sent-{{ msg.id }}">
+                        <div onclick="toggleSentMsg({{ msg.id }})">
+                            <div class="msg-meta">
+                                <span class="msg-from">
+                                    {% if msg.recipient_id %}
+                                        {{ msg.recipient.name }}（{{ msg.recipient.student_id }}）
+                                        <span class="scope-badge scope-priv">私訊</span>
+                                    {% else %}
+                                        {% if msg.scope == 'class_a' %}
+                                            <span class="scope-badge scope-a">A班公告</span>
+                                        {% elif msg.scope == 'class_b' %}
+                                            <span class="scope-badge scope-b">B班公告</span>
+                                        {% else %}
+                                            <span class="scope-badge scope-all">全班公告</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </span>
+                                <span class="msg-time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            <div class="msg-subject">
+                                {% if msg.subject %}{{ msg.subject }}{% else %}（無主旨）{% endif %}
+                            </div>
+                            <div class="msg-body-preview">{{ msg.body[:60] }}{% if msg.body|length > 60 %}…{% endif %}</div>
+                        </div>
+                        <div class="msg-detail" id="sent-detail-{{ msg.id }}">
+                            <div class="msg-full-body">{{ msg.body }}</div>
+                            <form method="POST"
+                                  action="{{ url_for('teacher_delete_message', msg_id=msg.id) }}"
+                                  onsubmit="return confirm('確定刪除？')">
+                                <button class="btn btn-accent btn-small" type="submit">刪除</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="msg-empty">尚未發送任何訊息。</p>
+                {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+}
+
+function onScopeChange() {
+    const scope = document.getElementById('scopeSelect').value;
+    document.getElementById('recipientRow').style.display = scope === 'personal' ? '' : 'none';
+}
+
+function toggleTeacherMsg(msgId) {
+    const detail = document.getElementById('detail-' + msgId);
+    const item   = document.getElementById('msg-' + msgId);
+    const open   = detail.style.display === 'block';
+    detail.style.display = open ? 'none' : 'block';
+
+    if (!open && item.classList.contains('unread')) {
+        item.classList.remove('unread');
+        fetch(`/messages/${msgId}/read`, {method: 'POST'});
+        const badge = document.querySelector('.tab-btn.active .msg-badge');
+        if (badge) {
+            const n = parseInt(badge.textContent) - 1;
+            if (n <= 0) badge.remove(); else badge.textContent = n;
+        }
+        const navBadge = document.querySelector('nav .msg-badge');
+        if (navBadge) {
+            const n = parseInt(navBadge.textContent) - 1;
+            if (n <= 0) navBadge.remove(); else navBadge.textContent = n;
+        }
+    }
+}
+
+function toggleSentMsg(msgId) {
+    const detail = document.getElementById('sent-detail-' + msgId);
+    detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
+}
+
+function toggleReply(msgId) {
+    const form = document.getElementById('reply-' + msgId);
+    form.style.display = form.style.display === 'block' ? 'none' : 'block';
+}
+</script>
+{% endblock %}

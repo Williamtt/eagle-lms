@@ -52,6 +52,19 @@
             color: #2980b9;
         }
 
+        .msg-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 10px;
+            padding: 0.05rem 0.45rem;
+            margin-left: 0.25rem;
+            vertical-align: middle;
+            line-height: 1.5;
+        }
+
         .nav-user {
             display: flex;
             gap: 1rem;
@@ -347,6 +360,11 @@
             <li><a href="{{ url_for('manual') }}">任務手冊</a></li>
             {% if current_user.is_authenticated %}
                 <li><a href="{{ url_for('dashboard') }}">儀表板</a></li>
+                <li>
+                    <a href="{{ url_for('messages') if not current_user.is_teacher else url_for('teacher_messages') }}">
+                        訊息{% if unread_count > 0 %}<span class="msg-badge">{{ unread_count }}</span>{% endif %}
+                    </a>
+                </li>
             {% endif %}
             <li>
                 {% if current_user.is_authenticated %}

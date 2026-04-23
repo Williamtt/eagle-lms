@@ -266,6 +266,41 @@ class Submission(db.Model):
                                       foreign_keys='TeacherReview.submission_id', lazy='dynamic')
 
 
+# =============================================================================
+# 模組 F：訊息系統
+# =============================================================================
+
+class Message(db.Model):
+    __tablename__ = 'messages'
+    id           = db.Column(db.Integer, primary_key=True)
+    sender_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    # recipient_id = NULL → 廣播公告；有值 → 私訊
+
+    scope        = db.Column(db.String(20), default='all')
+    # 廣播時：'all' | 'class_a' | 'class_b'
+    # 私訊時：'personal'
+
+    subject      = db.Column(db.String(200), default='')
+    body         = db.Column(db.Text, nullable=False)
+    reply_to_id  = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=True)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sender    = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
+    reads     = db.relationship('MessageRead', backref='message', cascade='all, delete-orphan')
+
+
+class MessageRead(db.Model):
+    __tablename__ = 'message_reads'
+    id         = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=False)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    read_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('message_id', 'user_id'),)
+
+
 # ─── AI Tutor Conversations ─────────────────────────────────────────────────
 
 class TutorConversation(db.Model):

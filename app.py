@@ -19,7 +19,9 @@ from models import (db, User,
                     QuestionnaireSubmission, QuestionnaireAnswer,
                     LearningJournal,
                     Submission,          # Submission 保留供舊資料查詢
-                    TutorConversation)
+                    TutorConversation,
+                    Message, MessageRead)
+from sqlalchemy import or_, and_
 import requests as http_requests
 import ai_service
 import notify
@@ -57,6 +59,39 @@ login_manager.login_message = '請先登入。'
 
 ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'docx', 'doc',
                       'png', 'jpg', 'jpeg', 'zip'}
+
+
+def _student_scope_key(user):
+    return 'class_a' if user.class_group == '營建管理A班' else 'class_b'
+
+
+def _student_msg_filter(user):
+    scope_key = _student_scope_key(user)
+    return or_(
+        Message.recipient_id == user.id,
+        and_(
+            Message.recipient_id == None,
+            or_(Message.scope == 'all', Message.scope == scope_key)
+        )
+    )
+
+
+@app.context_processor
+def inject_unread_count():
+    if not current_user.is_authenticated:
+        return {'unread_count': 0}
+    read_ids = db.session.query(MessageRead.message_id).filter_by(user_id=current_user.id)
+    if current_user.is_teacher:
+        count = Message.query.filter(
+            Message.recipient_id == current_user.id,
+            Message.id.notin_(read_ids)
+        ).count()
+    else:
+        count = Message.query.filter(
+            Message.id.notin_(read_ids),
+            _student_msg_filter(current_user)
+        ).count()
+    return {'unread_count': count}
 
 # Jinja2 custom filter：將 JSON 字串解析為 Python 物件（供問卷選項使用）
 @app.template_filter('from_json')
@@ -1623,6 +1658,144 @@ def tutor_new_conversation():
     db.session.add(conv)
     db.session.commit()
     return jsonify({'success': True})
+
+
+# ─── Messages ─────────────────────────────────────────────────────────────────
+
+def _student_visible_messages(user):
+    msgs = Message.query.filter(
+        _student_msg_filter(user)
+    ).order_by(Message.created_at.desc()).all()
+    read_ids = {r.message_id for r in MessageRead.query.filter_by(user_id=user.id).all()}
+    return msgs, read_ids
+
+
+@app.route('/messages')
+@login_required
+def messages():
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_messages'))
+    msgs, read_ids = _student_visible_messages(current_user)
+    broadcasts = [m for m in msgs if m.recipient_id is None]
+    personal   = [m for m in msgs if m.recipient_id == current_user.id]
+    return render_template('student/messages.html',
+                           broadcasts=broadcasts, personal=personal,
+                           read_ids=read_ids)
+
+
+@app.route('/messages/send', methods=['POST'])
+@login_required
+def student_send_message():
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_messages'))
+    body    = request.form.get('body', '').strip()
+    subject = request.form.get('subject', '').strip()
+    if not body:
+        flash('訊息內容不能為空。', 'error')
+        return redirect(url_for('messages'))
+    teacher = User.query.filter_by(role='teacher').first()
+    if not teacher:
+        flash('找不到教師帳號。', 'error')
+        return redirect(url_for('messages'))
+    msg = Message(sender_id=current_user.id, recipient_id=teacher.id,
+                  scope='personal', subject=subject, body=body)
+    db.session.add(msg)
+    db.session.commit()
+    flash('訊息已送出。', 'success')
+    return redirect(url_for('messages'))
+
+
+@app.route('/messages/<int:msg_id>/read', methods=['POST'])
+@login_required
+def mark_message_read(msg_id):
+    if not MessageRead.query.filter_by(message_id=msg_id, user_id=current_user.id).first():
+        db.session.add(MessageRead(message_id=msg_id, user_id=current_user.id))
+        db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/teacher/messages')
+@login_required
+def teacher_messages():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    inbox = Message.query.filter_by(recipient_id=current_user.id)\
+        .order_by(Message.created_at.desc()).all()
+    sent = Message.query.filter_by(sender_id=current_user.id)\
+        .order_by(Message.created_at.desc()).all()
+    read_ids = {r.message_id for r in MessageRead.query.filter_by(user_id=current_user.id).all()}
+    students = User.query.filter_by(role='student', status='active')\
+        .order_by(User.class_group, User.student_id).all()
+    return render_template('teacher/messages.html',
+                           inbox=inbox, sent=sent,
+                           read_ids=read_ids, students=students)
+
+
+@app.route('/teacher/messages/send', methods=['POST'])
+@login_required
+def teacher_send_message():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    body         = request.form.get('body', '').strip()
+    subject      = request.form.get('subject', '').strip()
+    scope        = request.form.get('scope', 'all')
+    recipient_id = request.form.get('recipient_id', type=int)
+    if not body:
+        flash('訊息內容不能為空。', 'error')
+        return redirect(url_for('teacher_messages'))
+    if scope == 'personal' and recipient_id:
+        msg = Message(sender_id=current_user.id, recipient_id=recipient_id,
+                      scope='personal', subject=subject, body=body)
+    else:
+        msg = Message(sender_id=current_user.id, recipient_id=None,
+                      scope=scope, subject=subject, body=body)
+    db.session.add(msg)
+    db.session.commit()
+    flash('訊息已發送。', 'success')
+    return redirect(url_for('teacher_messages'))
+
+
+@app.route('/teacher/messages/<int:msg_id>/reply', methods=['POST'])
+@login_required
+def teacher_reply_message(msg_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    original = db.session.get(Message, msg_id)
+    if not original:
+        flash('找不到原始訊息。', 'error')
+        return redirect(url_for('teacher_messages'))
+    body    = request.form.get('body', '').strip()
+    subject = request.form.get('subject', '').strip()
+    if not body:
+        flash('回覆內容不能為空。', 'error')
+        return redirect(url_for('teacher_messages'))
+    reply = Message(sender_id=current_user.id, recipient_id=original.sender_id,
+                    scope='personal',
+                    subject=subject or (f'Re: {original.subject}' if original.subject else '回覆'),
+                    body=body, reply_to_id=msg_id)
+    db.session.add(reply)
+    if not MessageRead.query.filter_by(message_id=msg_id, user_id=current_user.id).first():
+        db.session.add(MessageRead(message_id=msg_id, user_id=current_user.id))
+    db.session.commit()
+    flash('回覆已送出。', 'success')
+    return redirect(url_for('teacher_messages'))
+
+
+@app.route('/teacher/messages/<int:msg_id>/delete', methods=['POST'])
+@login_required
+def teacher_delete_message(msg_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    msg = db.session.get(Message, msg_id)
+    if not msg:
+        flash('找不到此訊息。', 'error')
+    elif msg.sender_id != current_user.id and msg.recipient_id != current_user.id:
+        flash('無權限刪除此訊息。', 'error')
+    else:
+        db.session.delete(msg)
+        db.session.commit()
+        flash('訊息已刪除。', 'success')
+    return redirect(url_for('teacher_messages'))
 
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────
