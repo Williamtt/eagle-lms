@@ -51,7 +51,7 @@ def _run_migrations():
                     ))
                 if 'reset_requested_at' not in cols:
                     conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN reset_requested_at DATETIME"
+                        "ALTER TABLE users ADD COLUMN reset_requested_at TIMESTAMP"
                     ))
                 if 'reset_contact_email' not in cols:
                     conn.execute(text(
