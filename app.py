@@ -1809,17 +1809,46 @@ def mark_message_read(msg_id):
 def teacher_messages():
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
-    inbox = Message.query.filter_by(recipient_id=current_user.id)\
-        .order_by(Message.created_at.desc()).all()
-    sent = Message.query.filter_by(sender_id=current_user.id)\
-        .order_by(Message.created_at.desc()).all()
-    read_ids = {r.message_id for r in MessageRead.query.filter_by(user_id=current_user.id).all()}
+    teacher_id = current_user.id
+
+    # 公告（老師發出、無特定收件人）
+    announcements = Message.query.filter(
+        Message.sender_id == teacher_id,
+        Message.recipient_id == None
+    ).order_by(Message.created_at.desc()).all()
+
+    # 私訊對話列表：找出所有與老師有私訊往來的學生
+    personal_msgs = Message.query.filter(
+        or_(
+            and_(Message.sender_id == teacher_id, Message.recipient_id != None),
+            Message.recipient_id == teacher_id
+        )
+    ).order_by(Message.created_at.desc()).all()
+
+    unread_subq = db.session.query(MessageRead.message_id).filter_by(user_id=teacher_id)
+    seen, conversations = set(), []
+    for msg in personal_msgs:
+        sid = msg.recipient_id if msg.sender_id == teacher_id else msg.sender_id
+        if sid in seen:
+            continue
+        seen.add(sid)
+        student = db.session.get(User, sid)
+        if not student:
+            continue
+        unread = Message.query.filter(
+            Message.sender_id == sid,
+            Message.recipient_id == teacher_id,
+            Message.id.notin_(unread_subq)
+        ).count()
+        conversations.append({'student': student, 'last_msg': msg, 'unread': unread})
+
     students = User.query.filter_by(role='student', status='active')\
         .order_by(User.class_group, User.student_id).all()
     preset_to = request.args.get('to', type=int)
     return render_template('teacher/messages.html',
-                           inbox=inbox, sent=sent,
-                           read_ids=read_ids, students=students,
+                           conversations=conversations,
+                           announcements=announcements,
+                           students=students,
                            preset_to=preset_to)
 
 
@@ -1888,6 +1917,80 @@ def teacher_delete_message(msg_id):
         db.session.commit()
         flash('訊息已刪除。', 'success')
     return redirect(url_for('teacher_messages'))
+
+
+@app.route('/api/messages/thread/<int:student_id>')
+@login_required
+def api_message_thread(student_id):
+    if not current_user.is_teacher:
+        return jsonify({'error': '無權限'}), 403
+    student = db.session.get(User, student_id)
+    if not student or student.role != 'student':
+        return jsonify({'error': '找不到此學生'}), 404
+
+    teacher_id = current_user.id
+    msgs = Message.query.filter(
+        or_(
+            and_(Message.sender_id == teacher_id, Message.recipient_id == student_id),
+            and_(Message.sender_id == student_id, Message.recipient_id == teacher_id)
+        )
+    ).order_by(Message.created_at.asc()).all()
+
+    read_set = {r.message_id for r in MessageRead.query.filter_by(user_id=teacher_id).all()}
+    newly_read = [m.id for m in msgs if m.sender_id == student_id and m.id not in read_set]
+    for mid in newly_read:
+        db.session.add(MessageRead(message_id=mid, user_id=teacher_id))
+    if newly_read:
+        db.session.commit()
+
+    thread = [{
+        'id':          m.id,
+        'is_teacher':  m.sender_id == teacher_id,
+        'sender_name': m.sender.name,
+        'body':        m.body,
+        'created_at':  m.created_at.strftime('%Y-%m-%d %H:%M'),
+    } for m in msgs]
+
+    return jsonify({
+        'student_id':        student_id,
+        'student_name':      student.name,
+        'student_sid':       student.student_id,
+        'thread':            thread,
+        'newly_read_count':  len(newly_read),
+    })
+
+
+@app.route('/api/messages/thread/<int:student_id>/reply', methods=['POST'])
+@login_required
+def api_thread_reply(student_id):
+    if not current_user.is_teacher:
+        return jsonify({'error': '無權限'}), 403
+    student = db.session.get(User, student_id)
+    if not student or student.role != 'student':
+        return jsonify({'error': '找不到此學生'}), 404
+
+    data = request.get_json() or {}
+    body = (data.get('body') or '').strip()
+    if not body:
+        return jsonify({'error': '訊息內容不能為空'}), 400
+
+    msg = Message(
+        sender_id=current_user.id,
+        recipient_id=student_id,
+        scope='personal',
+        subject='',
+        body=body,
+    )
+    db.session.add(msg)
+    db.session.commit()
+
+    return jsonify({
+        'id':          msg.id,
+        'is_teacher':  True,
+        'sender_name': current_user.name,
+        'body':        msg.body,
+        'created_at':  msg.created_at.strftime('%Y-%m-%d %H:%M'),
+    })
 
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────

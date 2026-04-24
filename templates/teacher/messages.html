@@ -4,375 +4,498 @@
 
 {% block content %}
 <style>
-    .msg-page-header {
-        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
-        color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 2rem;
-    }
-    .msg-page-header h1 { font-size: 1.5rem; margin: 0; }
+.msg-page-header {
+    background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+    color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+}
+.msg-page-header h1 { font-size: 1.5rem; margin: 0; }
 
-    .msg-layout {
-        display: grid;
-        grid-template-columns: 340px 1fr;
-        gap: 1.5rem;
-        align-items: start;
-    }
-    @media (max-width: 900px) {
-        .msg-layout { grid-template-columns: 1fr; }
-    }
+/* ── Announcements ─────────────────────────────────────── */
+.announce-section {
+    background: #fff; border-radius: 8px; margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden;
+}
+.announce-toggle {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.9rem 1.2rem; cursor: pointer;
+    background: #eaf4fb; border-bottom: 2px solid #2980b9; user-select: none;
+}
+.announce-toggle:hover { background: #d4eaf7; }
+.announce-toggle-title { font-weight: 700; color: #1a5276; font-size: 0.95rem; }
+.ann-count-badge {
+    display: inline-block; background: #2980b9; color: #fff;
+    font-size: 0.75rem; border-radius: 10px; padding: 0.05rem 0.5rem; margin-left: 0.4rem;
+}
+.announce-body { display: none; }
+.announce-inner { padding: 1.2rem; display: grid; grid-template-columns: 300px 1fr; gap: 1.5rem; }
+@media (max-width: 900px) { .announce-inner { grid-template-columns: 1fr; } }
+.ann-section-title { font-size: 0.88rem; font-weight: 700; color: #1a5276; margin-bottom: 0.8rem; }
+.ann-scope-subject { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; }
+.ann-scope-subject select, .ann-scope-subject input {
+    padding: 0.5rem 0.6rem; border: 1px solid #ddd; border-radius: 4px;
+    font-size: 0.88rem; font-family: inherit;
+}
+.ann-scope-subject select { flex: 0 0 110px; }
+.ann-scope-subject input { flex: 1; }
+.ann-body-input {
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid #ddd; border-radius: 4px;
+    font-size: 0.9rem; font-family: inherit; min-height: 72px; resize: vertical; margin-bottom: 0.6rem;
+}
+.ann-scope-subject select:focus, .ann-scope-subject input:focus, .ann-body-input:focus {
+    outline: none; border-color: #2980b9;
+}
+.announce-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: 260px; overflow-y: auto; }
+.announce-item {
+    border: 1px solid #eee; border-radius: 6px; padding: 0.75rem 1rem;
+    border-left: 4px solid #2980b9; background: #fafcff;
+}
+.announce-item-meta { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+.ann-time { font-size: 0.75rem; color: #aaa; margin-left: auto; }
+.announce-item-body { font-size: 0.87rem; color: #444; white-space: pre-wrap; word-break: break-word; }
 
-    /* Compose panel */
-    .compose-panel {
-        background: #fff; border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        padding: 1.4rem;
-    }
-    .compose-panel h2 {
-        font-size: 1rem; color: #1a5276; margin-bottom: 1rem;
-        border-bottom: 2px solid #2980b9; padding-bottom: 0.4rem;
-    }
-    .form-row { margin-bottom: 0.8rem; }
-    .form-row label { display: block; font-size: 0.83rem; color: #555; margin-bottom: 0.25rem; }
-    .form-row input, .form-row select, .form-row textarea {
-        width: 100%; padding: 0.55rem 0.7rem;
-        border: 1px solid #ddd; border-radius: 4px;
-        font-size: 0.9rem; font-family: inherit;
-    }
-    .form-row textarea { min-height: 80px; resize: vertical; }
-    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
-        outline: none; border-color: #2980b9;
-        box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
-    }
-    #recipientRow { display: none; }
-    #studentSearchInput { position: relative; }
-    .student-dropdown {
-        position: absolute; background: #fff; border: 1px solid #ddd;
-        border-radius: 4px; max-height: 200px; overflow-y: auto;
-        z-index: 100; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        display: none;
-    }
-    .student-dropdown-item {
-        padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.88rem;
-    }
-    .student-dropdown-item:hover { background: #eaf4fb; }
+/* Scope badges */
+.scope-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+.scope-all  { background: #d4edda; color: #155724; }
+.scope-a    { background: #d1ecf1; color: #0c5460; }
+.scope-b    { background: #fff3cd; color: #856404; }
 
-    /* Tabs */
-    .tab-bar { display: flex; gap: 0; margin-bottom: 1rem; }
-    .tab-btn {
-        flex: 1; padding: 0.65rem; border: none; cursor: pointer;
-        background: #e8f4f8; color: #1a5276; font-size: 0.9rem; font-weight: 600;
-        border-bottom: 3px solid transparent; transition: all 0.15s;
-    }
-    .tab-btn.active { background: #fff; border-bottom-color: #2980b9; color: #2980b9; }
-    .tab-btn:first-child { border-radius: 8px 0 0 0; }
-    .tab-btn:last-child  { border-radius: 0 8px 0 0; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+/* ── Two-panel layout ───────────────────────────────── */
+.msg-layout { display: grid; grid-template-columns: 270px 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 900px) { .msg-layout { grid-template-columns: 1fr; } }
 
-    /* Right panel */
-    .right-panel {
-        background: #fff; border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-    }
-    .right-panel-inner { padding: 1.4rem; }
+/* Left: conversation list */
+.conv-panel { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; }
+.conv-panel-header {
+    padding: 0.75rem 1rem; background: #f7f9fc; border-bottom: 1px solid #eee;
+    font-weight: 700; font-size: 0.88rem; color: #1a5276;
+}
+.conv-list { overflow-y: auto; max-height: 460px; }
+.conv-item {
+    padding: 0.8rem 1rem; cursor: pointer; border-bottom: 1px solid #f0f0f0;
+    transition: background 0.12s; border-left: 3px solid transparent;
+}
+.conv-item:hover { background: #f0f7ff; }
+.conv-item.active { background: #eaf4fb; border-left-color: #2980b9; }
+.conv-item.has-unread { background: #fff8f8; }
+.conv-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem; }
+.conv-item-name { font-weight: 600; font-size: 0.88rem; color: #1a5276; }
+.conv-item-time { font-size: 0.72rem; color: #aaa; }
+.conv-item-class { font-size: 0.76rem; color: #888; margin-bottom: 0.18rem; }
+.conv-item-preview { font-size: 0.8rem; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unread-dot {
+    display: inline-block; background: #e74c3c; color: #fff;
+    font-size: 0.7rem; border-radius: 10px; padding: 0.05rem 0.4rem; margin-left: 0.3rem; font-weight: 700;
+}
+.conv-new-btn {
+    display: block; padding: 0.7rem 1rem; text-align: center; cursor: pointer;
+    color: #2980b9; font-size: 0.86rem; font-weight: 600; border-top: 1px solid #eee;
+    background: #f7f9fc; transition: background 0.12s;
+}
+.conv-new-btn:hover { background: #eaf4fb; }
 
-    /* Message list */
-    .msg-list { display: flex; flex-direction: column; gap: 0.5rem; }
+/* Right: thread panel */
+.thread-panel { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; }
+.thread-empty { padding: 4rem 2rem; text-align: center; color: #bbb; font-size: 0.95rem; }
+.thread-header { padding: 0.8rem 1.2rem; background: #f7f9fc; border-bottom: 1px solid #eee; font-weight: 700; font-size: 0.95rem; color: #1a5276; }
+.thread-messages {
+    padding: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem;
+    overflow-y: auto; max-height: 360px; min-height: 120px;
+}
+.thread-messages-empty { text-align: center; color: #bbb; font-size: 0.88rem; padding: 2rem 0; }
 
-    .msg-item {
-        border: 1px solid #eee; border-radius: 6px;
-        padding: 0.85rem 1rem; cursor: pointer;
-        border-left: 4px solid #ddd; transition: box-shadow 0.15s;
-    }
-    .msg-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.09); }
-    .msg-item.unread { border-left-color: #e74c3c; background: #fff8f8; }
+/* Chat bubbles */
+.bubble-wrap { display: flex; align-items: flex-end; gap: 0.5rem; }
+.bubble-wrap.is-teacher { flex-direction: row-reverse; }
+.bubble {
+    max-width: 72%; padding: 0.6rem 0.9rem; border-radius: 16px;
+    font-size: 0.9rem; line-height: 1.55; word-break: break-word; white-space: pre-wrap;
+}
+.student-bubble { background: #f0f0f0; color: #333; border-bottom-left-radius: 4px; }
+.teacher-bubble { background: #1a5276; color: #fff; border-bottom-right-radius: 4px; }
+.bubble-meta { font-size: 0.72rem; color: #aaa; white-space: nowrap; }
+.bubble-wrap.is-teacher .bubble-meta { text-align: right; }
 
-    .msg-meta { display: flex; justify-content: space-between; align-items: center; }
-    .msg-from { font-size: 0.88rem; color: #1a5276; font-weight: 600; }
-    .msg-time { font-size: 0.78rem; color: #aaa; }
-    .msg-subject { font-size: 0.9rem; color: #333; margin-top: 0.2rem; }
-    .msg-subject.bold { font-weight: 700; }
-    .msg-body-preview { font-size: 0.83rem; color: #777; margin-top: 0.2rem;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Reply area */
+.thread-reply { padding: 0.9rem 1.2rem; border-top: 1px solid #eee; display: flex; gap: 0.6rem; align-items: flex-end; }
+.thread-reply textarea {
+    flex: 1; padding: 0.55rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
+    font-size: 0.9rem; font-family: inherit; resize: none; min-height: 52px; max-height: 120px;
+}
+.thread-reply textarea:focus { outline: none; border-color: #2980b9; }
 
-    /* Expanded */
-    .msg-detail {
-        display: none; margin-top: 0.75rem; padding-top: 0.75rem;
-        border-top: 1px solid #eee;
-    }
-    .msg-full-body {
-        font-size: 0.9rem; color: #333; white-space: pre-wrap;
-        word-break: break-word; margin-bottom: 0.75rem;
-    }
-    .reply-form { display: none; margin-top: 0.5rem; }
-    .reply-form textarea {
-        width: 100%; padding: 0.5rem 0.7rem;
-        border: 1px solid #ddd; border-radius: 4px;
-        font-size: 0.88rem; font-family: inherit;
-        min-height: 60px; resize: vertical; margin-bottom: 0.5rem;
-    }
-    .reply-form textarea:focus { outline: none; border-color: #2980b9; }
-    .action-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* New message form */
+.new-msg-form { padding: 1.2rem; }
+.new-msg-form h3 { font-size: 0.93rem; color: #1a5276; margin-bottom: 1rem; }
+.nm-row { margin-bottom: 0.8rem; }
+.nm-row label { display: block; font-size: 0.82rem; color: #555; margin-bottom: 0.25rem; }
+.nm-row input, .nm-row textarea {
+    width: 100%; padding: 0.55rem 0.7rem; border: 1px solid #ddd; border-radius: 4px;
+    font-size: 0.9rem; font-family: inherit;
+}
+.nm-row textarea { min-height: 80px; resize: vertical; }
+.nm-row input:focus, .nm-row textarea:focus { outline: none; border-color: #2980b9; }
 
-    /* Scope badge */
-    .scope-badge {
-        display: inline-block; padding: 0.1rem 0.45rem; border-radius: 10px;
-        font-size: 0.75rem; font-weight: 600; margin-left: 0.4rem;
-    }
-    .scope-all  { background: #d4edda; color: #155724; }
-    .scope-a    { background: #d1ecf1; color: #0c5460; }
-    .scope-b    { background: #fff3cd; color: #856404; }
-    .scope-priv { background: #e2d9f3; color: #4a235a; }
+/* Student dropdown */
+.student-dropdown {
+    position: absolute; background: #fff; border: 1px solid #ddd;
+    border-radius: 4px; max-height: 180px; overflow-y: auto;
+    z-index: 100; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: none;
+}
+.student-dropdown-item { padding: 0.55rem 0.8rem; cursor: pointer; font-size: 0.88rem; }
+.student-dropdown-item:hover { background: #eaf4fb; }
 
-    .msg-empty { color: #aaa; font-size: 0.9rem; padding: 1rem 0; }
+.msg-empty { color: #aaa; font-size: 0.88rem; }
 </style>
 
 <div class="msg-page-header">
     <h1>📬 訊息管理</h1>
 </div>
 
-<div class="msg-layout">
-
-    <!-- Left: compose -->
-    <div class="compose-panel">
-        <h2>撰寫訊息</h2>
-        <form method="POST" action="{{ url_for('teacher_send_message') }}">
-            <div class="form-row">
-                <label>類型</label>
-                <select name="scope" id="scopeSelect" onchange="onScopeChange()">
-                    <option value="all">📢 公告（全班）</option>
-                    <option value="class_a">📢 公告（A班）</option>
-                    <option value="class_b">📢 公告（B班）</option>
-                    <option value="personal">💬 私訊（指定學生）</option>
-                </select>
-            </div>
-            <div class="form-row" id="recipientRow">
-                <label>收件學生</label>
-                <div id="studentSearchInput" style="position:relative;">
-                    <input type="text" id="studentQuery" placeholder="輸入姓名或學號搜尋…"
-                           autocomplete="off" oninput="filterStudents()"
-                           onfocus="filterStudents()" onblur="hideDropdown()">
-                    <div class="student-dropdown" id="studentDropdown"></div>
-                </div>
-                <input type="hidden" name="recipient_id" id="recipientId">
-                <div id="recipientLabel" style="font-size:0.8rem;color:#2980b9;margin-top:0.3rem;"></div>
-            </div>
-            <div class="form-row">
-                <label>主旨（選填）</label>
-                <input type="text" name="subject" placeholder="例：任務 3 截止日提醒">
-            </div>
-            <div class="form-row">
-                <label>內容 <span style="color:#e74c3c">*</span></label>
-                <textarea name="body" placeholder="請輸入訊息內容…" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary btn-small" style="width:100%">發送</button>
-        </form>
+<!-- ── Announcements ──────────────────────────────────── -->
+<div class="announce-section">
+    <div class="announce-toggle" onclick="toggleAnnouncements()">
+        <span class="announce-toggle-title">
+            📢 公告
+            {% if announcements %}<span class="ann-count-badge">{{ announcements|length }}</span>{% endif %}
+        </span>
+        <span id="announceIcon">▼ 展開</span>
     </div>
-
-    <!-- Right: inbox / sent tabs -->
-    <div class="right-panel">
-        <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab('inbox', this)">
-                收件匣
-                {% set unread_inbox = inbox | rejectattr('id', 'in', read_ids) | list %}
-                {% if unread_inbox %}
-                <span class="msg-badge">{{ unread_inbox|length }}</span>
-                {% endif %}
-            </button>
-            <button class="tab-btn" onclick="switchTab('sent', this)">已發送</button>
-        </div>
-
-        <div class="right-panel-inner">
-
-            <!-- Inbox -->
-            <div id="tab-inbox" class="tab-panel active">
-                <div class="msg-list">
-                {% if inbox %}
-                    {% for msg in inbox %}
-                    {% set is_unread = msg.id not in read_ids %}
-                    <div class="msg-item {% if is_unread %}unread{% endif %}"
-                         id="msg-{{ msg.id }}">
-                        <div onclick="toggleTeacherMsg({{ msg.id }})">
-                            <div class="msg-meta">
-                                <span class="msg-from">
-                                    {% if is_unread %}<span style="color:#e74c3c">● </span>{% endif %}
-                                    {{ msg.sender.name }}（{{ msg.sender.student_id }}）
-                                </span>
-                                <span class="msg-time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                            </div>
-                            <div class="msg-subject {% if is_unread %}bold{% endif %}">
-                                {% if msg.subject %}{{ msg.subject }}{% else %}（無主旨）{% endif %}
-                            </div>
-                            <div class="msg-body-preview">{{ msg.body[:60] }}{% if msg.body|length > 60 %}…{% endif %}</div>
+    <div class="announce-body" id="announceBody">
+        <div class="announce-inner">
+            <!-- Compose -->
+            <div>
+                <p class="ann-section-title">發布新公告</p>
+                <form method="POST" action="{{ url_for('teacher_send_message') }}">
+                    <div class="ann-scope-subject">
+                        <select name="scope">
+                            <option value="all">📢 全班</option>
+                            <option value="class_a">A班</option>
+                            <option value="class_b">B班</option>
+                        </select>
+                        <input type="text" name="subject" placeholder="主旨（選填）">
+                    </div>
+                    <textarea class="ann-body-input" name="body" placeholder="公告內容…" required></textarea>
+                    <button type="submit" class="btn btn-primary btn-small" style="width:100%">發布</button>
+                </form>
+            </div>
+            <!-- List -->
+            <div>
+                <p class="ann-section-title">已發布公告（{{ announcements|length }} 則）</p>
+                {% if announcements %}
+                <div class="announce-list">
+                    {% for ann in announcements %}
+                    <div class="announce-item">
+                        <div class="announce-item-meta">
+                            {% if ann.scope == 'class_a' %}
+                                <span class="scope-badge scope-a">A班</span>
+                            {% elif ann.scope == 'class_b' %}
+                                <span class="scope-badge scope-b">B班</span>
+                            {% else %}
+                                <span class="scope-badge scope-all">全班</span>
+                            {% endif %}
+                            {% if ann.subject %}<strong style="font-size:0.87rem;">{{ ann.subject }}</strong>{% endif %}
+                            <span class="ann-time">{{ ann.created_at.strftime('%m/%d %H:%M') }}</span>
                         </div>
-                        <div class="msg-detail" id="detail-{{ msg.id }}">
-                            <div class="msg-full-body">{{ msg.body }}</div>
-                            <div class="action-row">
-                                <button class="btn btn-secondary btn-small"
-                                        onclick="toggleReply({{ msg.id }})">回覆</button>
-                                <form method="POST"
-                                      action="{{ url_for('teacher_delete_message', msg_id=msg.id) }}"
-                                      onsubmit="return confirm('確定刪除？')">
-                                    <button class="btn btn-accent btn-small" type="submit">刪除</button>
-                                </form>
-                            </div>
-                            <div class="reply-form" id="reply-{{ msg.id }}">
-                                <form method="POST"
-                                      action="{{ url_for('teacher_reply_message', msg_id=msg.id) }}">
-                                    <textarea name="body" placeholder="輸入回覆內容…" required></textarea>
-                                    <button class="btn btn-success btn-small" type="submit">送出回覆</button>
-                                    <button type="button" class="btn btn-outline btn-small"
-                                            onclick="toggleReply({{ msg.id }})">取消</button>
-                                </form>
-                            </div>
-                        </div>
+                        <div class="announce-item-body">{{ ann.body }}</div>
+                        <form method="POST" action="{{ url_for('teacher_delete_message', msg_id=ann.id) }}"
+                              onsubmit="return confirm('確定刪除此公告？')" style="margin-top:0.5rem;">
+                            <button class="btn btn-accent btn-small" type="submit">刪除</button>
+                        </form>
                     </div>
                     {% endfor %}
-                {% else %}
-                    <p class="msg-empty">目前沒有學生訊息。</p>
-                {% endif %}
                 </div>
-            </div>
-
-            <!-- Sent -->
-            <div id="tab-sent" class="tab-panel">
-                <div class="msg-list">
-                {% if sent %}
-                    {% for msg in sent %}
-                    <div class="msg-item" id="sent-{{ msg.id }}">
-                        <div onclick="toggleSentMsg({{ msg.id }})">
-                            <div class="msg-meta">
-                                <span class="msg-from">
-                                    {% if msg.recipient_id %}
-                                        {{ msg.recipient.name }}（{{ msg.recipient.student_id }}）
-                                        <span class="scope-badge scope-priv">私訊</span>
-                                    {% else %}
-                                        {% if msg.scope == 'class_a' %}
-                                            <span class="scope-badge scope-a">A班公告</span>
-                                        {% elif msg.scope == 'class_b' %}
-                                            <span class="scope-badge scope-b">B班公告</span>
-                                        {% else %}
-                                            <span class="scope-badge scope-all">全班公告</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </span>
-                                <span class="msg-time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                            </div>
-                            <div class="msg-subject">
-                                {% if msg.subject %}{{ msg.subject }}{% else %}（無主旨）{% endif %}
-                            </div>
-                            <div class="msg-body-preview">{{ msg.body[:60] }}{% if msg.body|length > 60 %}…{% endif %}</div>
-                        </div>
-                        <div class="msg-detail" id="sent-detail-{{ msg.id }}">
-                            <div class="msg-full-body">{{ msg.body }}</div>
-                            <form method="POST"
-                                  action="{{ url_for('teacher_delete_message', msg_id=msg.id) }}"
-                                  onsubmit="return confirm('確定刪除？')">
-                                <button class="btn btn-accent btn-small" type="submit">刪除</button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
                 {% else %}
-                    <p class="msg-empty">尚未發送任何訊息。</p>
+                <p class="msg-empty">尚無公告。</p>
                 {% endif %}
-                </div>
             </div>
-
         </div>
     </div>
 </div>
 
+<!-- ── Two-panel: conversations + thread ─────────────── -->
+<div class="msg-layout">
+
+    <!-- Left: conversation list -->
+    <div class="conv-panel">
+        <div class="conv-panel-header">私訊對話</div>
+        <div class="conv-list" id="convList">
+            {% if conversations %}
+                {% for conv in conversations %}
+                <div class="conv-item{% if conv.unread %} has-unread{% endif %}"
+                     id="conv-{{ conv.student.id }}"
+                     onclick="loadThread({{ conv.student.id }})">
+                    <div class="conv-item-top">
+                        <span class="conv-item-name">
+                            {{ conv.student.name }}
+                            {% if conv.unread %}<span class="unread-dot">{{ conv.unread }}</span>{% endif %}
+                        </span>
+                        <span class="conv-item-time">{{ conv.last_msg.created_at.strftime('%m/%d %H:%M') }}</span>
+                    </div>
+                    <div class="conv-item-class">{{ conv.student.class_group }}</div>
+                    <div class="conv-item-preview">{{ conv.last_msg.body[:40] }}{% if conv.last_msg.body|length > 40 %}…{% endif %}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="msg-empty" style="padding:1rem;">尚無私訊對話。</p>
+            {% endif %}
+        </div>
+        <span class="conv-new-btn" onclick="showNewMsg()">＋ 發起新對話</span>
+    </div>
+
+    <!-- Right: thread panel -->
+    <div class="thread-panel">
+        <div class="thread-empty" id="threadEmpty">
+            <div>← 點擊左側對話查看完整訊息串</div>
+            <div style="font-size:0.85rem;margin-top:0.5rem;">或點擊「發起新對話」傳訊給學生</div>
+        </div>
+
+        <!-- New message form -->
+        <div id="newMsgFormWrap" style="display:none;">
+            <div class="thread-header">發起新私訊</div>
+            <div class="new-msg-form">
+                <h3>選擇學生並輸入訊息</h3>
+                <div class="nm-row">
+                    <label>收件學生</label>
+                    <div style="position:relative;">
+                        <input type="text" id="newMsgStudentQuery" placeholder="輸入姓名或學號搜尋…"
+                               autocomplete="off" oninput="filterNewStudents()"
+                               onfocus="filterNewStudents()" onblur="hideNewDropdown()">
+                        <div class="student-dropdown" id="newMsgDropdown"></div>
+                    </div>
+                    <input type="hidden" id="newMsgStudentId">
+                </div>
+                <div class="nm-row">
+                    <label>訊息內容</label>
+                    <textarea id="newMsgBody" placeholder="請輸入訊息內容…"></textarea>
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-primary btn-small" onclick="sendNewMsg()">發送</button>
+                    <button class="btn btn-outline btn-small" onclick="hideNewMsg()">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thread view -->
+        <div id="threadView" style="display:none;">
+            <div class="thread-header" id="threadHeader"></div>
+            <div class="thread-messages" id="threadMessages"></div>
+            <div class="thread-reply">
+                <textarea id="replyBody" placeholder="輸入回覆… (Ctrl+Enter 送出)"
+                          onkeydown="replyKeydown(event)"></textarea>
+                <button class="btn btn-primary btn-small" onclick="sendReply()" id="sendReplyBtn">送出</button>
+            </div>
+        </div>
+    </div>
+
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// ── 學生搜尋 ──────────────────────────────────────────────
 const STUDENTS = [
     {% for s in students %}
-    {id: {{ s.id }}, name: "{{ s.name }}", sid: "{{ s.student_id }}", cg: "{{ s.class_group }}"},
+    {id: {{ s.id }}, name: {{ s.name | tojson }}, sid: "{{ s.student_id }}", cg: {{ s.class_group | tojson }}},
     {% endfor %}
 ];
 
-function filterStudents() {
-    const q = document.getElementById('studentQuery').value.trim().toLowerCase();
-    const dropdown = document.getElementById('studentDropdown');
+let currentStudentId = null;
+
+// ── Announcements ─────────────────────────────────────
+let announceOpen = false;
+function toggleAnnouncements() {
+    announceOpen = !announceOpen;
+    document.getElementById('announceBody').style.display = announceOpen ? 'block' : 'none';
+    document.getElementById('announceIcon').textContent   = announceOpen ? '▲ 收起' : '▼ 展開';
+}
+
+// ── Thread loading ────────────────────────────────────
+function loadThread(studentId) {
+    currentStudentId = studentId;
+    document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+    const convItem = document.getElementById('conv-' + studentId);
+    if (convItem) convItem.classList.add('active');
+
+    document.getElementById('threadEmpty').style.display     = 'none';
+    document.getElementById('newMsgFormWrap').style.display  = 'none';
+    document.getElementById('threadView').style.display      = 'block';
+
+    document.getElementById('threadHeader').textContent   = '載入中…';
+    document.getElementById('threadMessages').innerHTML   = '<p class="thread-messages-empty">載入中…</p>';
+
+    fetch(`/api/messages/thread/${studentId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('threadMessages').innerHTML =
+                    `<p class="thread-messages-empty" style="color:#e74c3c;">${esc(data.error)}</p>`;
+                return;
+            }
+            document.getElementById('threadHeader').textContent =
+                `${data.student_name}（${data.student_sid}）`;
+            renderThread(data.thread);
+            if (convItem) {
+                convItem.classList.remove('has-unread');
+                const dot = convItem.querySelector('.unread-dot');
+                if (dot) dot.remove();
+            }
+            updateNavBadge(-data.newly_read_count);
+        })
+        .catch(() => {
+            document.getElementById('threadMessages').innerHTML =
+                '<p class="thread-messages-empty" style="color:#e74c3c;">載入失敗，請重試。</p>';
+        });
+}
+
+function renderThread(thread) {
+    const container = document.getElementById('threadMessages');
+    if (!thread.length) {
+        container.innerHTML = '<p class="thread-messages-empty">尚無訊息，發送第一則訊息開始對話。</p>';
+        return;
+    }
+    container.innerHTML = thread.map(buildBubble).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+function buildBubble(m) {
+    const wrapCls   = m.is_teacher ? 'is-teacher' : '';
+    const bubbleCls = m.is_teacher ? 'teacher-bubble' : 'student-bubble';
+    return `<div class="bubble-wrap ${wrapCls}">
+        <div><div class="bubble ${bubbleCls}">${esc(m.body)}</div></div>
+        <div class="bubble-meta">${esc(m.created_at)}</div>
+    </div>`;
+}
+
+function esc(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+
+// ── Reply ─────────────────────────────────────────────
+function sendReply() {
+    if (!currentStudentId) return;
+    const body = document.getElementById('replyBody').value.trim();
+    if (!body) return;
+    const btn = document.getElementById('sendReplyBtn');
+    btn.disabled = true; btn.textContent = '送出中…';
+
+    fetch(`/api/messages/thread/${currentStudentId}/reply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({body}),
+    })
+    .then(r => r.json())
+    .then(m => {
+        if (m.error) { alert(m.error); return; }
+        document.getElementById('replyBody').value = '';
+        const container = document.getElementById('threadMessages');
+        const empty = container.querySelector('.thread-messages-empty');
+        if (empty) empty.remove();
+        container.insertAdjacentHTML('beforeend', buildBubble(m));
+        container.scrollTop = container.scrollHeight;
+    })
+    .catch(() => alert('發送失敗，請重試。'))
+    .finally(() => { btn.disabled = false; btn.textContent = '送出'; });
+}
+
+function replyKeydown(e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendReply(); }
+}
+
+// ── New message form ──────────────────────────────────
+function showNewMsg() {
+    currentStudentId = null;
+    document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+    document.getElementById('threadEmpty').style.display    = 'none';
+    document.getElementById('threadView').style.display     = 'none';
+    document.getElementById('newMsgFormWrap').style.display = 'block';
+    document.getElementById('newMsgStudentQuery').value     = '';
+    document.getElementById('newMsgStudentId').value        = '';
+    document.getElementById('newMsgBody').value             = '';
+}
+
+function hideNewMsg() {
+    document.getElementById('newMsgFormWrap').style.display = 'none';
+    document.getElementById('threadEmpty').style.display    = 'block';
+}
+
+function filterNewStudents() {
+    const q = document.getElementById('newMsgStudentQuery').value.trim().toLowerCase();
+    const dropdown = document.getElementById('newMsgDropdown');
     const matches = q
         ? STUDENTS.filter(s => s.name.toLowerCase().includes(q) || s.sid.includes(q))
         : STUDENTS;
     if (!matches.length) { dropdown.style.display = 'none'; return; }
     dropdown.innerHTML = matches.map(s =>
         `<div class="student-dropdown-item"
-              onmousedown="selectStudent(${s.id}, '${s.name}', '${s.sid}')">${s.name}（${s.sid}，${s.cg}）</div>`
+              onmousedown="selectNewStudent(${s.id},${JSON.stringify(s.name)},${JSON.stringify(s.sid)})"
+         >${esc(s.name)}（${s.sid}，${esc(s.cg)}）</div>`
     ).join('');
     dropdown.style.display = 'block';
 }
 
-function selectStudent(id, name, sid) {
-    document.getElementById('recipientId').value = id;
-    document.getElementById('studentQuery').value = name + '（' + sid + '）';
-    document.getElementById('recipientLabel').textContent = '';
-    document.getElementById('studentDropdown').style.display = 'none';
+function selectNewStudent(id, name, sid) {
+    document.getElementById('newMsgStudentId').value       = id;
+    document.getElementById('newMsgStudentQuery').value    = `${name}（${sid}）`;
+    document.getElementById('newMsgDropdown').style.display = 'none';
 }
 
-function hideDropdown() {
-    setTimeout(() => document.getElementById('studentDropdown').style.display = 'none', 150);
+function hideNewDropdown() {
+    setTimeout(() => document.getElementById('newMsgDropdown').style.display = 'none', 150);
 }
 
-// 從學習歷程頁帶入預選學生
+function sendNewMsg() {
+    const studentId = parseInt(document.getElementById('newMsgStudentId').value);
+    const body = document.getElementById('newMsgBody').value.trim();
+    if (!studentId) { alert('請選擇收件學生'); return; }
+    if (!body)      { alert('請輸入訊息內容'); return; }
+
+    fetch(`/api/messages/thread/${studentId}/reply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({body}),
+    })
+    .then(r => r.json())
+    .then(m => {
+        if (m.error) { alert(m.error); return; }
+        // Add to conversation list if not already present
+        if (!document.getElementById('conv-' + studentId)) {
+            const s = STUDENTS.find(x => x.id === studentId);
+            if (s) {
+                const list = document.getElementById('convList');
+                const noMsg = list.querySelector('.msg-empty');
+                if (noMsg) noMsg.remove();
+                const item = document.createElement('div');
+                item.className = 'conv-item';
+                item.id = 'conv-' + studentId;
+                item.onclick = () => loadThread(studentId);
+                item.innerHTML = `
+                    <div class="conv-item-top">
+                        <span class="conv-item-name">${esc(s.name)}</span>
+                        <span class="conv-item-time">${esc(m.created_at)}</span>
+                    </div>
+                    <div class="conv-item-class">${esc(s.cg)}</div>
+                    <div class="conv-item-preview">${esc(body.substring(0, 40))}${body.length > 40 ? '…' : ''}</div>`;
+                list.insertBefore(item, list.firstChild);
+            }
+        }
+        loadThread(studentId);
+    })
+    .catch(() => alert('發送失敗，請重試。'));
+}
+
+// ── Nav badge helper ──────────────────────────────────
+function updateNavBadge(delta) {
+    if (delta >= 0) return;
+    const badge = document.querySelector('nav a[href*="teacher/messages"] .msg-badge');
+    if (!badge) return;
+    const n = Math.max(0, parseInt(badge.textContent || '0') + delta);
+    if (n <= 0) badge.remove(); else badge.textContent = n;
+}
+
+// ── Preset to (from student profile link) ────────────
 {% if preset_to %}
-window.addEventListener('DOMContentLoaded', () => {
-    const s = STUDENTS.find(x => x.id === {{ preset_to }});
-    if (s) {
-        document.getElementById('scopeSelect').value = 'personal';
-        onScopeChange();
-        selectStudent(s.id, s.name, s.sid);
-    }
-});
+window.addEventListener('DOMContentLoaded', () => loadThread({{ preset_to }}));
 {% endif %}
-
-// ── 原有功能 ───────────────────────────────────────────────
-function switchTab(name, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
-}
-
-function onScopeChange() {
-    const scope = document.getElementById('scopeSelect').value;
-    document.getElementById('recipientRow').style.display = scope === 'personal' ? 'block' : 'none';
-}
-
-function toggleTeacherMsg(msgId) {
-    const detail = document.getElementById('detail-' + msgId);
-    const item   = document.getElementById('msg-' + msgId);
-    const open   = detail.style.display === 'block';
-    detail.style.display = open ? 'none' : 'block';
-
-    if (!open && item.classList.contains('unread')) {
-        item.classList.remove('unread');
-        fetch(`/messages/${msgId}/read`, {method: 'POST'});
-        const badge = document.querySelector('.tab-btn.active .msg-badge');
-        if (badge) {
-            const n = parseInt(badge.textContent) - 1;
-            if (n <= 0) badge.remove(); else badge.textContent = n;
-        }
-        const navBadge = document.querySelector('nav .msg-badge');
-        if (navBadge) {
-            const n = parseInt(navBadge.textContent) - 1;
-            if (n <= 0) navBadge.remove(); else navBadge.textContent = n;
-        }
-    }
-}
-
-function toggleSentMsg(msgId) {
-    const detail = document.getElementById('sent-detail-' + msgId);
-    detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
-}
-
-function toggleReply(msgId) {
-    const form = document.getElementById('reply-' + msgId);
-    form.style.display = form.style.display === 'block' ? 'none' : 'block';
-}
 </script>
 {% endblock %}
