@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}工作坊管理 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .ws-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .ws-header h1 { color: #1a5276; font-size: 1.6rem; }
+
+    .ws-table { background: #fff; border-radius: 8px; overflow: hidden; }
+    .ws-status {
+        display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .ws-status.draft     { background: #fef9e7; color: #856404; }
+    .ws-status.published { background: #d1ecf1; color: #0c5460; }
+    .ws-status.completed { background: #d4edda; color: #155724; }
+    .ws-status.cancelled { background: #f8d7da; color: #721c24; }
+
+    .ws-stats { font-size: 0.85rem; color: #555; }
+    .ws-stats span { margin-right: 0.6rem; }
+
+    .empty-msg {
+        background: #fff; padding: 3rem; text-align: center;
+        color: #888; border-radius: 8px;
+    }
+</style>
+
+<div class="ws-header">
+    <h1>工作坊管理</h1>
+    <a href="{{ url_for('teacher_new_workshop') }}" class="btn btn-primary">+ 建立新工作坊</a>
+</div>
+
+{% if items %}
+<table class="ws-table">
+    <thead>
+        <tr>
+            <th>標題 / 類型</th>
+            <th>時間</th>
+            <th>地點</th>
+            <th>狀態</th>
+            <th>參與統計</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for it in items %}
+        <tr>
+            <td>
+                <strong>{{ it.workshop.title }}</strong><br>
+                <small style="color:#888;">{{ type_labels[it.workshop.type] }}</small>
+            </td>
+            <td>
+                {{ it.workshop.starts_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                <small style="color:#888;">至 {{ it.workshop.ends_at.strftime('%H:%M') }}</small>
+            </td>
+            <td>{{ it.workshop.location or '—' }}</td>
+            <td><span class="ws-status {{ it.workshop.status }}">{{ it.workshop.status }}</span></td>
+            <td class="ws-stats">
+                <span title="已報名">📝 {{ it.registered }}</span>
+                <span title="已出席">✓ {{ it.attended }}</span>
+                <span title="已反思">💭 {{ it.reflected }}</span>
+            </td>
+            <td>
+                <a href="{{ url_for('teacher_workshop_detail', wid=it.workshop.id) }}"
+                   class="btn btn-secondary btn-small">儀表板</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-msg">
+    <p>目前還沒有任何工作坊。</p>
+    <a href="{{ url_for('teacher_new_workshop') }}" class="btn btn-primary mt-2">建立第一場工作坊</a>
+</div>
+{% endif %}
+
+<div class="mt-2">
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-outline btn-small">← 返回儀表板</a>
+</div>
+{% endblock %}

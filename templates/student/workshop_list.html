@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}工作坊 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .ws-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem; margin-bottom: 1rem;
+    }
+    .ws-card {
+        background: #fff; border-radius: 8px; overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex; flex-direction: column;
+    }
+    .ws-card:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(0,0,0,0.13); }
+    .ws-card-header {
+        padding: 1rem 1.3rem; color: #fff;
+        background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+    }
+    .ws-card-header.registered        { background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%); }
+    .ws-card-header.attended          { background: linear-gradient(135deg, #b7950b 0%, #d4ac0d 100%); }
+    .ws-card-header.reflection_done   { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
+    .ws-card-header.reflection_overdue{ background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%); }
+    .ws-card-header.cancelled         { background: linear-gradient(135deg, #7f8c8d 0%, #95a5a6 100%); }
+    .ws-card-header.closed            { background: linear-gradient(135deg, #6c757d 0%, #95a5a6 100%); }
+
+    .ws-type-badge {
+        font-size: 0.78rem; background: rgba(255,255,255,0.22);
+        padding: 0.15rem 0.55rem; border-radius: 10px;
+    }
+    .ws-card-header h3 { font-size: 1.08rem; margin: 0.4rem 0 0; }
+
+    .ws-card-body { padding: 1rem 1.3rem; flex: 1; display: flex; flex-direction: column; }
+    .ws-meta { font-size: 0.85rem; color: #555; margin-bottom: 0.5rem; line-height: 1.7; }
+    .ws-status-pill {
+        display: inline-block; padding: 0.25rem 0.7rem; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600; margin-bottom: 0.6rem;
+    }
+    .pill-not_registered    { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
+    .pill-registered        { background: #d1ecf1; color: #0c5460; }
+    .pill-cancelled         { background: #f8d7da; color: #721c24; }
+    .pill-attended          { background: #fff3cd; color: #856404; }
+    .pill-reflection_done   { background: #d4edda; color: #155724; }
+    .pill-reflection_overdue{ background: #fcd5d0; color: #842029; }
+    .pill-closed            { background: #e9ecef; color: #495057; }
+
+    .status-zh.not_registered    { color: #6c757d; }
+    .ws-action { margin-top: auto; padding-top: 0.6rem; }
+    .ws-action .btn { width: 100%; text-align: center; }
+    .empty-msg { background: #fff; padding: 3rem; text-align: center; color: #888; border-radius: 8px; }
+</style>
+
+{% set status_zh = {
+    'not_registered': '尚未報名',
+    'registered':     '已報名 · 待簽到',
+    'cancelled':      '已取消報名',
+    'attended':       '已簽到 · 待填反思',
+    'reflection_done':'反思已交',
+    'reflection_overdue': '反思已過期',
+    'closed':         '已結束',
+} %}
+
+<h1 style="color:#1a5276; margin-bottom:0.5rem;">課後工作坊</h1>
+<p style="color:#666; margin-bottom:1.5rem;">
+    工作坊為自願性學習活動，是否報名與出席由你自己決定。<br>
+    所有的報名、簽到、反思紀錄都會作為你個人「自主學習當責檔案」的一部分。
+</p>
+
+{% if items %}
+<div class="ws-grid">
+    {% for it in items %}
+    <div class="ws-card">
+        <div class="ws-card-header {{ it.status }}">
+            <span class="ws-type-badge">{{ type_labels[it.workshop.type] }}</span>
+            <h3>{{ it.workshop.title }}</h3>
+        </div>
+        <div class="ws-card-body">
+            <div class="ws-meta">
+                🕒 {{ it.workshop.starts_at.strftime('%m/%d (週%w) %H:%M') }} – {{ it.workshop.ends_at.strftime('%H:%M') }}<br>
+                📍 {{ it.workshop.location or '（待公告）' }}
+                {% if it.workshop.capacity %}<br>👥 名額：{{ it.workshop.capacity }} 人{% endif %}
+            </div>
+            <div>
+                <span class="ws-status-pill pill-{{ it.status }}">{{ status_zh[it.status] }}</span>
+            </div>
+            <div class="ws-action">
+                <a href="{{ url_for('view_workshop', wid=it.workshop.id) }}"
+                   class="btn btn-primary btn-small">查看詳情</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-msg">
+    <p>目前沒有開放中的工作坊。</p>
+    <p style="margin-top:0.5rem; font-size:0.9rem;">當老師發布新工作坊時，會出現在這裡。</p>
+</div>
+{% endif %}
+
+<div class="mt-2">
+    <a href="{{ url_for('my_workshops') }}" class="btn btn-outline btn-small">查看我的工作坊歷史 →</a>
+</div>
+{% endblock %}

@@ -294,6 +294,63 @@
 </div>
 
 {# ═══════════════════════════════════════════════════════════
+   工作坊（v2.5.0）
+═══════════════════════════════════════════════════════════ #}
+{% if reflection_pending or upcoming_workshops %}
+<div class="section-heading">課後工作坊</div>
+
+{% if reflection_pending %}
+<div style="background:#fff3cd; border-left:4px solid #d4ac0d; padding:1rem 1.3rem;
+            border-radius:8px; margin-bottom:1rem;">
+    <strong style="color:#856404;">⏰ 你有反思尚未填寫</strong>
+    <ul style="margin-top:0.4rem; padding-left:1.2rem;">
+        {% for item in reflection_pending %}
+        <li>
+            「{{ item.workshop.title }}」 反思截止：
+            {{ item.workshop.reflection_due_at.strftime('%m-%d %H:%M') }}
+            <a href="{{ url_for('submit_reflection', wid=item.workshop.id) }}"
+               style="color:#1a5276; text-decoration:underline;">立即填寫 →</a>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if upcoming_workshops %}
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+            gap:1rem; margin-bottom:1rem;">
+    {% for it in upcoming_workshops %}
+    <div style="background:#fff; padding:1.1rem 1.3rem; border-radius:8px;
+                box-shadow:0 2px 6px rgba(0,0,0,0.06); border-top:3px solid #2980b9;">
+        <div style="font-size:0.78rem; color:#888; margin-bottom:0.3rem;">
+            {{ workshop_type_labels[it.workshop.type] }}
+        </div>
+        <div style="font-weight:600; color:#1a5276; margin-bottom:0.4rem;">
+            {{ it.workshop.title }}
+        </div>
+        <div style="font-size:0.85rem; color:#666; margin-bottom:0.6rem;">
+            🕒 {{ it.workshop.starts_at.strftime('%m-%d (%a) %H:%M') }}<br>
+            📍 {{ it.workshop.location or '（待公告）' }}
+        </div>
+        <a href="{{ url_for('view_workshop', wid=it.workshop.id) }}"
+           class="btn btn-secondary btn-small" style="width:100%; text-align:center;">
+            {% if it.status == 'not_registered' %}查看 / 報名
+            {% elif it.status == 'registered' %}已報名 · 查看
+            {% elif it.status == 'attended' %}已簽到 · 填反思
+            {% else %}查看{% endif %}
+        </a>
+    </div>
+    {% endfor %}
+</div>
+<div style="margin-bottom:1rem;">
+    <a href="{{ url_for('workshop_list') }}" style="color:#2980b9; font-size:0.9rem;">
+        查看所有工作坊 →
+    </a>
+</div>
+{% endif %}
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════
    學習日誌
 ═══════════════════════════════════════════════════════════ #}
 <div class="section-heading">學習日誌</div>

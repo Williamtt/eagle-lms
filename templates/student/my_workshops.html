@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}我的工作坊 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .ws-row {
+        background: #fff; padding: 1.2rem 1.5rem; border-radius: 8px;
+        margin-bottom: 0.8rem; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    }
+    .ws-row-info { flex: 1; }
+    .ws-row-info h3 { color: #1a5276; font-size: 1.05rem; margin-bottom: 0.3rem; }
+    .ws-row-info .meta { font-size: 0.85rem; color: #666; }
+
+    .ws-pill {
+        display: inline-block; padding: 0.25rem 0.7rem; border-radius: 20px;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .pill-not_registered    { background: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6; }
+    .pill-registered        { background: #d1ecf1; color: #0c5460; }
+    .pill-cancelled         { background: #f8d7da; color: #721c24; }
+    .pill-attended          { background: #fff3cd; color: #856404; }
+    .pill-reflection_done   { background: #d4edda; color: #155724; }
+    .pill-reflection_overdue{ background: #fcd5d0; color: #842029; }
+    .pill-closed            { background: #e9ecef; color: #495057; }
+
+    .empty { background: #fff; padding: 3rem; text-align: center; color: #888; border-radius: 8px; }
+</style>
+
+{% set status_zh = {
+    'not_registered': '尚未報名',
+    'registered':     '已報名 · 待簽到',
+    'cancelled':      '已取消報名',
+    'attended':       '已簽到 · 待填反思',
+    'reflection_done':'反思已交',
+    'reflection_overdue': '反思已過期',
+    'closed':         '已結束',
+} %}
+
+<h1 style="color:#1a5276; margin-bottom:0.5rem;">我的工作坊</h1>
+<p style="color:#666; margin-bottom:1.5rem;">
+    這裡是你個人的工作坊參與歷史。每一筆紀錄都是你自主學習的當責證據。
+</p>
+
+{% if items %}
+{% for it in items %}
+<div class="ws-row">
+    <div class="ws-row-info">
+        <h3>{{ it.workshop.title }}</h3>
+        <div class="meta">
+            {{ type_labels[it.workshop.type] }}　|
+            {{ it.workshop.starts_at.strftime('%Y-%m-%d %H:%M') }}　|
+            {{ it.workshop.location or '—' }}
+        </div>
+        <div style="margin-top:0.5rem;">
+            <span class="ws-pill pill-{{ it.status }}">{{ status_zh[it.status] }}</span>
+            {% if it.participation.registered_at %}
+                <small style="color:#888; margin-left:0.5rem;">
+                    報名於 {{ it.participation.registered_at.strftime('%m-%d %H:%M') }}
+                </small>
+            {% endif %}
+        </div>
+    </div>
+    <div>
+        <a href="{{ url_for('view_workshop', wid=it.workshop.id) }}"
+           class="btn btn-secondary btn-small">查看</a>
+        {% if it.status == 'attended' %}
+        <a href="{{ url_for('submit_reflection', wid=it.workshop.id) }}"
+           class="btn btn-primary btn-small">填反思</a>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty">
+    <p>你還沒有參與過任何工作坊。</p>
+    <a href="{{ url_for('workshop_list') }}" class="btn btn-primary mt-2">瀏覽開放中的工作坊</a>
+</div>
+{% endif %}
+
+<div class="mt-2">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-small">← 返回儀表板</a>
+</div>
+{% endblock %}

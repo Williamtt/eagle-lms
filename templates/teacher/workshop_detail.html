@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ w.title }} - 工作坊管理{% endblock %}
+
+{% block content %}
+<style>
+    .ws-hero {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .ws-hero h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    .ws-hero .meta { font-size: 0.9rem; opacity: 0.9; }
+
+    .stats-row {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: #fff; padding: 1.2rem; border-radius: 8px;
+        text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .stat-card .num { font-size: 2rem; font-weight: 700; color: #1a5276; }
+    .stat-card .label { font-size: 0.85rem; color: #666; }
+
+    .checkin-code-card {
+        background: #fff; padding: 1.5rem; border-radius: 8px;
+        margin-bottom: 1.5rem; border: 2px dashed #2980b9;
+    }
+    .checkin-code-card .code {
+        font-size: 3rem; font-weight: 700; color: #1a5276;
+        letter-spacing: 0.5rem; text-align: center; font-family: monospace;
+    }
+    .checkin-code-card .desc { color: #666; text-align: center; }
+
+    .actions-row { margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .ws-status-badge {
+        display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .badge-not_registered    { background: #f8f9fa; color: #6c757d; }
+    .badge-registered        { background: #d1ecf1; color: #0c5460; }
+    .badge-cancelled         { background: #f8d7da; color: #721c24; }
+    .badge-attended          { background: #fff3cd; color: #856404; }
+    .badge-reflection_done   { background: #d4edda; color: #155724; }
+    .badge-reflection_overdue{ background: #fcd5d0; color: #842029; }
+    .badge-closed            { background: #e9ecef; color: #495057; }
+
+    .roster-table { background: #fff; border-radius: 8px; overflow: hidden; }
+</style>
+
+<div class="ws-hero">
+    <h1>{{ w.title }}</h1>
+    <div class="meta">
+        類型：{{ type_labels[w.type] }}　|
+        狀態：{{ w.status }}　|
+        時間：{{ w.starts_at.strftime('%Y-%m-%d %H:%M') }} – {{ w.ends_at.strftime('%H:%M') }}<br>
+        地點：{{ w.location or '（待公告）' }}
+        {% if w.capacity %}　|　名額上限：{{ w.capacity }}{% endif %}
+    </div>
+</div>
+
+<div class="checkin-code-card">
+    <div class="desc">當日簽到碼（請於現場口頭公布給學生）</div>
+    <div class="code">{{ w.checkin_code }}</div>
+    <div class="desc">
+        簽到視窗：
+        {{ w.checkin_window_starts_at.strftime('%H:%M') }} –
+        {{ w.checkin_window_ends_at.strftime('%H:%M') }}
+        　|　反思截止：{{ w.reflection_due_at.strftime('%Y-%m-%d %H:%M') }}
+    </div>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="num">{{ stats.registered }}</div>
+        <div class="label">已報名</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ stats.attended }}</div>
+        <div class="label">已出席</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ stats.reflected }}</div>
+        <div class="label">已反思</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ stats.cancelled }}</div>
+        <div class="label">已取消</div>
+    </div>
+</div>
+
+<div class="actions-row">
+    <a href="{{ url_for('teacher_edit_workshop', wid=w.id) }}" class="btn btn-secondary btn-small">編輯</a>
+    <a href="{{ url_for('teacher_attendance', wid=w.id) }}" class="btn btn-secondary btn-small">出席補登</a>
+    <a href="{{ url_for('teacher_workshop_reflections', wid=w.id) }}" class="btn btn-secondary btn-small">閱讀反思</a>
+
+    {% if w.status == 'draft' %}
+    <form method="POST" action="{{ url_for('teacher_edit_workshop', wid=w.id) }}" style="display:inline;">
+        <input type="hidden" name="action" value="publish">
+        <button type="submit" class="btn btn-success btn-small">發布（開放報名）</button>
+    </form>
+    {% endif %}
+
+    {% if w.status != 'cancelled' %}
+    <form method="POST" action="{{ url_for('teacher_edit_workshop', wid=w.id) }}" style="display:inline;"
+          onsubmit="return confirm('確認取消這場工作坊？');">
+        <input type="hidden" name="action" value="cancel_workshop">
+        <button type="submit" class="btn btn-accent btn-small">取消工作坊</button>
+    </form>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('teacher_edit_workshop', wid=w.id) }}" style="display:inline;"
+          onsubmit="return confirm('重新產生簽到碼？舊碼立即失效。');">
+        <input type="hidden" name="action" value="regenerate_code">
+        <button type="submit" class="btn btn-outline btn-small">重產簽到碼</button>
+    </form>
+</div>
+
+{% if w.description %}
+<div class="card">
+    <h3 style="color:#1a5276; margin-bottom:0.5rem;">內容說明</h3>
+    <p style="white-space: pre-wrap;">{{ w.description }}</p>
+</div>
+{% endif %}
+
+<h2 style="color:#1a5276; margin: 1.5rem 0 1rem;">學生參與名單</h2>
+{% if rows %}
+<table class="roster-table">
+    <thead>
+        <tr>
+            <th>學號</th>
+            <th>姓名</th>
+            <th>班級</th>
+            <th>狀態</th>
+            <th>課前目標</th>
+            <th>簽到時間</th>
+            <th>反思時間</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr>
+            <td>{{ r.student.student_id }}</td>
+            <td>{{ r.student.name }}</td>
+            <td>{{ r.student.class_group }}</td>
+            <td><span class="ws-status-badge badge-{{ r.status }}">{{ r.status }}</span></td>
+            <td style="font-size:0.85rem; max-width:240px;">
+                {{ r.participation.pre_goal[:60] }}{% if r.participation.pre_goal|length > 60 %}…{% endif %}
+            </td>
+            <td style="font-size:0.85rem;">
+                {% if r.participation.checkin_at %}
+                    {{ r.participation.checkin_at.strftime('%m-%d %H:%M') }}
+                    <br><small style="color:#888;">({{ r.participation.checkin_method }})</small>
+                {% else %}—{% endif %}
+            </td>
+            <td style="font-size:0.85rem;">
+                {% if r.participation.reflection_submitted_at %}
+                    {{ r.participation.reflection_submitted_at.strftime('%m-%d %H:%M') }}
+                {% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color:#888; padding:1rem;">目前還沒有學生報名。</p>
+{% endif %}
+
+<div class="mt-2">
+    <a href="{{ url_for('teacher_workshop_list') }}" class="btn btn-outline btn-small">← 返回列表</a>
+</div>
+{% endblock %}

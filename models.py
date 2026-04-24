@@ -332,3 +332,80 @@ class TutorConversation(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship('User', backref='tutor_conversations')
+
+
+# =============================================================================
+# 模組 G：Workshop（v2.5.0 新增）
+# 課後自願性工作坊（系統操作/工地參觀/業師講座等），記錄
+# 報名 → 出席 → 反思 完整當責行為鏈，作為 EP3「自主 vs 被動」的證據。
+# =============================================================================
+
+class Workshop(db.Model):
+    __tablename__ = 'workshops'
+    id           = db.Column(db.Integer, primary_key=True)
+    title        = db.Column(db.String(200), nullable=False)
+    type         = db.Column(db.String(30), default='other')
+                   # 'system_ops' / 'site_visit' / 'expert_talk' / 'other'
+    description  = db.Column(db.Text, default='')
+    location     = db.Column(db.String(200), default='')
+    starts_at    = db.Column(db.DateTime, nullable=False)
+    ends_at      = db.Column(db.DateTime, nullable=False)
+    capacity     = db.Column(db.Integer, nullable=True)        # NULL = 無限
+
+    registration_opens_at    = db.Column(db.DateTime, nullable=True)
+    registration_closes_at   = db.Column(db.DateTime, nullable=True)
+    checkin_code             = db.Column(db.String(10), nullable=False)
+    checkin_window_starts_at = db.Column(db.DateTime, nullable=False)
+    checkin_window_ends_at   = db.Column(db.DateTime, nullable=False)
+    reflection_due_at        = db.Column(db.DateTime, nullable=False)
+
+    semester     = db.Column(db.String(10), nullable=False)    # '114-1'
+    status       = db.Column(db.String(20), default='draft')   # draft/published/completed/cancelled
+    created_by   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    participations = db.relationship('WorkshopParticipation', backref='workshop',
+                                     cascade='all, delete-orphan', lazy='dynamic')
+    creator        = db.relationship('User', foreign_keys=[created_by])
+
+
+class WorkshopParticipation(db.Model):
+    """一名學生對一場工作坊的完整參與紀錄。
+    狀態靠 nullable 時間戳記欄位區分：
+      未報名         → 整筆不存在
+      已報名         → registered_at 有值、cancelled_at 為 NULL
+      取消報名       → cancelled_at 有值
+      已簽到         → checkin_at 有值
+      反思已交       → reflection_submitted_at 有值
+    """
+    __tablename__ = 'workshop_participations'
+    id           = db.Column(db.Integer, primary_key=True)
+    workshop_id  = db.Column(db.Integer, db.ForeignKey('workshops.id'), nullable=False)
+    user_id      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # 報名階段
+    registered_at = db.Column(db.DateTime, nullable=True)
+    pre_goal      = db.Column(db.Text, default='')            # 課前自設目標（EP1 證據）
+    cancelled_at  = db.Column(db.DateTime, nullable=True)
+    cancel_reason = db.Column(db.Text, default='')
+
+    # 出席階段
+    checkin_at      = db.Column(db.DateTime, nullable=True)
+    checkin_method  = db.Column(db.String(20), default='')    # 'self_code' / 'teacher_manual'
+
+    # 反思階段（3 題）
+    reflection_q1           = db.Column(db.Text, default='')  # 目標達成情形
+    reflection_q2           = db.Column(db.Text, default='')  # 改變想法的觀察 / 操作
+    reflection_q3           = db.Column(db.Text, default='')  # 打算如何應用到後續任務
+    reflection_submitted_at = db.Column(db.DateTime, nullable=True)
+    willing_to_share        = db.Column(db.Boolean, default=False)  # 預留欄位，MVP 不啟用 UI
+
+    # 後台用
+    notes        = db.Column(db.Text, default='')             # 教師備註，學生不可見
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (db.UniqueConstraint('workshop_id', 'user_id'),)

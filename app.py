@@ -20,7 +20,8 @@ from models import (db, User,
                     LearningJournal,
                     Submission,          # Submission 保留供舊資料查詢
                     TutorConversation,
-                    Message, MessageRead)
+                    Message, MessageRead,
+                    Workshop, WorkshopParticipation)
 from sqlalchemy import or_, and_
 import requests as http_requests
 import ai_service
@@ -58,6 +59,9 @@ def _run_migrations():
                         "ALTER TABLE users ADD COLUMN reset_contact_email VARCHAR(120)"
                     ))
                 conn.commit()
+        # v2.5.0: Workshop 模組
+        if 'workshops' not in tables or 'workshop_participations' not in tables:
+            db.create_all()
 
 
 login_manager = LoginManager()
@@ -322,12 +326,41 @@ def dashboard():
             questionnaire_id=pre_q.id
         ).first()
 
+    # 工作坊區塊：未來 7 天內或進行中、且 status=published 的工作坊（最多 3 場）
+    # + 個人提醒（已簽到但未交反思 / 已報名即將開始）
+    now = _now()
+    upcoming_workshops_q = Workshop.query.filter(
+        Workshop.semester == SEMESTER,
+        Workshop.status == 'published',
+        Workshop.ends_at >= now,
+    ).order_by(Workshop.starts_at.asc()).limit(3).all()
+    parts_map = {p.workshop_id: p for p in WorkshopParticipation.query.filter_by(
+        user_id=current_user.id).all()}
+    upcoming_workshops = []
+    for w in upcoming_workshops_q:
+        p = parts_map.get(w.id)
+        upcoming_workshops.append({
+            'workshop': w,
+            'status':   _workshop_status_for(p, w, now),
+        })
+
+    # 提醒：已簽到但反思未交且未過期
+    reflection_pending = []
+    for p in parts_map.values():
+        w = p.workshop
+        if p.checkin_at and not p.reflection_submitted_at \
+                and now <= w.reflection_due_at:
+            reflection_pending.append({'workshop': w, 'participation': p})
+
     return render_template('student/dashboard.html',
                            task_status=task_status,
                            journal_status=journal_status,
                            active_questionnaires=active_questionnaires,
                            completed_q_codes=completed_q_codes,
                            pre_test_pending=pre_test_pending,
+                           upcoming_workshops=upcoming_workshops,
+                           reflection_pending=reflection_pending,
+                           workshop_type_labels=WORKSHOP_TYPE_LABELS,
                            tasks=TASKS)
 
 
@@ -2059,6 +2092,662 @@ def api_thread_reply(student_id):
         'body':        msg.body,
         'created_at':  msg.created_at.strftime('%Y-%m-%d %H:%M'),
     })
+
+
+# ─── Workshop Module (v2.5.0) ────────────────────────────────────────────────
+# 工作坊模組：報名 → 簽到 → 反思的當責行為鏈
+# =============================================================================
+
+import random as _random
+from datetime import timedelta
+
+WORKSHOP_TYPE_LABELS = {
+    'system_ops':  '系統操作工作坊',
+    'site_visit':  '工地參觀',
+    'expert_talk': '業師講座',
+    'other':       '其他',
+}
+
+
+def _now():
+    """集中時間取得，方便未來測試 mock。"""
+    return datetime.utcnow()
+
+
+def _generate_checkin_code():
+    """產生 4 位數字簽到碼（避免 0000）。"""
+    return f'{_random.randint(1, 9999):04d}'
+
+
+def _workshop_status_for(participation, workshop, now=None):
+    """回傳單場工作坊對單一學生的當前狀態，供 template 顯示徽章。
+
+    回傳：
+      'not_registered'      未報名
+      'cancelled'           已取消報名
+      'registered'          已報名（活動尚未開始或進行中）
+      'attended'            已簽到（反思尚未填寫）
+      'reflection_done'     反思已填
+      'reflection_overdue'  已簽到但反思已過期
+      'closed'              工作坊已 cancelled / 已過期未參與
+    """
+    if now is None:
+        now = _now()
+
+    if workshop.status == 'cancelled':
+        return 'closed'
+
+    if not participation or participation.registered_at is None:
+        # 從未建立或從未真正報名過
+        if now > workshop.ends_at:
+            return 'closed'
+        return 'not_registered'
+
+    if participation.cancelled_at:
+        return 'cancelled'
+
+    if participation.reflection_submitted_at:
+        return 'reflection_done'
+
+    if participation.checkin_at:
+        if now > workshop.reflection_due_at:
+            return 'reflection_overdue'
+        return 'attended'
+
+    # 已報名但未簽到
+    if now > workshop.ends_at:
+        return 'closed'
+    return 'registered'
+
+
+def _can_register(workshop, user, now=None):
+    """回傳 (allowed: bool, reason: str)。"""
+    if now is None:
+        now = _now()
+    if workshop.status != 'published':
+        return False, '此工作坊尚未開放報名。'
+    if workshop.semester != SEMESTER:
+        return False, '此工作坊不屬於本學期。'
+    if workshop.registration_opens_at and now < workshop.registration_opens_at:
+        return False, '報名尚未開放。'
+    if workshop.registration_closes_at and now > workshop.registration_closes_at:
+        return False, '報名已截止。'
+    if now > workshop.starts_at:
+        return False, '工作坊已開始，無法再報名。'
+    if workshop.capacity is not None:
+        active_count = WorkshopParticipation.query.filter(
+            WorkshopParticipation.workshop_id == workshop.id,
+            WorkshopParticipation.registered_at != None,
+            WorkshopParticipation.cancelled_at == None,
+        ).count()
+        if active_count >= workshop.capacity:
+            return False, '名額已滿。'
+    return True, ''
+
+
+def _can_checkin(workshop, participation, now=None):
+    if now is None:
+        now = _now()
+    if not participation or participation.registered_at is None or participation.cancelled_at:
+        return False, '尚未報名此工作坊，無法簽到。'
+    if participation.checkin_at:
+        return False, '已完成簽到。'
+    if now < workshop.checkin_window_starts_at:
+        return False, '簽到時間尚未開始。'
+    if now > workshop.checkin_window_ends_at:
+        return False, '簽到時間已結束。'
+    return True, ''
+
+
+def _can_submit_reflection(workshop, participation, now=None):
+    if now is None:
+        now = _now()
+    if not participation or not participation.checkin_at:
+        return False, '需要先完成簽到才能填寫反思。'
+    if now > workshop.reflection_due_at:
+        return False, '反思填寫期限已過。'
+    return True, ''
+
+
+def _get_or_create_participation(workshop_id, user_id):
+    """確保 (workshop_id, user_id) 唯一性下取得或建立 participation。"""
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=workshop_id, user_id=user_id).first()
+    if p is None:
+        p = WorkshopParticipation(workshop_id=workshop_id, user_id=user_id)
+        db.session.add(p)
+    return p
+
+
+def _parse_dt(value):
+    """將表單字串解析為 datetime，失敗回傳 None。
+    表單欄位採用 HTML datetime-local 格式：'YYYY-MM-DDTHH:MM'。
+    """
+    if not value:
+        return None
+    for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _fmt_dt(dt):
+    """供 datetime-local input 預填使用。"""
+    if not dt:
+        return ''
+    return dt.strftime('%Y-%m-%dT%H:%M')
+
+
+# ─── Workshop: Teacher Routes ────────────────────────────────────────────────
+
+@app.route('/teacher/workshops')
+@login_required
+def teacher_workshop_list():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    workshops = Workshop.query.filter_by(semester=SEMESTER).order_by(
+        Workshop.starts_at.desc()).all()
+    # 帶上各場統計
+    items = []
+    for w in workshops:
+        registered = WorkshopParticipation.query.filter(
+            WorkshopParticipation.workshop_id == w.id,
+            WorkshopParticipation.registered_at != None,
+            WorkshopParticipation.cancelled_at == None,
+        ).count()
+        attended = WorkshopParticipation.query.filter(
+            WorkshopParticipation.workshop_id == w.id,
+            WorkshopParticipation.checkin_at != None,
+        ).count()
+        reflected = WorkshopParticipation.query.filter(
+            WorkshopParticipation.workshop_id == w.id,
+            WorkshopParticipation.reflection_submitted_at != None,
+        ).count()
+        items.append({
+            'workshop':   w,
+            'registered': registered,
+            'attended':   attended,
+            'reflected':  reflected,
+        })
+    return render_template('teacher/workshop_list.html',
+                           items=items,
+                           type_labels=WORKSHOP_TYPE_LABELS)
+
+
+@app.route('/teacher/workshops/new', methods=['GET', 'POST'])
+@login_required
+def teacher_new_workshop():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'GET':
+        return render_template('teacher/workshop_form.html',
+                               workshop=None,
+                               type_labels=WORKSHOP_TYPE_LABELS,
+                               fmt_dt=_fmt_dt)
+
+    # POST
+    title    = request.form.get('title', '').strip()
+    wtype    = request.form.get('type', 'other').strip()
+    desc     = request.form.get('description', '').strip()
+    location = request.form.get('location', '').strip()
+    starts   = _parse_dt(request.form.get('starts_at'))
+    ends     = _parse_dt(request.form.get('ends_at'))
+    cap_raw  = request.form.get('capacity', '').strip()
+    capacity = int(cap_raw) if cap_raw.isdigit() else None
+    reg_open  = _parse_dt(request.form.get('registration_opens_at'))
+    reg_close = _parse_dt(request.form.get('registration_closes_at'))
+    reflection_due = _parse_dt(request.form.get('reflection_due_at'))
+
+    # 驗證
+    if not title or not starts or not ends:
+        flash('標題、開始與結束時間為必填。', 'error')
+        return redirect(url_for('teacher_new_workshop'))
+    if starts >= ends:
+        flash('開始時間必須早於結束時間。', 'error')
+        return redirect(url_for('teacher_new_workshop'))
+    if reg_close and reg_close > starts:
+        flash('報名截止時間不能晚於工作坊開始時間。', 'error')
+        return redirect(url_for('teacher_new_workshop'))
+    # 預設值
+    if not reflection_due:
+        reflection_due = ends + timedelta(hours=48)
+    if reflection_due <= ends:
+        flash('反思截止時間必須晚於工作坊結束時間。', 'error')
+        return redirect(url_for('teacher_new_workshop'))
+
+    checkin_start = starts - timedelta(minutes=10)
+    checkin_end   = ends + timedelta(minutes=10)
+
+    w = Workshop(
+        title=title,
+        type=wtype if wtype in WORKSHOP_TYPE_LABELS else 'other',
+        description=desc,
+        location=location,
+        starts_at=starts,
+        ends_at=ends,
+        capacity=capacity,
+        registration_opens_at=reg_open,
+        registration_closes_at=reg_close,
+        checkin_code=_generate_checkin_code(),
+        checkin_window_starts_at=checkin_start,
+        checkin_window_ends_at=checkin_end,
+        reflection_due_at=reflection_due,
+        semester=SEMESTER,
+        status='draft',
+        created_by=current_user.id,
+    )
+    db.session.add(w)
+    db.session.commit()
+    flash('工作坊已建立（草稿狀態）。請進入詳情頁發布。', 'success')
+    return redirect(url_for('teacher_workshop_detail', wid=w.id))
+
+
+@app.route('/teacher/workshops/<int:wid>')
+@login_required
+def teacher_workshop_detail(wid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('teacher_workshop_list'))
+
+    parts = WorkshopParticipation.query.filter_by(workshop_id=wid).all()
+    rows = []
+    for p in parts:
+        rows.append({
+            'participation': p,
+            'student':       p.user,
+            'status':        _workshop_status_for(p, w),
+        })
+    # 排序：已簽到優先、再依姓名
+    rows.sort(key=lambda r: (r['participation'].checkin_at is None,
+                             r['student'].name))
+
+    stats = {
+        'registered': sum(1 for p in parts
+                          if p.registered_at and not p.cancelled_at),
+        'attended':   sum(1 for p in parts if p.checkin_at),
+        'reflected':  sum(1 for p in parts if p.reflection_submitted_at),
+        'cancelled':  sum(1 for p in parts if p.cancelled_at),
+    }
+
+    return render_template('teacher/workshop_detail.html',
+                           w=w, rows=rows, stats=stats,
+                           type_labels=WORKSHOP_TYPE_LABELS)
+
+
+@app.route('/teacher/workshops/<int:wid>/edit', methods=['GET', 'POST'])
+@login_required
+def teacher_edit_workshop(wid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('teacher_workshop_list'))
+
+    if request.method == 'GET':
+        return render_template('teacher/workshop_form.html',
+                               workshop=w,
+                               type_labels=WORKSHOP_TYPE_LABELS,
+                               fmt_dt=_fmt_dt)
+
+    # POST：可能是「儲存編輯」、「發布」、「取消」、「重產簽到碼」
+    action = request.form.get('action', 'save')
+
+    if action == 'publish':
+        w.status = 'published'
+        db.session.commit()
+        flash('工作坊已發布，學生可開始報名。', 'success')
+        return redirect(url_for('teacher_workshop_detail', wid=w.id))
+
+    if action == 'cancel_workshop':
+        w.status = 'cancelled'
+        db.session.commit()
+        flash('工作坊已取消。', 'warning')
+        return redirect(url_for('teacher_workshop_detail', wid=w.id))
+
+    if action == 'regenerate_code':
+        w.checkin_code = _generate_checkin_code()
+        db.session.commit()
+        flash(f'簽到碼已重新產生：{w.checkin_code}', 'success')
+        return redirect(url_for('teacher_workshop_detail', wid=w.id))
+
+    # 一般儲存
+    title    = request.form.get('title', '').strip()
+    wtype    = request.form.get('type', 'other').strip()
+    desc     = request.form.get('description', '').strip()
+    location = request.form.get('location', '').strip()
+    starts   = _parse_dt(request.form.get('starts_at'))
+    ends     = _parse_dt(request.form.get('ends_at'))
+    cap_raw  = request.form.get('capacity', '').strip()
+    capacity = int(cap_raw) if cap_raw.isdigit() else None
+    reg_open  = _parse_dt(request.form.get('registration_opens_at'))
+    reg_close = _parse_dt(request.form.get('registration_closes_at'))
+    reflection_due = _parse_dt(request.form.get('reflection_due_at'))
+
+    if not title or not starts or not ends:
+        flash('標題、開始與結束時間為必填。', 'error')
+        return redirect(url_for('teacher_edit_workshop', wid=w.id))
+    if starts >= ends:
+        flash('開始時間必須早於結束時間。', 'error')
+        return redirect(url_for('teacher_edit_workshop', wid=w.id))
+    if reg_close and reg_close > starts:
+        flash('報名截止時間不能晚於工作坊開始時間。', 'error')
+        return redirect(url_for('teacher_edit_workshop', wid=w.id))
+    if not reflection_due:
+        reflection_due = ends + timedelta(hours=48)
+    if reflection_due <= ends:
+        flash('反思截止時間必須晚於工作坊結束時間。', 'error')
+        return redirect(url_for('teacher_edit_workshop', wid=w.id))
+
+    w.title = title
+    w.type = wtype if wtype in WORKSHOP_TYPE_LABELS else 'other'
+    w.description = desc
+    w.location = location
+    w.starts_at = starts
+    w.ends_at = ends
+    w.capacity = capacity
+    w.registration_opens_at = reg_open
+    w.registration_closes_at = reg_close
+    w.reflection_due_at = reflection_due
+    w.checkin_window_starts_at = starts - timedelta(minutes=10)
+    w.checkin_window_ends_at   = ends + timedelta(minutes=10)
+    db.session.commit()
+    flash('工作坊已更新。', 'success')
+    return redirect(url_for('teacher_workshop_detail', wid=w.id))
+
+
+@app.route('/teacher/workshops/<int:wid>/attendance', methods=['GET', 'POST'])
+@login_required
+def teacher_attendance(wid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('teacher_workshop_list'))
+
+    if request.method == 'POST':
+        # 表單欄位 'attend_<user_id>' 為 'on' 表示已出席
+        # 補登：只把「未簽到」改為「已簽到」；不會把已簽到的移除（避免誤刪 self_code 紀錄）
+        students_to_mark = request.form.getlist('attend')  # list of user_id strings
+        marked = 0
+        for sid_str in students_to_mark:
+            try:
+                sid = int(sid_str)
+            except ValueError:
+                continue
+            p = _get_or_create_participation(w.id, sid)
+            if p.registered_at is None:
+                p.registered_at = _now()  # 教師補登 = 視為已報名
+                p.pre_goal = p.pre_goal or '（教師補登出席，無課前目標紀錄）'
+            if not p.checkin_at:
+                p.checkin_at = _now()
+                p.checkin_method = 'teacher_manual'
+                marked += 1
+        db.session.commit()
+        flash(f'補登完成：本次新增 {marked} 筆出席紀錄。', 'success')
+        return redirect(url_for('teacher_attendance', wid=w.id))
+
+    # GET：列出全部學生（僅 student role 且 active），標出已簽到者
+    students = User.query.filter_by(role='student', status='active').order_by(
+        User.class_group, User.student_id).all()
+    parts_map = {p.user_id: p for p in WorkshopParticipation.query.filter_by(
+        workshop_id=wid).all()}
+    rows = []
+    for s in students:
+        p = parts_map.get(s.id)
+        rows.append({
+            'student':       s,
+            'participation': p,
+            'attended':      bool(p and p.checkin_at),
+            'method':        p.checkin_method if p else '',
+        })
+    return render_template('teacher/workshop_attendance.html',
+                           w=w, rows=rows)
+
+
+@app.route('/teacher/workshops/<int:wid>/reflections')
+@login_required
+def teacher_workshop_reflections(wid):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('teacher_workshop_list'))
+    parts = WorkshopParticipation.query.filter(
+        WorkshopParticipation.workshop_id == wid,
+        WorkshopParticipation.reflection_submitted_at != None,
+    ).all()
+    parts.sort(key=lambda p: (p.user.class_group, p.user.student_id))
+    return render_template('teacher/workshop_reflections.html',
+                           w=w, parts=parts)
+
+
+# ─── Workshop: Student Routes ────────────────────────────────────────────────
+
+@app.route('/workshops')
+@login_required
+def workshop_list():
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_workshop_list'))
+    now = _now()
+    workshops = Workshop.query.filter(
+        Workshop.semester == SEMESTER,
+        Workshop.status == 'published',
+    ).order_by(Workshop.starts_at.asc()).all()
+
+    parts_map = {p.workshop_id: p for p in WorkshopParticipation.query.filter_by(
+        user_id=current_user.id).all()}
+
+    items = []
+    for w in workshops:
+        p = parts_map.get(w.id)
+        items.append({
+            'workshop': w,
+            'participation': p,
+            'status': _workshop_status_for(p, w, now),
+        })
+    return render_template('student/workshop_list.html',
+                           items=items, now=now,
+                           type_labels=WORKSHOP_TYPE_LABELS)
+
+
+@app.route('/workshops/<int:wid>')
+@login_required
+def view_workshop(wid):
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_workshop_detail', wid=wid))
+    w = db.session.get(Workshop, wid)
+    if not w or w.semester != SEMESTER or w.status not in ('published', 'completed', 'cancelled'):
+        flash('找不到此工作坊或尚未開放。', 'error')
+        return redirect(url_for('workshop_list'))
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=wid, user_id=current_user.id).first()
+    now = _now()
+    can_reg, reg_msg = _can_register(w, current_user, now)
+    return render_template('student/workshop_detail.html',
+                           w=w, p=p, now=now,
+                           status=_workshop_status_for(p, w, now),
+                           can_register=can_reg,
+                           register_block_reason=reg_msg,
+                           type_labels=WORKSHOP_TYPE_LABELS)
+
+
+@app.route('/workshops/<int:wid>/register', methods=['POST'])
+@login_required
+def register_workshop(wid):
+    if current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('workshop_list'))
+
+    pre_goal = request.form.get('pre_goal', '').strip()
+    if len(pre_goal) < 10:
+        flash('請填寫課前自設目標（至少 10 字）——這是工作坊當責設計的一部分。', 'error')
+        return redirect(url_for('view_workshop', wid=wid))
+
+    allowed, reason = _can_register(w, current_user)
+    # 若是「重新報名」（之前 cancelled），允許繼續
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=wid, user_id=current_user.id).first()
+    is_recovering = bool(p and p.cancelled_at)
+    if not allowed and not is_recovering:
+        flash(reason, 'error')
+        return redirect(url_for('view_workshop', wid=wid))
+
+    if p is None:
+        p = WorkshopParticipation(workshop_id=wid, user_id=current_user.id)
+        db.session.add(p)
+    p.registered_at = _now()
+    p.pre_goal = pre_goal
+    p.cancelled_at = None
+    p.cancel_reason = ''
+    db.session.commit()
+
+    # 發送報名確認訊息（複用既有 Message 系統）
+    try:
+        msg_body = (
+            f'您已成功報名工作坊「{w.title}」。\n\n'
+            f'活動時間：{w.starts_at.strftime("%Y-%m-%d %H:%M")} – '
+            f'{w.ends_at.strftime("%H:%M")}\n'
+            f'地點：{w.location or "（待公告）"}\n\n'
+            f'請於活動開始後在現場輸入簽到碼完成簽到。'
+            f'活動結束後 48 小時內請填寫反思。'
+        )
+        msg = Message(
+            sender_id=w.created_by,
+            recipient_id=current_user.id,
+            scope='personal',
+            subject=f'[工作坊報名確認] {w.title}',
+            body=msg_body,
+        )
+        db.session.add(msg)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()  # 訊息寫入失敗不應阻斷報名
+
+    flash('報名成功。系統訊息已發送至您的訊息匣。', 'success')
+    return redirect(url_for('view_workshop', wid=wid))
+
+
+@app.route('/workshops/<int:wid>/cancel', methods=['POST'])
+@login_required
+def cancel_workshop_registration(wid):
+    if current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=wid, user_id=current_user.id).first()
+    if not p or not p.registered_at or p.cancelled_at:
+        flash('您尚未報名或已取消。', 'error')
+        return redirect(url_for('view_workshop', wid=wid))
+    if p.checkin_at:
+        flash('已簽到，無法取消報名。', 'error')
+        return redirect(url_for('view_workshop', wid=wid))
+    p.cancelled_at = _now()
+    p.cancel_reason = request.form.get('cancel_reason', '').strip()
+    db.session.commit()
+    flash('已取消報名。', 'success')
+    return redirect(url_for('view_workshop', wid=wid))
+
+
+@app.route('/workshops/<int:wid>/checkin', methods=['GET', 'POST'])
+@login_required
+def checkin_workshop(wid):
+    if current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('workshop_list'))
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=wid, user_id=current_user.id).first()
+
+    if request.method == 'GET':
+        return render_template('student/workshop_checkin.html', w=w, p=p)
+
+    # POST
+    code = (request.form.get('code', '') or '').strip()
+    allowed, reason = _can_checkin(w, p)
+    if not allowed:
+        flash(reason, 'error')
+        return redirect(url_for('checkin_workshop', wid=wid))
+    if code != w.checkin_code:
+        flash('簽到碼錯誤，請向現場教師確認。', 'error')
+        return redirect(url_for('checkin_workshop', wid=wid))
+    p.checkin_at = _now()
+    p.checkin_method = 'self_code'
+    db.session.commit()
+    flash('簽到成功！活動結束後請記得填寫反思。', 'success')
+    return redirect(url_for('view_workshop', wid=wid))
+
+
+@app.route('/workshops/<int:wid>/reflection', methods=['GET', 'POST'])
+@login_required
+def submit_reflection(wid):
+    if current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    w = db.session.get(Workshop, wid)
+    if not w:
+        flash('找不到此工作坊。', 'error')
+        return redirect(url_for('workshop_list'))
+    p = WorkshopParticipation.query.filter_by(
+        workshop_id=wid, user_id=current_user.id).first()
+    allowed, reason = _can_submit_reflection(w, p)
+    if not allowed:
+        flash(reason, 'error')
+        return redirect(url_for('view_workshop', wid=wid))
+
+    if request.method == 'GET':
+        return render_template('student/workshop_reflection.html', w=w, p=p)
+
+    # POST
+    q1 = request.form.get('reflection_q1', '').strip()
+    q2 = request.form.get('reflection_q2', '').strip()
+    q3 = request.form.get('reflection_q3', '').strip()
+    if min(len(q1), len(q2), len(q3)) < 30:
+        flash('每題請至少填寫 30 字，描述具體一點才能反映你的學習。', 'error')
+        # 暫存使用者輸入（不寫入 DB；簡化版直接要求重填）
+        return render_template('student/workshop_reflection.html',
+                               w=w, p=p,
+                               draft={'q1': q1, 'q2': q2, 'q3': q3})
+    p.reflection_q1 = q1
+    p.reflection_q2 = q2
+    p.reflection_q3 = q3
+    p.reflection_submitted_at = _now()
+    db.session.commit()
+    flash('反思已送出。感謝你的當責記錄。', 'success')
+    return redirect(url_for('view_workshop', wid=wid))
+
+
+@app.route('/profile/workshops')
+@login_required
+def my_workshops():
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_workshop_list'))
+    parts = WorkshopParticipation.query.filter_by(
+        user_id=current_user.id).all()
+    parts.sort(key=lambda p: (p.workshop.starts_at if p.workshop else datetime.min),
+               reverse=True)
+    now = _now()
+    items = []
+    for p in parts:
+        items.append({
+            'participation': p,
+            'workshop':      p.workshop,
+            'status':        _workshop_status_for(p, p.workshop, now),
+        })
+    return render_template('student/my_workshops.html',
+                           items=items, now=now,
+                           type_labels=WORKSHOP_TYPE_LABELS)
 
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────

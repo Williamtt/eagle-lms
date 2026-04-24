@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}出席補登 - {{ w.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .att-table { background: #fff; border-radius: 8px; overflow: hidden; }
+    .att-row.attended { background: #f0f9f4; }
+    .att-row.attended td { color: #666; }
+    .check-col { text-align: center; width: 80px; }
+</style>
+
+<h1 style="color:#1a5276; margin-bottom:0.5rem;">出席補登</h1>
+<p style="color:#666; margin-bottom:1.5rem;">
+    工作坊：<strong>{{ w.title }}</strong>
+    時間：{{ w.starts_at.strftime('%Y-%m-%d %H:%M') }}<br>
+    勾選未簽到的學生並送出，系統會以「教師補登」方式記錄出席。
+    已自行簽到（self_code）的學生不會出現在此列表的勾選欄位。
+</p>
+
+<form method="POST">
+<table class="att-table">
+    <thead>
+        <tr>
+            <th class="check-col">補登</th>
+            <th>學號</th>
+            <th>姓名</th>
+            <th>班級</th>
+            <th>已報名？</th>
+            <th>目前出席狀態</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr class="att-row {% if r.attended %}attended{% endif %}">
+            <td class="check-col">
+                {% if r.attended %}
+                    ✓
+                {% else %}
+                    <input type="checkbox" name="attend" value="{{ r.student.id }}">
+                {% endif %}
+            </td>
+            <td>{{ r.student.student_id }}</td>
+            <td>{{ r.student.name }}</td>
+            <td>{{ r.student.class_group }}</td>
+            <td>
+                {% if r.participation and r.participation.registered_at and not r.participation.cancelled_at %}
+                    已報名
+                {% elif r.participation and r.participation.cancelled_at %}
+                    已取消
+                {% else %}
+                    未報名
+                {% endif %}
+            </td>
+            <td>
+                {% if r.attended %}
+                    已出席（{{ r.method }}）
+                {% else %}
+                    未出席
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="flex gap-1 mt-2">
+    <button type="submit" class="btn btn-primary">送出補登</button>
+    <a href="{{ url_for('teacher_workshop_detail', wid=w.id) }}" class="btn btn-outline">返回</a>
+</div>
+</form>
+{% endblock %}

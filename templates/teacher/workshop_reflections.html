@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}反思閱讀 - {{ w.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .ref-card {
+        background: #fff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .ref-header { border-bottom: 1px solid #eee; padding-bottom: 0.6rem; margin-bottom: 0.8rem; }
+    .ref-header strong { color: #1a5276; }
+    .ref-q { color: #2980b9; font-weight: 600; margin-top: 0.8rem; }
+    .ref-a { white-space: pre-wrap; color: #333; line-height: 1.7; }
+    .pre-goal {
+        background: #fdf6e3; padding: 0.6rem 0.8rem; border-radius: 4px;
+        font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;
+    }
+</style>
+
+<h1 style="color:#1a5276;">反思閱讀</h1>
+<p style="color:#666; margin-bottom:1.5rem;">
+    工作坊：<strong>{{ w.title }}</strong>
+    （共 {{ parts|length }} 份反思）
+</p>
+
+{% if not parts %}
+<p style="background:#fff; padding:2rem; text-align:center; border-radius:8px; color:#888;">
+    目前還沒有學生提交反思。
+</p>
+{% endif %}
+
+{% for p in parts %}
+<div class="ref-card">
+    <div class="ref-header">
+        <strong>{{ p.user.name }}</strong>
+        <span style="color:#888;">（{{ p.user.student_id }} / {{ p.user.class_group }}）</span>
+        <span style="float:right; color:#888; font-size:0.85rem;">
+            提交於 {{ p.reflection_submitted_at.strftime('%Y-%m-%d %H:%M') }}
+        </span>
+    </div>
+
+    {% if p.pre_goal %}
+    <div class="pre-goal">
+        <strong>課前目標：</strong>{{ p.pre_goal }}
+    </div>
+    {% endif %}
+
+    <div class="ref-q">Q1：課前設的目標達成了嗎？</div>
+    <div class="ref-a">{{ p.reflection_q1 }}</div>
+
+    <div class="ref-q">Q2：哪個觀察 / 操作改變了你原本的想法？</div>
+    <div class="ref-a">{{ p.reflection_q2 }}</div>
+
+    <div class="ref-q">Q3：打算把學到的用在哪一個任務？</div>
+    <div class="ref-a">{{ p.reflection_q3 }}</div>
+</div>
+{% endfor %}
+
+<div class="mt-2">
+    <a href="{{ url_for('teacher_workshop_detail', wid=w.id) }}" class="btn btn-outline btn-small">← 返回儀表板</a>
+</div>
+{% endblock %}

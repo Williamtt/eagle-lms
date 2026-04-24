@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ w.title }} - 工作坊{% endblock %}
+
+{% block content %}
+<style>
+    .ws-hero {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .ws-hero h1 { font-size: 1.6rem; margin-bottom: 0.6rem; }
+    .ws-hero .meta { font-size: 0.95rem; opacity: 0.95; line-height: 1.8; }
+
+    .info-card {
+        background: #fff; padding: 1.5rem; border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 1rem;
+    }
+    .info-card h3 { color: #1a5276; margin-bottom: 0.6rem; font-size: 1.1rem; }
+    .info-card p { white-space: pre-wrap; line-height: 1.7; color: #444; }
+
+    .your-status {
+        padding: 1rem 1.3rem; border-radius: 8px; margin-bottom: 1rem;
+        border-left: 4px solid #2980b9;
+    }
+    .ys-not_registered    { background: #f8f9fa; border-left-color: #6c757d; }
+    .ys-registered        { background: #d1ecf1; border-left-color: #0c5460; }
+    .ys-cancelled         { background: #f8d7da; border-left-color: #721c24; }
+    .ys-attended          { background: #fff3cd; border-left-color: #856404; }
+    .ys-reflection_done   { background: #d4edda; border-left-color: #155724; }
+    .ys-reflection_overdue{ background: #fcd5d0; border-left-color: #842029; }
+    .ys-closed            { background: #e9ecef; border-left-color: #495057; }
+
+    .accountability-note {
+        background: #fdf6e3; padding: 1rem 1.3rem; border-radius: 8px;
+        font-size: 0.92rem; color: #5d4e2a; margin-bottom: 1.5rem;
+        border-left: 4px solid #d4ac0d;
+    }
+</style>
+
+<div class="ws-hero">
+    <h1>{{ w.title }}</h1>
+    <div class="meta">
+        類型：{{ type_labels[w.type] }}<br>
+        🕒 {{ w.starts_at.strftime('%Y-%m-%d (%a) %H:%M') }} – {{ w.ends_at.strftime('%H:%M') }}<br>
+        📍 {{ w.location or '（地點待公告）' }}
+        {% if w.capacity %}<br>👥 名額上限：{{ w.capacity }} 人{% endif %}
+    </div>
+</div>
+
+{% if w.description %}
+<div class="info-card">
+    <h3>內容說明</h3>
+    <p>{{ w.description }}</p>
+</div>
+{% endif %}
+
+{# === 學生狀態與動作區 === #}
+{% if status == 'not_registered' %}
+<div class="your-status ys-not_registered">
+    <strong>狀態：尚未報名</strong>
+</div>
+
+{% if can_register %}
+<div class="accountability-note">
+    💡 <strong>關於課前目標</strong><br>
+    報名前請寫下：你來這場工作坊，是想學會 / 解決什麼問題？<br>
+    這個目標會留在你的學習紀錄裡，工作坊結束後你會回頭檢視自己達成的程度——這是你個人當責檔案的重要組成。
+</div>
+
+<div class="card">
+    <h3 style="color:#1a5276; margin-bottom:0.8rem;">報名工作坊</h3>
+    <form method="POST" action="{{ url_for('register_workshop', wid=w.id) }}">
+        <div class="form-group">
+            <label for="pre_goal">課前自設目標 *（至少 10 字）</label>
+            <textarea id="pre_goal" name="pre_goal" rows="3" required
+                      placeholder="例：我想學會如何在 EAGLE 中匯入契約工項；我目前卡在 XML 格式錯誤這個問題……"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">送出報名</button>
+    </form>
+</div>
+{% else %}
+<div class="card">
+    <p style="color:#888;">{{ register_block_reason }}</p>
+</div>
+{% endif %}
+
+{% elif status == 'registered' %}
+<div class="your-status ys-registered">
+    <strong>狀態：已報名</strong> · 報名時間 {{ p.registered_at.strftime('%Y-%m-%d %H:%M') }}
+</div>
+<div class="info-card">
+    <h3>你的課前目標</h3>
+    <p>{{ p.pre_goal }}</p>
+</div>
+{% set checkin_open = now >= w.checkin_window_starts_at and now <= w.checkin_window_ends_at %}
+<div class="card">
+    {% if checkin_open %}
+        <p>簽到時段已開啟（至 {{ w.checkin_window_ends_at.strftime('%H:%M') }}）。</p>
+        <a href="{{ url_for('checkin_workshop', wid=w.id) }}" class="btn btn-primary mt-2">前往簽到</a>
+    {% elif now < w.checkin_window_starts_at %}
+        <p>簽到將於 <strong>{{ w.checkin_window_starts_at.strftime('%m-%d %H:%M') }}</strong> 開始。</p>
+    {% else %}
+        <p style="color:#c0392b;">簽到時段已結束。如為特殊情況請聯繫老師補登。</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('cancel_workshop_registration', wid=w.id) }}"
+          onsubmit="return confirm('確認取消報名？');" style="margin-top:1rem;">
+        <button type="submit" class="btn btn-outline btn-small">取消報名</button>
+    </form>
+</div>
+
+{% elif status == 'cancelled' %}
+<div class="your-status ys-cancelled">
+    <strong>狀態：已取消報名</strong>
+    （取消時間 {{ p.cancelled_at.strftime('%Y-%m-%d %H:%M') }}）
+</div>
+{% if can_register %}
+<div class="card">
+    <p>可以重新報名：</p>
+    <form method="POST" action="{{ url_for('register_workshop', wid=w.id) }}" style="margin-top:0.8rem;">
+        <div class="form-group">
+            <label for="pre_goal">課前自設目標 *</label>
+            <textarea id="pre_goal" name="pre_goal" rows="3" required
+                      placeholder="重新填寫你這次想學會 / 解決的問題">{{ p.pre_goal }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-small">重新報名</button>
+    </form>
+</div>
+{% endif %}
+
+{% elif status == 'attended' %}
+<div class="your-status ys-attended">
+    <strong>狀態：已簽到 · 待填反思</strong><br>
+    簽到時間：{{ p.checkin_at.strftime('%Y-%m-%d %H:%M') }}<br>
+    反思截止：{{ w.reflection_due_at.strftime('%Y-%m-%d %H:%M') }}（過期後無法補繳）
+</div>
+<div class="card">
+    <a href="{{ url_for('submit_reflection', wid=w.id) }}" class="btn btn-primary">前往填寫反思（3 題）</a>
+</div>
+
+{% elif status == 'reflection_done' %}
+<div class="your-status ys-reflection_done">
+    <strong>✓ 已完成全部流程</strong><br>
+    簽到於 {{ p.checkin_at.strftime('%Y-%m-%d %H:%M') }}　|
+    反思提交於 {{ p.reflection_submitted_at.strftime('%Y-%m-%d %H:%M') }}
+</div>
+<div class="info-card">
+    <h3>你的課前目標</h3>
+    <p>{{ p.pre_goal }}</p>
+</div>
+<div class="info-card">
+    <h3>你的反思</h3>
+    <p><strong style="color:#2980b9;">Q1 目標達成情形：</strong>{{ p.reflection_q1 }}</p>
+    <p style="margin-top:0.8rem;"><strong style="color:#2980b9;">Q2 改變想法的觀察：</strong>{{ p.reflection_q2 }}</p>
+    <p style="margin-top:0.8rem;"><strong style="color:#2980b9;">Q3 應用到後續任務：</strong>{{ p.reflection_q3 }}</p>
+</div>
+
+{% elif status == 'reflection_overdue' %}
+<div class="your-status ys-reflection_overdue">
+    <strong>狀態：反思填寫已過期</strong><br>
+    簽到於 {{ p.checkin_at.strftime('%Y-%m-%d %H:%M') }}<br>
+    反思截止 {{ w.reflection_due_at.strftime('%Y-%m-%d %H:%M') }} 已過。
+</div>
+
+{% elif status == 'closed' %}
+<div class="your-status ys-closed">
+    <strong>狀態：工作坊已結束</strong>
+</div>
+{% endif %}
+
+<div class="mt-2">
+    <a href="{{ url_for('workshop_list') }}" class="btn btn-outline btn-small">← 返回工作坊列表</a>
+</div>
+{% endblock %}

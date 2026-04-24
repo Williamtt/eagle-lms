@@ -365,6 +365,11 @@
                     </a>
                 </li>
                 <li>
+                    <a href="{{ url_for('teacher_workshop_list') if current_user.is_teacher else url_for('workshop_list') }}">
+                        工作坊
+                    </a>
+                </li>
+                <li>
                     <a href="{{ url_for('messages') if not current_user.is_teacher else url_for('teacher_messages') }}">
                         訊息{% if unread_count > 0 %}<span class="msg-badge">{{ unread_count }}</span>{% endif %}
                     </a>

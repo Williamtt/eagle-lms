@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if workshop %}編輯{% else %}建立{% endif %}工作坊 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .form-card { background: #fff; padding: 2rem; border-radius: 8px;
+                 box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .helper-text { font-size: 0.82rem; color: #888; margin-top: 0.25rem; }
+</style>
+
+<h1 style="color:#1a5276; margin-bottom:1.2rem;">
+    {% if workshop %}編輯工作坊{% else %}建立新工作坊{% endif %}
+</h1>
+
+<div class="form-card">
+<form method="POST">
+    <div class="form-group">
+        <label for="title">工作坊標題 *</label>
+        <input type="text" id="title" name="title" required
+               value="{{ workshop.title if workshop else '' }}"
+               placeholder="例：Week 5 EAGLE 系統操作工作坊">
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="type">類型 *</label>
+            <select id="type" name="type" required>
+                {% for code, label in type_labels.items() %}
+                <option value="{{ code }}"
+                    {% if workshop and workshop.type == code %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="capacity">名額上限（留空 = 無限）</label>
+            <input type="number" id="capacity" name="capacity" min="1"
+                   value="{{ workshop.capacity if workshop and workshop.capacity else '' }}">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="location">地點</label>
+        <input type="text" id="location" name="location"
+               value="{{ workshop.location if workshop else '' }}"
+               placeholder="例：CAE 教室 / 磺港溪工地集合點">
+    </div>
+
+    <div class="form-group">
+        <label for="description">內容說明</label>
+        <textarea id="description" name="description" rows="4"
+                  placeholder="這場工作坊會做什麼？學生來能學到什麼？">{{ workshop.description if workshop else '' }}</textarea>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="starts_at">開始時間 *</label>
+            <input type="datetime-local" id="starts_at" name="starts_at" required
+                   value="{{ fmt_dt(workshop.starts_at) if workshop else '' }}">
+        </div>
+        <div class="form-group">
+            <label for="ends_at">結束時間 *</label>
+            <input type="datetime-local" id="ends_at" name="ends_at" required
+                   value="{{ fmt_dt(workshop.ends_at) if workshop else '' }}">
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label for="registration_opens_at">開放報名時間</label>
+            <input type="datetime-local" id="registration_opens_at" name="registration_opens_at"
+                   value="{{ fmt_dt(workshop.registration_opens_at) if workshop else '' }}">
+            <div class="helper-text">留空 = 立即開放</div>
+        </div>
+        <div class="form-group">
+            <label for="registration_closes_at">報名截止時間</label>
+            <input type="datetime-local" id="registration_closes_at" name="registration_closes_at"
+                   value="{{ fmt_dt(workshop.registration_closes_at) if workshop else '' }}">
+            <div class="helper-text">留空 = 工作坊開始前都可報名</div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="reflection_due_at">反思截止時間</label>
+        <input type="datetime-local" id="reflection_due_at" name="reflection_due_at"
+               value="{{ fmt_dt(workshop.reflection_due_at) if workshop else '' }}">
+        <div class="helper-text">留空 = 工作坊結束後 48 小時自動關閉</div>
+    </div>
+
+    <div class="flex gap-1 mt-2">
+        <button type="submit" class="btn btn-primary">
+            {% if workshop %}儲存變更{% else %}建立工作坊{% endif %}
+        </button>
+        <a href="{{ url_for('teacher_workshop_list') }}" class="btn btn-outline">取消</a>
+    </div>
+</form>
+</div>
+
+<p class="helper-text mt-2">
+    註：簽到時間窗為「開始時間前 10 分鐘」至「結束時間後 10 分鐘」，由系統自動設定。
+</p>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}簽到 - {{ w.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .checkin-card {
+        background: #fff; padding: 2rem; border-radius: 8px; max-width: 480px;
+        margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;
+    }
+    .checkin-card h1 { color: #1a5276; margin-bottom: 0.5rem; }
+    .checkin-card .ws-title { color: #666; margin-bottom: 1.5rem; }
+    .code-input {
+        font-size: 2rem !important; text-align: center; letter-spacing: 0.5rem;
+        font-family: monospace; padding: 1rem; max-width: 240px; margin: 0 auto;
+    }
+</style>
+
+<div class="checkin-card">
+    <h1>工作坊簽到</h1>
+    <p class="ws-title">{{ w.title }}</p>
+    <p style="color:#666; font-size:0.9rem; margin-bottom:1.5rem;">
+        請輸入老師於現場公布的 4 位數字簽到碼。<br>
+        簽到時段：{{ w.checkin_window_starts_at.strftime('%H:%M') }} – {{ w.checkin_window_ends_at.strftime('%H:%M') }}
+    </p>
+
+    <form method="POST">
+        <div class="form-group">
+            <input type="text" name="code" class="code-input"
+                   inputmode="numeric" pattern="[0-9]{4}" maxlength="4"
+                   required autofocus
+                   placeholder="0000">
+        </div>
+        <button type="submit" class="btn btn-primary" style="min-width:200px;">簽到</button>
+    </form>
+
+    <div class="mt-2">
+        <a href="{{ url_for('view_workshop', wid=w.id) }}" class="btn btn-outline btn-small">取消</a>
+    </div>
+</div>
+{% endblock %}

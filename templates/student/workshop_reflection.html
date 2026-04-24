@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}填寫反思 - {{ w.title }}{% endblock %}
+
+{% block content %}
+<style>
+    .ref-hero {
+        background: linear-gradient(135deg, #b7950b 0%, #d4ac0d 100%);
+        color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .ref-hero h1 { font-size: 1.4rem; margin-bottom: 0.3rem; }
+    .ref-hero .meta { font-size: 0.9rem; opacity: 0.95; }
+
+    .pre-goal-card {
+        background: #fdf6e3; padding: 1rem 1.3rem; border-radius: 8px;
+        margin-bottom: 1rem; border-left: 4px solid #d4ac0d;
+    }
+    .pre-goal-card .label { font-weight: 600; color: #5d4e2a; margin-bottom: 0.3rem; }
+
+    .ref-card { background: #fff; padding: 2rem; border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .ref-q-label { color: #2980b9; font-weight: 600; font-size: 1rem; }
+    .helper-text { font-size: 0.82rem; color: #888; margin-top: 0.25rem; }
+</style>
+
+<div class="ref-hero">
+    <h1>工作坊反思</h1>
+    <div class="meta">{{ w.title }}　|　反思截止：{{ w.reflection_due_at.strftime('%Y-%m-%d %H:%M') }}</div>
+</div>
+
+{% if p.pre_goal %}
+<div class="pre-goal-card">
+    <div class="label">📌 你當初寫的課前目標</div>
+    <div>{{ p.pre_goal }}</div>
+</div>
+{% endif %}
+
+<div class="ref-card">
+<form method="POST">
+    <div class="form-group">
+        <label for="reflection_q1" class="ref-q-label">Q1：你課前設的目標達成了嗎？</label>
+        <div class="helper-text">回顧你的課前目標——這場工作坊有幫你達成嗎？哪部分達成、哪部分沒達成？（至少 30 字）</div>
+        <textarea id="reflection_q1" name="reflection_q1" rows="3" required>{{ draft.q1 if draft else '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="reflection_q2" class="ref-q-label">Q2：哪個觀察 / 操作改變了你原本的想法？</label>
+        <div class="helper-text">這次工作坊中，哪個具體的觀察、示範、或自己動手做的瞬間，讓你修正或更新了原本的理解？（至少 30 字）</div>
+        <textarea id="reflection_q2" name="reflection_q2" rows="3" required>{{ draft.q2 if draft else '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="reflection_q3" class="ref-q-label">Q3：打算把學到的東西用在哪一個任務？</label>
+        <div class="helper-text">具體說明：你會把這次學到的應用在 EAGLE Task 1–4 的哪一項？怎麼用？（至少 30 字）</div>
+        <textarea id="reflection_q3" name="reflection_q3" rows="3" required>{{ draft.q3 if draft else '' }}</textarea>
+    </div>
+
+    <div class="flex gap-1 mt-2">
+        <button type="submit" class="btn btn-primary">送出反思</button>
+        <a href="{{ url_for('view_workshop', wid=w.id) }}" class="btn btn-outline">取消</a>
+    </div>
+</form>
+</div>
+{% endblock %}
