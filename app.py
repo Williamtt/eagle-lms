@@ -14,7 +14,7 @@ from config import Config
 from models import (db, User,
                     TaskSubmission, QuestionResponse, ChecklistResponse,
                     ReflectionResponse, DeliverableUpload,
-                    AIFeedback, TeacherReview,
+                    AIFeedback, TeacherReview, AIReviewSuggestion,
                     Questionnaire, QuestionnaireItem,
                     QuestionnaireSubmission, QuestionnaireAnswer,
                     LearningJournal,
@@ -1068,19 +1068,8 @@ def teacher_review(submission_id):
     ai_fb          = sub.ai_feedbacks.order_by(AIFeedback.created_at.desc()).first()
     existing_review = sub.teacher_reviews.first()
 
-    ai_suggestion = None
-    if sub and app.config.get('ANTHROPIC_API_KEY'):
-        submission_text = _build_submission_text_for_ai(sub, task_def)
-        if submission_text.strip():
-            result = ai_service.generate_review_suggestion(
-                submission_text, sub.task_number, 'structured'
-            )
-            # result 是 dict，取出 suggestion 字串供底稿使用
-            if isinstance(result, dict):
-                ai_suggestion = result.get('suggestion') or result.get('rubric_notes') or str(result)
-            else:
-                ai_suggestion = result
-
+    # AI 建議改由前端 AJAX 呼叫 /teacher/review/<id>/ai_suggestion 取得，
+    # 避免每次打開頁面都阻塞等 Claude 回應。
     return render_template('teacher/review.html',
                            sub=sub,
                            task_def=task_def,
@@ -1089,8 +1078,87 @@ def teacher_review(submission_id):
                            rq_map=rq_map,
                            du_map=du_map,
                            ai_feedback=ai_fb,
-                           existing_review=existing_review,
-                           ai_suggestion=ai_suggestion)
+                           existing_review=existing_review)
+
+
+@app.route('/teacher/review/<int:submission_id>/ai_suggestion')
+@login_required
+def teacher_review_ai_suggestion(submission_id):
+    """回傳該 submission 的 AI 評閱建議。
+    - 預設讀快取；若 submission 自上次產生後被更新，或 ?force=1，則重新向 Claude 索取並覆寫快取。
+    - 回傳 JSON：{ suggestion, suggested_score, rubric_notes, cached, generated_at }
+    """
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+
+    sub = db.session.get(TaskSubmission, submission_id)
+    if not sub:
+        return jsonify({'error': 'not_found'}), 404
+
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        return jsonify({'error': 'ai_disabled',
+                        'message': 'AI 建議功能尚未啟用（缺少 ANTHROPIC_API_KEY）。'}), 200
+
+    force = request.args.get('force') == '1'
+    cached = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+
+    # 命中快取：submission 沒動過且非強制重算
+    if cached and not force and cached.source_updated_at >= sub.updated_at:
+        return jsonify({
+            'suggestion':      cached.suggestion,
+            'suggested_score': cached.suggested_score,
+            'rubric_notes':    cached.rubric_notes,
+            'cached':          True,
+            'generated_at':    cached.created_at.isoformat(),
+        })
+
+    # 快取失效或強制重算 → 呼叫 Claude
+    task_def = TASKS.get(sub.task_number, {})
+    submission_text = _build_submission_text_for_ai(sub, task_def)
+    if not submission_text.strip():
+        return jsonify({'error': 'empty_submission',
+                        'message': '學生提交內容為空，無法產生建議。'}), 200
+
+    result = ai_service.generate_review_suggestion(
+        submission_text, sub.task_number, 'structured'
+    )
+    if not isinstance(result, dict):
+        result = {'suggestion': str(result)}
+
+    suggestion_text = result.get('suggestion') or ''
+    # 若 ai_service 回傳錯誤佔位字串，不寫入快取（避免把錯誤當成結果長期保留）
+    is_error_payload = suggestion_text.startswith('AI 建議生成失敗')
+
+    if not is_error_payload:
+        if cached:
+            cached.raw_json          = json.dumps(result, ensure_ascii=False)
+            cached.suggestion        = suggestion_text
+            cached.suggested_score   = result.get('suggested_score')
+            cached.rubric_notes      = result.get('rubric_notes') or ''
+            cached.source_updated_at = sub.updated_at
+            cached.model_used        = 'claude-sonnet-4-5'
+            cached.created_at        = datetime.utcnow()
+        else:
+            cached = AIReviewSuggestion(
+                task_submission_id = sub.id,
+                raw_json           = json.dumps(result, ensure_ascii=False),
+                suggestion         = suggestion_text,
+                suggested_score    = result.get('suggested_score'),
+                rubric_notes       = result.get('rubric_notes') or '',
+                source_updated_at  = sub.updated_at,
+                model_used         = 'claude-sonnet-4-5',
+            )
+            db.session.add(cached)
+        db.session.commit()
+
+    return jsonify({
+        'suggestion':      suggestion_text,
+        'suggested_score': result.get('suggested_score'),
+        'rubric_notes':    result.get('rubric_notes') or '',
+        'cached':          False,
+        'generated_at':    datetime.utcnow().isoformat(),
+        'error':           'ai_call_failed' if is_error_payload else None,
+    })
 
 
 @app.route('/teacher/student/<int:uid>')

@@ -166,6 +166,24 @@ class TeacherReview(db.Model):
     reviewed_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class AIReviewSuggestion(db.Model):
+    """AI 為教師產出的評閱建議（快取，避免每次打開評閱頁都重呼叫 Claude）。
+    快取失效條件：source_updated_at 小於 task_submission.updated_at，或教師手動重新產生。
+    """
+    __tablename__ = 'ai_review_suggestions'
+    id                 = db.Column(db.Integer, primary_key=True)
+    task_submission_id = db.Column(db.Integer,
+                                   db.ForeignKey('task_submissions.id'),
+                                   unique=True, nullable=False)
+    raw_json           = db.Column(db.Text, nullable=False)   # 完整原始 JSON
+    suggestion         = db.Column(db.Text, default='')
+    suggested_score    = db.Column(db.Float, nullable=True)
+    rubric_notes       = db.Column(db.Text, default='')
+    source_updated_at  = db.Column(db.DateTime, nullable=False)  # 產生當下 submission.updated_at
+    model_used         = db.Column(db.String(50), default='')
+    created_at         = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 # =============================================================================
 # 模組 D：問卷系統
 # =============================================================================

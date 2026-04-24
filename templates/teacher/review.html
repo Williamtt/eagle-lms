@@ -308,13 +308,22 @@
             </div>
         {% endif %}
 
-        {# ── AI 給教師的評閱建議 ── #}
-        {% if ai_suggestion %}
-            <div class="suggest-box">
-                <h4>💡 AI 給教師的評閱建議（僅教師可見）</h4>
-                <pre>{{ ai_suggestion }}</pre>
-            </div>
-        {% endif %}
+        {# ── AI 給教師的評閱建議（非同步載入；快取於 AIReviewSuggestion 表） ── #}
+        <div class="suggest-box" id="ai-suggest-box">
+            <h4 style="display:flex;justify-content:space-between;align-items:center;gap:0.6rem;">
+                <span>💡 AI 給教師的評閱建議（僅教師可見）</span>
+                <span style="display:flex;gap:0.4rem;align-items:center;">
+                    <span id="ai-suggest-meta"
+                          style="font-size:0.72rem;color:#7d5a00;font-weight:normal;"></span>
+                    <button type="button" id="ai-suggest-regen"
+                            style="background:none;border:1px dashed #f39c12;color:#7d5a00;
+                                   padding:0.2rem 0.55rem;border-radius:4px;font-size:0.75rem;
+                                   cursor:pointer;display:none;"
+                            onclick="loadAISuggestion(true)">🔄 重新產生</button>
+                </span>
+            </h4>
+            <pre id="ai-suggest-content" style="color:#7d5a00;">載入中…（首次可能需 5–15 秒）</pre>
+        </div>
 
     </div>{# end 左欄 #}
 
@@ -331,11 +340,12 @@
 
                 <div class="form-group">
                     <label for="feedback">評閱意見 *</label>
-                    {# 一鍵填入 AI 建議 #}
-                    {% if ai_suggestion %}
-                        <button type="button" class="fill-btn"
-                                onclick="fillFromAI()">⚡ 以 AI 建議為底稿</button>
-                    {% endif %}
+                    {# 一鍵填入 AI 建議（等 AJAX 載入完才啟用） #}
+                    <button type="button" class="fill-btn" id="fill-from-ai-btn"
+                            onclick="fillFromAI()" disabled
+                            style="opacity:0.5;cursor:not-allowed;">
+                        ⚡ AI 建議載入中…
+                    </button>
                     <textarea id="feedback" name="feedback"
                               class="review-textarea"
                               placeholder="請以建設性、鼓勵性的方式提供回饋…"
@@ -394,16 +404,75 @@
 </div>{# end .review-layout #}
 
 <script>
-{% if ai_suggestion %}
-const AI_SUGGESTION = {{ ai_suggestion | tojson }};
+const AI_SUGGESTION_URL = {{ url_for('teacher_review_ai_suggestion', submission_id=sub.id) | tojson }};
+let AI_SUGGESTION_TEXT = null;
+
 function fillFromAI() {
+    if (!AI_SUGGESTION_TEXT) return;
     const ta = document.getElementById('feedback');
     if (!ta.value.trim() || confirm('目前已有內容，確定以 AI 建議覆蓋？')) {
-        ta.value = AI_SUGGESTION;
+        ta.value = AI_SUGGESTION_TEXT;
         ta.focus();
     }
 }
-{% endif %}
+
+function loadAISuggestion(force) {
+    const contentEl = document.getElementById('ai-suggest-content');
+    const metaEl    = document.getElementById('ai-suggest-meta');
+    const regenBtn  = document.getElementById('ai-suggest-regen');
+    const fillBtn   = document.getElementById('fill-from-ai-btn');
+
+    contentEl.textContent = force ? '重新產生中…（約 5–15 秒）' : '載入中…（首次可能需 5–15 秒）';
+    metaEl.textContent = '';
+    regenBtn.style.display = 'none';
+    fillBtn.disabled = true;
+    fillBtn.style.opacity = '0.5';
+    fillBtn.style.cursor = 'not-allowed';
+    fillBtn.textContent = '⚡ AI 建議載入中…';
+
+    const url = AI_SUGGESTION_URL + (force ? '?force=1' : '');
+    fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error === 'ai_disabled' || data.error === 'empty_submission') {
+                contentEl.textContent = data.message || '（無法產生建議）';
+                fillBtn.textContent = '⚡ AI 建議不可用';
+                return;
+            }
+            if (data.error === 'ai_call_failed') {
+                contentEl.textContent = data.suggestion || 'AI 呼叫失敗，請稍後重試。';
+                regenBtn.style.display = '';
+                fillBtn.textContent = '⚡ AI 建議載入失敗';
+                return;
+            }
+            AI_SUGGESTION_TEXT = data.suggestion || '';
+            contentEl.textContent = AI_SUGGESTION_TEXT || '（AI 無建議內容）';
+
+            const bits = [];
+            if (data.suggested_score !== null && data.suggested_score !== undefined) {
+                bits.push('建議分數 ' + data.suggested_score);
+            }
+            bits.push(data.cached ? '快取命中' : '剛產生');
+            metaEl.textContent = bits.join('｜');
+
+            regenBtn.style.display = '';
+            if (AI_SUGGESTION_TEXT) {
+                fillBtn.disabled = false;
+                fillBtn.style.opacity = '1';
+                fillBtn.style.cursor = 'pointer';
+                fillBtn.textContent = '⚡ 以 AI 建議為底稿';
+            } else {
+                fillBtn.textContent = '⚡ AI 無建議內容';
+            }
+        })
+        .catch(err => {
+            contentEl.textContent = '載入失敗：' + err;
+            regenBtn.style.display = '';
+            fillBtn.textContent = '⚡ AI 建議載入失敗';
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() { loadAISuggestion(false); });
 
 document.getElementById('review-form').addEventListener('submit', function() {
     const btn = document.getElementById('submit-btn');
