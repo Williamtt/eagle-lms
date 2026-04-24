@@ -2110,8 +2110,9 @@ WORKSHOP_TYPE_LABELS = {
 
 
 def _now():
-    """集中時間取得，方便未來測試 mock。"""
-    return datetime.utcnow()
+    """集中時間取得，方便未來測試 mock。
+    使用本地時間，與表單輸入（台北時間）保持一致。"""
+    return datetime.now()
 
 
 def _generate_checkin_code():
