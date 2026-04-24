@@ -2099,7 +2099,9 @@ def api_thread_reply(student_id):
 # =============================================================================
 
 import random as _random
-from datetime import timedelta
+from datetime import timedelta, timezone as _timezone
+
+_TAIPEI = _timezone(timedelta(hours=8))
 
 WORKSHOP_TYPE_LABELS = {
     'system_ops':  '系統操作工作坊',
@@ -2110,9 +2112,9 @@ WORKSHOP_TYPE_LABELS = {
 
 
 def _now():
-    """集中時間取得，方便未來測試 mock。
-    使用本地時間，與表單輸入（台北時間）保持一致。"""
-    return datetime.now()
+    """回傳台北本地時間（naive datetime），與表單輸入一致。
+    Railway 伺服器跑在 UTC，必須明確指定 Asia/Taipei (+8) 後再去掉 tzinfo。"""
+    return datetime.now(_TAIPEI).replace(tzinfo=None)
 
 
 def _generate_checkin_code():
