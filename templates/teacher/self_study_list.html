@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}對照組自主學習管理 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { background:linear-gradient(135deg,#1a5276,#2980b9); color:#fff;
+                   padding:1.4rem 2rem; border-radius:8px; margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.5rem; margin:0; }
+    .tab-bar { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.2rem; }
+    .tab-btn { padding:.45rem 1.1rem; border-radius:20px; font-size:.88rem;
+               font-weight:600; border:none; cursor:pointer; background:#eee; color:#555; }
+    .tab-btn.active { background:#1a5276; color:#fff; }
+    .proposal-table { width:100%; border-collapse:collapse; background:#fff;
+                      border-radius:8px; overflow:hidden;
+                      box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .proposal-table th { background:#1a5276; color:#fff; padding:.7rem 1rem;
+                         text-align:left; font-size:.88rem; }
+    .proposal-table td { padding:.65rem 1rem; border-bottom:1px solid #f0f0f0; font-size:.9rem; }
+    .proposal-table tr:last-child td { border-bottom:none; }
+    .status-chip { display:inline-block; padding:.15rem .5rem; border-radius:8px;
+                   font-size:.78rem; font-weight:600; }
+    .st-submitted { background:#fef9e7; color:#856404; }
+    .st-approved  { background:#d4efdf; color:#1e8449; }
+    .st-revise    { background:#fde8e8; color:#c0392b; }
+    .st-result    { background:#d6eaf8; color:#1a5276; }
+    .st-final     { background:#d5f5e3; color:#145a32; }
+    .st-draft     { background:#f2f3f4; color:#888; }
+    .btn-sm { padding:.3rem .8rem; border-radius:5px; font-size:.82rem;
+              border:none; cursor:pointer; }
+    .btn-review { background:#1a5276; color:#fff; }
+    .btn-review:hover { background:#2980b9; }
+    .empty-msg { text-align:center; color:#aaa; padding:2rem; font-size:.9rem; }
+</style>
+
+<div class="page-header">
+    <h1>對照組自主學習管理</h1>
+</div>
+
+{% set tabs = [
+    ('submitted',        '待審核',   tab_groups.submitted),
+    ('result_submitted', '待評閱',   tab_groups.result_submitted),
+    ('approved',         '執行中',   tab_groups.approved),
+    ('finalized',        '已完成',   tab_groups.finalized),
+    ('other',            '草稿/退回', tab_groups.other),
+] %}
+
+<div class="tab-bar">
+{% for key, label, items in tabs %}
+    <button class="tab-btn {% if loop.first %}active{% endif %}"
+            onclick="showTab('{{ key }}', this)">
+        {{ label }}{% if items %} ({{ items|length }}){% endif %}
+    </button>
+{% endfor %}
+</div>
+
+{% for key, label, items in tabs %}
+<div id="tab-{{ key }}" class="tab-content" {% if not loop.first %}style="display:none"{% endif %}>
+    {% if items %}
+    <table class="proposal-table">
+        <thead>
+            <tr>
+                <th>學號</th><th>姓名</th><th>提案</th><th>題目</th><th>狀態</th><th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in items %}
+            {% set student = p.user_id | string %}
+            <tr>
+                <td>{{ p.author.student_id if p.author else '—' }}</td>
+                <td>{{ p.author.name if p.author else '—' }}</td>
+                <td>提案 {{ p.proposal_number }}</td>
+                <td>{{ p.topic[:30] if p.topic else '（尚未填寫）' }}{% if p.topic and p.topic|length > 30 %}…{% endif %}</td>
+                <td>
+                    {% if p.approval_status == 'submitted' %}
+                        <span class="status-chip st-submitted">待審核</span>
+                    {% elif p.approval_status == 'approved' %}
+                        <span class="status-chip st-approved">已核准</span>
+                    {% elif p.approval_status == 'revise_needed' %}
+                        <span class="status-chip st-revise">退回修改</span>
+                    {% elif p.approval_status == 'result_submitted' %}
+                        <span class="status-chip st-result">待評閱</span>
+                    {% elif p.approval_status == 'finalized' %}
+                        <span class="status-chip st-final">已完成</span>
+                    {% else %}
+                        <span class="status-chip st-draft">{{ p.approval_status }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('teacher_self_study_review', proposal_id=p.id) }}">
+                        <button class="btn-sm btn-review">查看</button>
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <div class="empty-msg">此分類目前沒有提案。</div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<script>
+function showTab(key, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + key).style.display = '';
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

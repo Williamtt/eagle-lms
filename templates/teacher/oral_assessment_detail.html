@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}口頭報告評分 - {{ student.name }} - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { background:linear-gradient(135deg,#1a5276,#2980b9); color:#fff;
+                   padding:1.4rem 2rem; border-radius:8px; margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.4rem; margin:0 0 .2rem; }
+    .section-card { background:#fff; border-radius:8px; padding:1.4rem 1.8rem;
+                    box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:1.2rem; }
+    .section-title { font-size:1rem; font-weight:700; color:#1a5276;
+                     border-left:4px solid #2980b9; padding-left:.6rem; margin-bottom:.9rem; }
+    label { display:block; font-weight:600; font-size:.88rem; color:#555; margin:.7rem 0 .2rem; }
+    .score-row { display:flex; align-items:center; gap:.8rem; padding:.5rem 0;
+                 border-bottom:1px solid #f0f0f0; }
+    .score-row:last-child { border-bottom:none; }
+    .score-ax   { font-weight:700; color:#1a5276; width:130px; font-size:.9rem; }
+    .score-hint { font-size:.8rem; color:#888; }
+    input[type=number] { width:70px; padding:.4rem .5rem; border:1px solid #ccc;
+                         border-radius:5px; font-size:.9rem; }
+    textarea { width:100%; padding:.55rem .7rem; border:1px solid #ccc; border-radius:5px;
+               font-size:.9rem; resize:vertical; min-height:80px; box-sizing:border-box; }
+    .btn-save     { background:#2980b9; color:#fff; border:none; padding:.65rem 1.4rem;
+                    border-radius:6px; cursor:pointer; font-size:.92rem; }
+    .btn-finalize { background:#1e8449; color:#fff; border:none; padding:.65rem 1.6rem;
+                    border-radius:6px; cursor:pointer; font-size:.92rem; }
+    .btn-save:hover     { background:#1a5276; }
+    .btn-finalize:hover { background:#27ae60; }
+    .readonly-box { background:#f8f9fa; border:1px solid #e0e0e0; border-radius:5px;
+                    padding:.55rem .7rem; font-size:.9rem; color:#333; }
+    .badge-done { background:#eafaf1; color:#1e8449; border:1px solid #a9dfbf;
+                  display:inline-block; padding:.2rem .7rem; border-radius:12px;
+                  font-size:.82rem; font-weight:600; }
+    .perception-box { background:#fef9e7; border:1px solid #f9ca24; border-radius:6px;
+                      padding:.8rem 1rem; font-size:.88rem; color:#7d6608; }
+</style>
+
+<div class="page-header">
+    <h1>口頭報告評分：{{ student.name }}</h1>
+    <p style="opacity:.88;font-size:.88rem;margin:.2rem 0 0;">
+        {{ student.student_id }} ‧
+        {% if student.experimental_group == 'experimental' %}實驗組{% else %}對照組{% endif %}
+        ‧ {{ student.class_group }}
+    </p>
+</div>
+
+<a href="{{ url_for('teacher_oral_assessment_list') }}" style="font-size:.88rem;color:#1a5276;">&larr; 返回名單</a>
+
+{# ── 學生 DP5 自評（perception 參考）── #}
+{% if dp5_perception %}
+<div class="section-card" style="margin-top:1rem;">
+    <div class="section-title">學生自評（學習日誌 5 ‧ perception series）</div>
+    <div class="perception-box">
+        <strong>自評分數：</strong>{{ dp5_perception.get('self_rating', '未填') }} / 5
+        {% if dp5_perception.get('evidence') %}
+        <div style="margin-top:.5rem;"><strong>佐證說明：</strong>{{ dp5_perception['evidence'] }}</div>
+        {% endif %}
+    </div>
+    <p style="font-size:.8rem;color:#aaa;margin:.4rem 0 0;">
+        ※ 僅供參考，不與 performance rubric 平均
+    </p>
+</div>
+{% endif %}
+
+{# ── 評分表單 / 唯讀 ── #}
+{% if assessment and assessment.finalized_at %}
+{# ── 已 finalized：唯讀 ── #}
+<div class="section-card" style="margin-top:1rem;">
+    <div class="section-title">
+        評分結果
+        <span class="badge-done" style="margin-left:.5rem;">已確認</span>
+        <span style="font-size:.8rem;color:#888;font-weight:normal;margin-left:.5rem;">
+            {{ assessment.finalized_at.strftime('%Y-%m-%d %H:%M') }}
+        </span>
+    </div>
+    {% set scores = [
+        ('專業內容正確性', assessment.score_content),
+        ('報告結構清楚度', assessment.score_structure),
+        ('口語表達與時間掌控', assessment.score_delivery),
+        ('問題回應與當責說明', assessment.score_qa)
+    ] %}
+    {% set total_score = namespace(val=0) %}
+    {% for ax, sc in scores %}
+        {% set total_score.val = total_score.val + sc %}
+        <div class="score-row">
+            <span class="score-ax">{{ ax }}</span>
+            <strong style="font-size:1.1rem;color:#1a5276;">{{ sc }}</strong>
+            <span class="score-hint">/ 5</span>
+        </div>
+    {% endfor %}
+    <div style="margin-top:.8rem;padding:.6rem .9rem;background:#eafaf1;
+                border-radius:6px;font-weight:700;color:#1e8449;">
+        DP5 平均：{{ "%.2f"|format(total_score.val / 4) }} / 5
+    </div>
+    {% if assessment.teacher_comment %}
+        <label>教師評語</label>
+        <div class="readonly-box">{{ assessment.teacher_comment }}</div>
+    {% endif %}
+</div>
+
+{% else %}
+{# ── 評分表單 ── #}
+<div class="section-card" style="margin-top:1rem;">
+    <div class="section-title">Rubric 評分（1–5 分）</div>
+    <p style="font-size:.84rem;color:#888;margin:0 0 .8rem;">
+        四向度各評 1–5 分（1=不足 / 3=達標 / 5=優秀）。暫存後可繼續修改；按「確認」後鎖定。
+    </p>
+    <form method="post">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        {% set axes = [
+            ('score_content',   '專業內容正確性',       '工程概念、數據、術語的正確程度'),
+            ('score_structure', '報告結構清楚度',       '論點組織、摘要、結論的邏輯性'),
+            ('score_delivery',  '口語表達與時間掌控',   '清晰度、語速、時間是否符合規定'),
+            ('score_qa',        '問題回應與當責說明',   '能否清楚回應提問並為論點負責')
+        ] %}
+        {% for fname, label, hint in axes %}
+        <div class="score-row">
+            <span class="score-ax">{{ label }}</span>
+            <input type="number" name="{{ fname }}" min="1" max="5"
+                   value="{{ assessment[fname] if assessment and assessment[fname] else '' }}"
+                   placeholder="1–5">
+            <span class="score-hint">{{ hint }}</span>
+        </div>
+        {% endfor %}
+
+        <label style="margin-top:1rem;">教師評語（可選）</label>
+        <textarea name="teacher_comment"
+                  placeholder="給學生的整體回饋...">{{ assessment.teacher_comment if assessment else '' }}</textarea>
+
+        <div style="margin-top:1.2rem;display:flex;gap:.8rem;flex-wrap:wrap;">
+            <button type="submit" name="finalize" value="0" class="btn-save">暫存</button>
+            <button type="submit" name="finalize" value="1" class="btn-finalize"
+                    onclick="return confirm('確認後分數將鎖定，無法修改。確定要確認評分嗎？')">
+                確認評分（鎖定）
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

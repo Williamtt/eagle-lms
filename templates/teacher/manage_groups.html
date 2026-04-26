@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}研究分組管理 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #1a5276 0%, #2980b9 100%);
+        color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .page-header h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+    .page-header p  { margin: 0; opacity: 0.85; font-size: 0.92rem; }
+
+    .summary-bar {
+        display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+    }
+    .summary-chip {
+        padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.88rem; font-weight: 600;
+    }
+    .chip-exp   { background: #d4efdf; color: #1e8449; }
+    .chip-ctrl  { background: #d6eaf8; color: #1a5276; }
+    .chip-none  { background: #f2f3f4; color: #888; }
+
+    .group-table { width: 100%; border-collapse: collapse; background: #fff;
+                   border-radius: 8px; overflow: hidden;
+                   box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .group-table th {
+        background: #1a5276; color: #fff; padding: 0.75rem 1rem;
+        text-align: left; font-size: 0.9rem;
+    }
+    .group-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0; font-size: 0.92rem; }
+    .group-table tr:last-child td { border-bottom: none; }
+    .group-table tr:hover td { background: #f8f9fa; }
+
+    .group-select {
+        padding: 0.3rem 0.6rem; border: 1px solid #ccc; border-radius: 4px;
+        font-size: 0.88rem; background: #fff;
+    }
+    .group-select.sel-exp  { border-color: #1e8449; color: #1e8449; }
+    .group-select.sel-ctrl { border-color: #1a5276; color: #1a5276; }
+
+    .badge-exp  { background: #d4efdf; color: #1e8449; padding: 0.15rem 0.55rem;
+                  border-radius: 10px; font-size: 0.8rem; font-weight: 600; }
+    .badge-ctrl { background: #d6eaf8; color: #1a5276; padding: 0.15rem 0.55rem;
+                  border-radius: 10px; font-size: 0.8rem; font-weight: 600; }
+    .badge-none { background: #f2f3f4; color: #aaa; padding: 0.15rem 0.55rem;
+                  border-radius: 10px; font-size: 0.8rem; }
+
+    .btn-save {
+        background: #1a5276; color: #fff; border: none; padding: 0.65rem 2rem;
+        border-radius: 6px; font-size: 0.95rem; cursor: pointer; margin-top: 1.2rem;
+    }
+    .btn-save:hover { background: #2980b9; }
+
+    .notice {
+        background: #fef9e7; border: 1px solid #f9ca24; border-radius: 6px;
+        padding: 0.75rem 1rem; font-size: 0.88rem; color: #7d6608; margin-bottom: 1.2rem;
+    }
+</style>
+
+<div class="page-header">
+    <h1>研究分組管理</h1>
+    <p>指定每位學生的研究分組（實驗組 / 對照組）。分組後學生 Dashboard 將顯示對應功能。</p>
+</div>
+
+<div class="summary-bar">
+    <span class="summary-chip chip-exp">實驗組：{{ group_counts.experimental }} 人</span>
+    <span class="summary-chip chip-ctrl">對照組：{{ group_counts.control }} 人</span>
+    <span class="summary-chip chip-none">未分組：{{ group_counts.unassigned }} 人</span>
+</div>
+
+<div class="notice">
+    ⚠ 分組一旦確定並開始執行後請勿更動，以免影響研究資料完整性。分組資訊不會對學生顯示。
+</div>
+
+<form method="post">
+    <table class="group-table">
+        <thead>
+            <tr>
+                <th>學號</th>
+                <th>姓名</th>
+                <th>班級</th>
+                <th>目前分組</th>
+                <th>指定分組</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in students %}
+            <tr>
+                <td>{{ s.student_id }}</td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.class_group }}</td>
+                <td>
+                    {% if s.experimental_group == 'experimental' %}
+                        <span class="badge-exp">實驗組</span>
+                    {% elif s.experimental_group == 'control' %}
+                        <span class="badge-ctrl">對照組</span>
+                    {% else %}
+                        <span class="badge-none">未分組</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <select name="group_{{ s.id }}" class="group-select
+                        {% if s.experimental_group == 'experimental' %}sel-exp
+                        {% elif s.experimental_group == 'control' %}sel-ctrl{% endif %}">
+                        <option value=""   {% if not s.experimental_group %}selected{% endif %}>— 未分組 —</option>
+                        <option value="experimental" {% if s.experimental_group == 'experimental' %}selected{% endif %}>實驗組</option>
+                        <option value="control"      {% if s.experimental_group == 'control' %}selected{% endif %}>對照組</option>
+                    </select>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem;">目前沒有啟用的學生帳號。</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit" class="btn-save">儲存分組</button>
+</form>
+{% endblock %}

@@ -304,7 +304,9 @@
    AI 回饋
 ═══════════════════════════════════════════════════════════ #}
 {% if ai_feedback %}
-    <div class="feedback-card ai-feedback">
+    <div class="feedback-card ai-feedback"
+         data-submission-id="{{ sub.id }}"
+         data-feedback-id="{{ ai_feedback.id }}">
         <h3>🤖 AI 助教回饋
             <span style="font-size:0.82rem;font-weight:normal;color:#555;">
                 （{{ ai_feedback.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ ai_feedback.model_used }}）
@@ -364,14 +366,44 @@
             accountability:'當責表現', overall:'整體',
             completeness:'完整度', depth:'深度',
         };
-        let html = '';
+        // 用 DOM API 建立 element，避免 AI 回傳含 HTML 字串造成 XSS
+        container.textContent = '';
         for (const [k, v] of Object.entries(scores)) {
-            if (v !== null && v !== undefined) {
-                html += `<span class="score-badge">${labelMap[k] || k}：${v}</span>`;
-            }
+            if (v === null || v === undefined) continue;
+            const span = document.createElement('span');
+            span.className = 'score-badge';
+            span.textContent = `${labelMap[k] || k}：${v}`;
+            container.appendChild(span);
         }
-        container.innerHTML = html;
     } catch(e) {}
+})();
+
+/* ── ai_feedback_viewed beacon ── */
+(function() {
+    const card = document.querySelector('.ai-feedback');
+    if (!card) return;
+    let timer = null, fired = false;
+    const observer = new IntersectionObserver(function(entries) {
+        if (fired) return;
+        if (entries[0].isIntersecting) {
+            if (!timer) timer = setTimeout(function() {
+                fired = true;
+                observer.disconnect();
+                fetch('/api/event/ai-feedback-viewed', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        submission_id: card.dataset.submissionId,
+                        feedback_id:   card.dataset.feedbackId
+                    })
+                });
+            }, 2000);
+        } else {
+            clearTimeout(timer);
+            timer = null;
+        }
+    }, {threshold: 0.5});
+    observer.observe(card);
 })();
 </script>
 {% endblock %}

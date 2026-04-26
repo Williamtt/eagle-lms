@@ -145,7 +145,7 @@
     }
 </style>
 
-{# ── 統計準備 ── #}
+{# ── 統計準備（實驗組） ── #}
 {% set submitted_tasks = namespace(n=0) %}
 {% set reviewed_tasks  = namespace(n=0) %}
 {% for t_num, ts in task_status.items() %}
@@ -153,6 +153,14 @@
     {% if ts.reviewed  %}{% set reviewed_tasks.n  = reviewed_tasks.n  + 1 %}{% endif %}
 {% endfor %}
 {% set total_tasks = task_status | length %}
+
+{# ── 統計準備（對照組） ── #}
+{% set submitted_proposals = namespace(n=0) %}
+{% set finalized_proposals = namespace(n=0) %}
+{% for p in self_study_proposals %}
+    {% if p.approval_status != 'draft' %}{% set submitted_proposals.n = submitted_proposals.n + 1 %}{% endif %}
+    {% if p.approval_status == 'finalized' %}{% set finalized_proposals.n = finalized_proposals.n + 1 %}{% endif %}
+{% endfor %}
 
 {% set submitted_journals = namespace(n=0) %}
 {% for j_num, js in journal_status.items() %}
@@ -177,9 +185,11 @@
                   padding:0.4rem 0.9rem;border-radius:5px;text-decoration:none;font-size:0.85rem;
                   white-space:nowrap;align-self:flex-start;">🔑 修改密碼</a>
     </div>
-    {% set total_items = total_tasks + total_journals + total_q %}
-    {% set done_items  = submitted_tasks.n + submitted_journals.n + completed_q %}
-    {% if total_items > 0 %}
+    {# 進度條：僅實驗組顯示（對照組提案數量彈性 1-4，固定分母無意義） #}
+    {% if current_user.experimental_group == 'experimental' %}
+        {% set total_items = total_tasks + total_journals + total_q %}
+        {% set done_items  = submitted_tasks.n + submitted_journals.n + completed_q %}
+        {% if total_items > 0 %}
         <div class="progress-bar-row">
             <div class="progress-label">
                 學期整體完成度：{{ done_items }}/{{ total_items }} 項已提交
@@ -189,6 +199,7 @@
                      style="width:{{ (done_items / total_items * 100) | int }}%;"></div>
             </div>
         </div>
+        {% endif %}
     {% endif %}
 </div>
 
@@ -208,8 +219,20 @@
 </div>
 {% endif %}
 
-{# ── 數字摘要 ── #}
+{# ── 數字摘要（依群組顯示不同欄位） ── #}
 <div class="summary-row">
+{% if current_user.experimental_group == 'control' %}
+    <div class="summary-box">
+        <div class="s-label">自主學習提案</div>
+        <div class="s-value">{{ submitted_proposals.n }}</div>
+        <div class="s-total">/ 4 份已提交</div>
+    </div>
+    <div class="summary-box">
+        <div class="s-label">教師已評定</div>
+        <div class="s-value">{{ finalized_proposals.n }}</div>
+        <div class="s-total">/ 4 份</div>
+    </div>
+{% else %}
     <div class="summary-box">
         <div class="s-label">EAGLE 任務</div>
         <div class="s-value">{{ submitted_tasks.n }}</div>
@@ -220,6 +243,7 @@
         <div class="s-value">{{ reviewed_tasks.n }}</div>
         <div class="s-total">/ {{ total_tasks }} 份</div>
     </div>
+{% endif %}
     <div class="summary-box">
         <div class="s-label">學習日誌</div>
         <div class="s-value">{{ submitted_journals.n }}</div>
@@ -233,8 +257,70 @@
 </div>
 
 {# ═══════════════════════════════════════════════════════════
-   EAGLE 四大任務
+   主要任務區塊：依分組分流
 ═══════════════════════════════════════════════════════════ #}
+{% if current_user.experimental_group == 'control' %}
+
+{# ── 對照組：自主學習提案 ── #}
+<div class="section-heading">自主學習提案</div>
+<div class="task-grid">
+    {% for p in self_study_proposals %}
+        {% if p.approval_status == 'finalized' %}
+            {% set header_cls = 'reviewed' %}
+            {% set pill_cls   = 'pill-reviewed' %}
+            {% set pill_text  = '✅ 已評定' %}
+        {% elif p.approval_status == 'result_submitted' %}
+            {% set header_cls = 'submitted' %}
+            {% set pill_cls   = 'pill-submitted' %}
+            {% set pill_text  = '🕐 成果待評閱' %}
+        {% elif p.approval_status == 'approved' %}
+            {% set header_cls = 'submitted' %}
+            {% set pill_cls   = 'pill-submitted' %}
+            {% set pill_text  = '✔ 提案已核准' %}
+        {% elif p.approval_status == 'submitted' %}
+            {% set header_cls = 'draft' %}
+            {% set pill_cls   = 'pill-draft' %}
+            {% set pill_text  = '🕐 待教師核准' %}
+        {% elif p.approval_status == 'revise_needed' %}
+            {% set header_cls = 'draft' %}
+            {% set pill_cls   = 'pill-draft' %}
+            {% set pill_text  = '⚠ 需修改提案' %}
+        {% else %}
+            {% set header_cls = 'pending' %}
+            {% set pill_cls   = 'pill-pending' %}
+            {% set pill_text  = '⬜ 草稿' %}
+        {% endif %}
+
+        {% set main_topic = ctrl_tasks[p.proposal_number]['topic'] if ctrl_tasks and p.proposal_number in ctrl_tasks else '' %}
+        <div class="task-card">
+            <div class="task-card-header {{ header_cls }}">
+                <div>
+                    <span class="task-num-badge">主題 {{ p.proposal_number }}</span>
+                </div>
+                <h3>{{ main_topic }}</h3>
+                {% if p.topic %}
+                    <div style="font-size:.8rem;opacity:.85;margin-top:.2rem;">{{ p.topic }}</div>
+                {% endif %}
+            </div>
+            <div class="task-card-body">
+                <span class="status-pill {{ pill_cls }}">{{ pill_text }}</span>
+                {% if p.updated_at %}
+                    <div class="task-updated">
+                        最後更新：{{ p.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                {% endif %}
+                <div class="task-card-action">
+                    <a href="{{ url_for('self_study_detail', n=p.proposal_number) }}"
+                       class="btn btn-primary">進入提案</a>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% elif current_user.experimental_group == 'experimental' %}
+
+{# ── 實驗組：EAGLE 四大任務 ── #}
 <div class="section-heading">EAGLE 自主學習任務</div>
 <div class="task-grid">
     {% for t_num, ts in task_status.items() | sort %}
@@ -292,6 +378,18 @@
         </div>
     {% endfor %}
 </div>
+
+{% else %}
+
+{# ── 未分群：提示等待教師分配 ── #}
+<div class="section-heading">學習任務</div>
+<div style="background:#fff; border-radius:8px; padding:2rem; text-align:center;
+            box-shadow:0 2px 8px rgba(0,0,0,.07); color:#888;">
+    <p style="font-size:1rem; margin-bottom:0.5rem;">你尚未被分配至實驗組或對照組。</p>
+    <p style="font-size:0.88rem;">請等待教師完成分群後，學習任務將在此顯示。</p>
+</div>
+
+{% endif %}
 
 {# ═══════════════════════════════════════════════════════════
    工作坊（v2.5.0）
@@ -359,9 +457,9 @@
         <div class="journal-card {% if js.submitted %}done{% else %}open{% endif %}">
             <div class="journal-title">
                 {% if js.submitted %}✅{% else %}📝{% endif %}
-                日誌 {{ j_num }}：{{ js.title }}
+                {{ js.title }}
             </div>
-            <div class="journal-meta">第 {{ js.week }} 週</div>
+            <div class="journal-meta">繳交日期：{{ js.due_date if js.due_date else '第 ' ~ js.week ~ ' 週' }}</div>
             {% if js.submitted %}
                 <a href="{{ url_for('view_journal', journal_number=j_num) }}"
                    class="btn btn-outline btn-small" style="width:100%;text-align:center;">查看 / 修改</a>

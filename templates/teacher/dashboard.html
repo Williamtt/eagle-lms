@@ -186,12 +186,14 @@
                     <form method="POST"
                           action="{{ url_for('teacher_approve_user', uid=u.id) }}"
                           style="display:inline;">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-approve">核准</button>
                     </form>
                     <form method="POST"
                           action="{{ url_for('teacher_reject_user', uid=u.id) }}"
                           style="display:inline;"
                           onsubmit="return confirm('確定拒絕並刪除 {{ u.name }} 的申請？');">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-reject">拒絕</button>
                     </form>
                 </td>
@@ -257,7 +259,7 @@
                 </div>
                 <div class="stat-row">
                     <span class="stat-row-label">參與學生</span>
-                    <span class="stat-row-val">{{ ts.unique_students }} / {{ total_students }}</span>
+                    <span class="stat-row-val">{{ ts.unique_students }} / {{ experimental_count }}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-row-label">已評閱</span>
@@ -348,18 +350,25 @@
                 <th>學號</th>
                 <th>姓名</th>
                 <th>班級</th>
-                <th>提交任務數</th>
+                <th>學習進度</th>
                 <th>操作</th>
             </tr>
         </thead>
         <tbody>
             {% for student in students %}
-                {% set s_tasks = student.task_submissions.filter_by(semester='114-1').count() %}
                 <tr>
                     <td>{{ student.student_id }}</td>
                     <td>{{ student.name }}</td>
                     <td><span class="class-badge">{{ student.class_group }}</span></td>
-                    <td>{{ s_tasks }} / {{ task_stats | length }}</td>
+                    <td>
+                        {% if student.experimental_group == 'control' %}
+                            提案已提交 {{ proposal_counts.get(student.id, 0) }} 份
+                        {% elif student.experimental_group == 'experimental' %}
+                            任務 {{ student.task_submissions.filter_by(semester=semester).count() }} / {{ task_stats | length }}
+                        {% else %}
+                            <span style="color:#aaa;">未分群</span>
+                        {% endif %}
+                    </td>
                     <td style="white-space:nowrap;">
                         <a href="{{ url_for('teacher_student_profile', uid=student.id) }}"
                            class="btn-profile">學習歷程</a>
@@ -368,12 +377,14 @@
                         <form method="POST"
                               action="{{ url_for('teacher_toggle_user', uid=student.id) }}"
                               style="display:inline;">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                             <button type="submit" class="btn-action">停用</button>
                         </form>
                         <form method="POST"
                               action="{{ url_for('teacher_delete_user', uid=student.id) }}"
                               style="display:inline;"
                               onsubmit="return confirm('確定刪除 {{ student.name }} 的帳號及所有資料？此操作不可還原。');">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                             <button type="submit" class="btn-danger">刪除</button>
                         </form>
                     </td>
@@ -407,12 +418,14 @@
                     <form method="POST"
                           action="{{ url_for('teacher_toggle_user', uid=u.id) }}"
                           style="display:inline;">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-approve">重新啟用</button>
                     </form>
                     <form method="POST"
                           action="{{ url_for('teacher_delete_user', uid=u.id) }}"
                           style="display:inline;"
                           onsubmit="return confirm('確定刪除 {{ u.name }} 的帳號？');">
+                        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                         <button type="submit" class="btn-danger">刪除</button>
                     </form>
                 </td>
@@ -431,6 +444,7 @@
         <h3 style="color:#1a5276;margin:0 0 0.3rem;">重設密碼</h3>
         <p id="resetModalName" style="color:#888;font-size:0.88rem;margin:0 0 1.2rem;"></p>
         <form id="resetForm" method="POST">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
             <div style="margin-bottom:1rem;">
                 <label style="display:block;font-size:0.85rem;color:#555;margin-bottom:0.3rem;">新密碼（至少 6 字元）</label>
                 <input type="password" name="new_password" id="resetPwInput" required minlength="6"

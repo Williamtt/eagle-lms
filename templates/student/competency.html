@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}能力雷達圖 - EAGLE 2.0 LMS{% endblock %}
+
+{% block content %}
+<style>
+    .radar-card {
+        background: #fff;
+        border: 1px solid #dde3ea;
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    .radar-card h2 { margin: 0 0 0.25rem; font-size: 1.15rem; color: #1a3a5c; }
+    .radar-subtitle { font-size: 0.85rem; color: #666; margin-bottom: 1.5rem; }
+    .radar-chart-wrap { max-width: 440px; margin: 0 auto; }
+    .no-data-msg { text-align: center; color: #888; padding: 2.5rem 0; font-size: 0.95rem; }
+    .legend {
+        display: flex; gap: 1.5rem; justify-content: center;
+        margin-top: 1rem; font-size: 0.85rem;
+    }
+    .legend-dot {
+        display: inline-block; width: 12px; height: 12px;
+        border-radius: 50%; margin-right: 4px; vertical-align: middle;
+    }
+</style>
+
+<h1 style="margin-bottom:1.5rem;color:#1a3a5c;">能力雷達圖</h1>
+
+{# ── 能力向度（任務 Rubric + DP5 口頭報告）── #}
+{% set has_competency = competency.has_performance or competency.has_perception %}
+<div class="radar-card">
+    <h2>能力向度評分</h2>
+    <p class="radar-subtitle">教師評分 vs. 自我評估（DP5 口頭報告）；各項 1–5 分</p>
+    {% if has_competency %}
+        <div class="radar-chart-wrap"><canvas id="competencyRadar"></canvas></div>
+        <div class="legend">
+            <span><span class="legend-dot" style="background:#2980b9;"></span>教師評分</span>
+            <span><span class="legend-dot" style="background:#e67e22;"></span>自評（DP5）</span>
+        </div>
+    {% else %}
+        <div class="no-data-msg">尚無資料——任務 Rubric 確認或口頭報告評分後才會顯示。</div>
+    {% endif %}
+</div>
+
+{# ── ARCSA 學習動機雷達圖 ── #}
+{% set has_arcsa = arcsa.has_pre or arcsa.has_post %}
+<div class="radar-card">
+    <h2>ARCSA 學習動機</h2>
+    <p class="radar-subtitle">前測 vs. 後測各構面平均分（1–5 分）</p>
+    {% if has_arcsa %}
+        <div class="radar-chart-wrap"><canvas id="arcsaRadar"></canvas></div>
+        <div class="legend">
+            {% if arcsa.has_pre  %}<span><span class="legend-dot" style="background:#2980b9;"></span>前測</span>{% endif %}
+            {% if arcsa.has_post %}<span><span class="legend-dot" style="background:#e67e22;"></span>後測</span>{% endif %}
+        </div>
+    {% else %}
+        <div class="no-data-msg">尚無資料——填答 ARCSA 前後測問卷後才會顯示。</div>
+    {% endif %}
+</div>
+
+<div style="margin-bottom:3rem;">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">← 返回儀表板</a>
+</div>
+
+{% if has_competency or has_arcsa %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+/* ── competency_radar_viewed beacon（只觀察真有 canvas 的卡，避免空狀態誤觸）── */
+(function() {
+    const canvas = document.querySelector('.radar-card canvas');
+    if (!canvas) return;
+    const card = canvas.closest('.radar-card');
+    if (!card) return;
+    let timer = null, fired = false;
+    const observer = new IntersectionObserver(function(entries) {
+        if (fired) return;
+        if (entries[0].isIntersecting) {
+            if (!timer) timer = setTimeout(function() {
+                fired = true;
+                observer.disconnect();
+                fetch('/api/event/competency-radar-viewed', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{}',
+                });
+            }, 2000);
+        } else { clearTimeout(timer); timer = null; }
+    }, {threshold: 0.5});
+    observer.observe(card);
+})();
+
+/* ── 能力向度雷達圖 ── */
+{% if has_competency %}
+(function() {
+    const axes  = {{ competency.axes | tojson }};
+    const desc  = {{ axes_desc | tojson }};
+    const labels = axes.map(a => desc[a] ? (a + '\n' + desc[a].slice(0, 10)) : a);
+    const perf  = {{ competency.performance | tojson }};
+    const perc  = {{ competency.perception  | tojson }};
+    const perfData = axes.map(a => perf[a] != null ? perf[a] : null);
+    const percData = axes.map(a => perc[a] != null ? perc[a] : null);
+
+    new Chart(document.getElementById('competencyRadar'), {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '教師評分',
+                    data: perfData,
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(41,128,185,0.15)',
+                    pointBackgroundColor: '#2980b9',
+                    spanGaps: false,
+                },
+                {
+                    label: '自評',
+                    data: percData,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230,126,34,0.12)',
+                    pointBackgroundColor: '#e67e22',
+                    spanGaps: false,
+                    hidden: {{ 'false' if competency.has_perception else 'true' }},
+                },
+            ],
+        },
+        options: {
+            scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, pointLabels: { font: { size: 11 } } } },
+            plugins: { legend: { display: false } },
+        },
+    });
+})();
+{% endif %}
+
+/* ── ARCSA 學習動機雷達圖 ── */
+{% if has_arcsa %}
+(function() {
+    const dims   = ['attention', 'relevance', 'confidence', 'satisfaction', 'accountability'];
+    const labels = ['引起注意', '切身相關', '建立信心', '獲得滿足', '必須當責'];
+    const preDict  = {{ arcsa.pre  | tojson }};
+    const postDict = {{ arcsa.post | tojson }};
+    const preData  = dims.map(d => preDict  && preDict[d]  != null ? preDict[d]  : null);
+    const postData = dims.map(d => postDict && postDict[d] != null ? postDict[d] : null);
+
+    new Chart(document.getElementById('arcsaRadar'), {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '前測',
+                    data: preData,
+                    borderColor: '#2980b9',
+                    backgroundColor: 'rgba(41,128,185,0.12)',
+                    pointBackgroundColor: '#2980b9',
+                    hidden: {{ 'false' if arcsa.has_pre else 'true' }},
+                },
+                {
+                    label: '後測',
+                    data: postData,
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230,126,34,0.12)',
+                    pointBackgroundColor: '#e67e22',
+                    hidden: {{ 'false' if arcsa.has_post else 'true' }},
+                },
+            ],
+        },
+        options: {
+            scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 }, pointLabels: { font: { size: 12 } } } },
+            plugins: { legend: { display: false } },
+        },
+    });
+})();
+{% endif %}
+</script>
+{% endif %}
+{% endblock %}

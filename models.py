@@ -19,6 +19,7 @@ class User(UserMixin, db.Model):
     role         = db.Column(db.String(10), default='student')   # student / teacher
     class_group  = db.Column(db.String(20), default='A')         # 營建管理A班 / 營建管理B班
     status       = db.Column(db.String(10), default='active')    # pending / active / disabled
+    experimental_group = db.Column(db.String(20), nullable=True) # 'experimental' | 'control' | NULL=未分組
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
     consent_agreed_at    = db.Column(db.DateTime, nullable=True)
     reset_requested_at   = db.Column(db.DateTime, nullable=True)
@@ -60,6 +61,9 @@ class TaskSubmission(db.Model):
     status       = db.Column(db.String(20), default='submitted') # draft / submitted / reviewed
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'task_number', 'semester',
+                                          name='uq_task_submission_per_semester'),)
 
     # 子表關聯（cascade 確保刪除 TaskSubmission 時子表一併清除）
     question_responses   = db.relationship('QuestionResponse',   backref='task_submission',
@@ -164,6 +168,15 @@ class TeacherReview(db.Model):
     score         = db.Column(db.Float, nullable=True)  # 0–100
     published     = db.Column(db.Boolean, default=False)
     reviewed_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    # v2.5.0：對稱對照組 finalized 機制
+    rubric_json         = db.Column(db.Text, default='')        # {"DP1": 4, "EP4": 3, ...}
+    rubric_finalized_at = db.Column(db.DateTime, nullable=True) # 教師按「確認」才寫入
+    rubric_source       = db.Column(db.String(40), default='')  # 'teacher_manual' | 'ai_adopted_then_confirmed'
+
+    __table_args__ = (
+        db.UniqueConstraint('task_submission_id',
+                            name='uq_teacher_review_per_submission'),
+    )
 
 
 class AIReviewSuggestion(db.Model):
@@ -234,6 +247,9 @@ class QuestionnaireSubmission(db.Model):
     answers = db.relationship('QuestionnaireAnswer', backref='submission',
                               cascade='all, delete-orphan', lazy='dynamic')
 
+    __table_args__ = (db.UniqueConstraint('user_id', 'questionnaire_id',
+                                          name='uq_questionnaire_per_user'),)
+
 
 class QuestionnaireAnswer(db.Model):
     """問卷中單一題目的回答"""
@@ -260,6 +276,7 @@ class LearningJournal(db.Model):
     content        = db.Column(db.Text, default='')
     submitted_at   = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at     = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    evaluation_json = db.Column(db.Text, default='')  # journal 5 DP5 自評 perception（{"DP5": {"self_rating": 4, "evidence": "..."}}）
 
 
 # =============================================================================
@@ -409,3 +426,136 @@ class WorkshopParticipation(db.Model):
     user = db.relationship('User', foreign_keys=[user_id])
 
     __table_args__ = (db.UniqueConstraint('workshop_id', 'user_id'),)
+
+
+# =============================================================================
+# v2.5.0 新增
+# =============================================================================
+
+class LearningEvent(db.Model):
+    """學習行為事件 log，供 EP3 自我監測與 EP4 trigger 細分使用。"""
+    __tablename__ = 'learning_events'
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    event_type  = db.Column(db.String(50), nullable=False, index=True)
+    # ai_feedback_received | ai_feedback_viewed | task_resubmitted | competency_radar_viewed
+    entity_type = db.Column(db.String(30), default='')   # 'task_submission' | ''
+    entity_id   = db.Column(db.Integer, nullable=True)
+    payload_json = db.Column(db.Text, default='')
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+
+class TaskSubmissionSnapshot(db.Model):
+    """任務提交的版本快照，記錄每次重交當下的內容與 AI 分數。"""
+    __tablename__ = 'task_submission_snapshots'
+    id                  = db.Column(db.Integer, primary_key=True)
+    task_submission_id  = db.Column(db.Integer, db.ForeignKey('task_submissions.id'),
+                                    nullable=False, index=True)
+    revision_number     = db.Column(db.Integer, nullable=False)
+    trigger             = db.Column(db.String(50), nullable=False)
+    # submitted_initial | ai_feedback_attached |
+    # submitted_after_feedback | resubmitted_without_feedback_view
+    payload_json        = db.Column(db.Text, nullable=False)  # 當下內容 + AI 分數
+    last_ai_feedback_id = db.Column(db.Integer, db.ForeignKey('ai_feedbacks.id'), nullable=True)
+    created_at          = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class TaskSchedule(db.Model):
+    """任務日期權威來源。每次調整寫新 row，最新 effective_from <= now() 為有效值。"""
+    __tablename__ = 'task_schedules'
+    id             = db.Column(db.Integer, primary_key=True)
+    task_number    = db.Column(db.Integer, nullable=False, index=True)
+    opens_at       = db.Column(db.DateTime, nullable=False)
+    deadline_at    = db.Column(db.DateTime, nullable=False)
+    effective_from = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    set_by         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    date_source    = db.Column(db.String(50), default='')
+    # 'retrospective_from_syllabus_YYYY-MM-DD' | 'teacher_defined_YYYY-MM-DD' | 'syllabus_default'
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class TaskDateChangeLog(db.Model):
+    """任務日期變更歷程，純 audit log，不作為有效值來源。"""
+    __tablename__ = 'task_date_change_logs'
+    id          = db.Column(db.Integer, primary_key=True)
+    task_number = db.Column(db.Integer, nullable=False, index=True)
+    schedule_id = db.Column(db.Integer, db.ForeignKey('task_schedules.id'), nullable=False)
+    field_name  = db.Column(db.String(20), nullable=False)
+    old_value   = db.Column(db.String(40), default='')
+    new_value   = db.Column(db.String(40), nullable=False)
+    changed_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    reason      = db.Column(db.Text, default='')
+    changed_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class SelfStudyProposal(db.Model):
+    """對照組自主學習提案（提案→核准→執行→成果→評閱 完整流程）。"""
+    __tablename__ = 'self_study_proposals'
+    id              = db.Column(db.Integer, primary_key=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    proposal_number = db.Column(db.Integer, nullable=False)  # 1–4
+    semester        = db.Column(db.String(10), nullable=False)
+
+    # 提案
+    topic           = db.Column(db.String(200), default='')
+    motivation      = db.Column(db.Text, default='')
+    expected_output = db.Column(db.Text, default='')
+    schedule        = db.Column(db.Text, default='')
+    proposed_at     = db.Column(db.DateTime, nullable=True)
+
+    # 核准
+    approval_status      = db.Column(db.String(20), default='draft')
+    # draft | submitted | approved | revise_needed | result_submitted | finalized | overdue
+    teacher_comment      = db.Column(db.Text, default='')
+    reviewed_by          = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    reviewed_at          = db.Column(db.DateTime, nullable=True)
+    proposal_deadline_at = db.Column(db.DateTime, nullable=True)
+    result_deadline_at   = db.Column(db.DateTime, nullable=True)
+
+    # 成果
+    result_content      = db.Column(db.Text, default='')
+    result_file_path    = db.Column(db.String(500), default='')
+    result_file_name    = db.Column(db.String(200), default='')
+    reflection          = db.Column(db.Text, default='')
+    result_submitted_at = db.Column(db.DateTime, nullable=True)
+
+    # 評閱
+    final_score    = db.Column(db.Float, nullable=True)
+    final_feedback = db.Column(db.Text, default='')
+    rubric_json    = db.Column(db.Text, default='')
+    reviewer_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    finalized_at   = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'proposal_number', 'semester'),)
+
+
+class OralPresentationAssessment(db.Model):
+    """期末口頭報告教師現場觀察評分。DP5 正式 performance 資料源，兩組共用。"""
+    __tablename__ = 'oral_presentation_assessments'
+    id       = db.Column(db.Integer, primary_key=True)
+    user_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    semester = db.Column(db.String(10), nullable=False)
+
+    # 4 個向度（1–5 分），nullable 直到教師評分
+    score_content   = db.Column(db.Integer, nullable=True)  # 專業內容正確性
+    score_structure = db.Column(db.Integer, nullable=True)  # 報告結構清楚度
+    score_delivery  = db.Column(db.Integer, nullable=True)  # 口語表達與時間掌控
+    score_qa        = db.Column(db.Integer, nullable=True)  # 問題回應與當責說明
+
+    teacher_comment   = db.Column(db.Text, default='')
+    reviewer_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    finalized_at      = db.Column(db.DateTime, nullable=True)  # 教師按「確認」才寫入
+
+    presentation_date  = db.Column(db.DateTime, nullable=True)
+    supplementary_url  = db.Column(db.String(500), default='')
+    supplementary_note = db.Column(db.Text, default='')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'semester'),)

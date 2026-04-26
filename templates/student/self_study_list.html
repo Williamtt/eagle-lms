@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}自主學習提案 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { background: linear-gradient(135deg,#1a5276,#2980b9); color:#fff;
+                   padding:1.5rem 2rem; border-radius:8px; margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.5rem; margin:0 0 0.25rem; }
+    .page-header p  { margin:0; opacity:.85; font-size:.9rem; }
+    .proposal-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+                     gap:1.2rem; }
+    .proposal-card { background:#fff; border-radius:8px; overflow:hidden;
+                     box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .card-hd { padding:1rem 1.2rem; color:#fff; }
+    .card-hd.st-draft     { background:linear-gradient(135deg,#7f8c8d,#95a5a6); }
+    .card-hd.st-submitted { background:linear-gradient(135deg,#b7950b,#d4ac0d); }
+    .card-hd.st-revise    { background:linear-gradient(135deg,#c0392b,#e74c3c); }
+    .card-hd.st-approved  { background:linear-gradient(135deg,#1a5276,#2980b9); }
+    .card-hd.st-result    { background:linear-gradient(135deg,#1a5276,#2980b9); }
+    .card-hd.st-final     { background:linear-gradient(135deg,#1e8449,#27ae60); }
+    .card-hd h3 { margin:0 0 .15rem; font-size:1rem; }
+    .card-hd .subtitle { font-size:.82rem; opacity:.88; margin-top:.2rem; }
+    .card-bd { padding:1rem 1.2rem; }
+    .status-chip { display:inline-block; padding:.2rem .6rem; border-radius:10px;
+                   font-size:.78rem; font-weight:600; }
+    .st-draft     { background:#f2f3f4; color:#888; }
+    .st-submitted { background:#fef9e7; color:#856404; }
+    .st-approved  { background:#d4efdf; color:#1e8449; }
+    .st-revise    { background:#fde8e8; color:#c0392b; }
+    .st-result    { background:#d6eaf8; color:#1a5276; }
+    .st-final     { background:#d5f5e3; color:#1e8449; }
+    .axes-pill { display:inline-block; background:#d6eaf8; color:#1a5276;
+                 padding:.1rem .45rem; border-radius:8px; font-size:.75rem;
+                 font-weight:600; margin:.15rem .1rem 0 0; }
+    .btn-go { display:block; text-align:center; background:#1a5276; color:#fff;
+              padding:.55rem; border-radius:6px; text-decoration:none;
+              font-size:.9rem; margin-top:.8rem; }
+    .btn-go:hover { background:#2980b9; color:#fff; }
+</style>
+
+<div class="page-header">
+    <h1>自主學習提案</h1>
+    <p>四個學習主題已由系統建立。填寫學習計畫 → 教師核准 → 執行並繳交成果。</p>
+</div>
+
+<div class="proposal-grid">
+{% for p in proposals %}
+    {% set td = ctrl_tasks[p.proposal_number] %}
+    {% if p.approval_status == 'draft' %}
+        {% set hd_cls = 'st-draft' %}{% set chip_cls = 'st-draft' %}{% set chip_txt = '草稿' %}
+    {% elif p.approval_status == 'submitted' %}
+        {% set hd_cls = 'st-submitted' %}{% set chip_cls = 'st-submitted' %}{% set chip_txt = '待審核' %}
+    {% elif p.approval_status == 'approved' %}
+        {% set hd_cls = 'st-approved' %}{% set chip_cls = 'st-approved' %}{% set chip_txt = '✔ 已核准' %}
+    {% elif p.approval_status == 'revise_needed' %}
+        {% set hd_cls = 'st-revise' %}{% set chip_cls = 'st-revise' %}{% set chip_txt = '⚠ 請修改' %}
+    {% elif p.approval_status == 'result_submitted' %}
+        {% set hd_cls = 'st-result' %}{% set chip_cls = 'st-result' %}{% set chip_txt = '成果審閱中' %}
+    {% elif p.approval_status == 'finalized' %}
+        {% set hd_cls = 'st-final' %}{% set chip_cls = 'st-final' %}{% set chip_txt = '✅ 已完成' %}
+    {% else %}
+        {% set hd_cls = 'st-draft' %}{% set chip_cls = 'st-draft' %}{% set chip_txt = p.approval_status %}
+    {% endif %}
+
+    <div class="proposal-card">
+        <div class="card-hd {{ hd_cls }}">
+            <div style="font-size:.75rem;opacity:.8;margin-bottom:.25rem;">主題 {{ p.proposal_number }}</div>
+            <h3>{{ td.topic }}</h3>
+            {% if p.topic %}
+                <div class="subtitle">{{ p.topic }}</div>
+            {% endif %}
+        </div>
+        <div class="card-bd">
+            <span class="status-chip {{ chip_cls }}">{{ chip_txt }}</span>
+            <div style="margin-top:.5rem;">
+                {% for ax in td.axes %}
+                    <span class="axes-pill">{{ ax }}</span>
+                {% endfor %}
+            </div>
+            <a href="{{ url_for('self_study_detail', n=p.proposal_number) }}" class="btn-go">
+                {% if p.approval_status in ('draft','revise_needed') %}填寫學習計畫
+                {% elif p.approval_status == 'approved' %}繳交成果
+                {% else %}查看詳情{% endif %}
+            </a>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}

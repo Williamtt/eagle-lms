@@ -103,6 +103,45 @@
 
         <div class="word-count" id="word-count">0 字</div>
 
+        {# ── Journal 5：DP5 自評（perception series）── #}
+        {% if j_def.journal_number == 5 %}
+        <div style="margin-top:1.5rem;background:#eafaf1;border:1px solid #a9dfbf;
+                    border-radius:8px;padding:1.2rem 1.5rem;">
+            <div style="font-size:.95rem;font-weight:700;color:#1e8449;margin-bottom:.3rem;">
+                DP5 自評（口頭報告能力）
+            </div>
+            <p style="font-size:.85rem;color:#555;margin:.2rem 0 .9rem;">
+                期末口頭報告的自我評估，供研究使用（perception series）。
+            </p>
+
+            <label style="font-size:.88rem;font-weight:600;color:#333;">自評分數（1–5 分）</label>
+            <select name="dp5_self_rating"
+                    style="display:block;margin:.3rem 0 .9rem;padding:.4rem .6rem;
+                           border:1px solid #ccc;border-radius:5px;font-size:.9rem;">
+                <option value="">— 請選擇 —</option>
+                {% for v in [1,2,3,4,5] %}
+                <option value="{{ v }}"
+                    {% if dp5_data.get('self_rating') == v %}selected{% endif %}>
+                    {{ v }}
+                    {% if v == 1 %}（非常不足）
+                    {% elif v == 2 %}（不足）
+                    {% elif v == 3 %}（達標）
+                    {% elif v == 4 %}（良好）
+                    {% else %}（優秀）
+                    {% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label style="font-size:.88rem;font-weight:600;color:#333;">佐證說明（請描述你在口頭報告中的表現）</label>
+            <textarea name="dp5_evidence"
+                      style="width:100%;min-height:80px;padding:.5rem .7rem;
+                             border:1px solid #ccc;border-radius:5px;font-size:.9rem;
+                             resize:vertical;box-sizing:border-box;margin-top:.3rem;"
+                      placeholder="例：在第 12 週工地說明中，我向業主報告了進度落後原因，並即時回應了 3 個問題…">{{ dp5_data.get('evidence', '') }}</textarea>
+        </div>
+        {% endif %}
+
         <div class="submit-bar">
             <button type="submit" class="btn btn-success"
                     style="font-size:1.05rem;padding:0.85rem 2rem;"

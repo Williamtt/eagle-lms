@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}審閱提案 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { background:linear-gradient(135deg,#1a5276,#2980b9); color:#fff;
+                   padding:1.4rem 2rem; border-radius:8px; margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.4rem; margin:0 0 .2rem; }
+    .section-card { background:#fff; border-radius:8px; padding:1.4rem 1.8rem;
+                    box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:1.2rem; }
+    .section-title { font-size:1rem; font-weight:700; color:#1a5276;
+                     border-left:4px solid #2980b9; padding-left:.6rem; margin-bottom:.9rem; }
+    .readonly-box { background:#f8f9fa; border:1px solid #e0e0e0; border-radius:5px;
+                    padding:.55rem .7rem; font-size:.9rem; white-space:pre-wrap; color:#333;
+                    margin-bottom:.6rem; }
+    label { display:block; font-weight:600; font-size:.88rem; color:#555; margin:.7rem 0 .2rem; }
+    textarea { width:100%; padding:.55rem .7rem; border:1px solid #ccc; border-radius:5px;
+               font-size:.9rem; resize:vertical; min-height:80px; box-sizing:border-box; }
+    input[type=number] { width:70px; padding:.4rem .5rem; border:1px solid #ccc;
+                         border-radius:5px; font-size:.9rem; }
+    .evidence-row { display:flex; align-items:center; gap:.6rem; padding:.45rem .7rem;
+                    border:1px solid #e0e0e0; border-radius:5px; margin:.4rem 0;
+                    background:#f8f9fa; }
+    .evidence-row input[type=checkbox] { width:16px; height:16px; cursor:pointer; }
+    .evidence-label { font-size:.9rem; font-weight:600; color:#1a5276; }
+    .evidence-desc  { font-size:.82rem; color:#666; }
+    .btn-approve  { background:#1e8449; color:#fff; border:none; padding:.65rem 1.6rem;
+                    border-radius:6px; cursor:pointer; font-size:.92rem; }
+    .btn-revise   { background:#c0392b; color:#fff; border:none; padding:.65rem 1.2rem;
+                    border-radius:6px; cursor:pointer; font-size:.92rem; }
+    .btn-finalize { background:#1a5276; color:#fff; border:none; padding:.65rem 1.6rem;
+                    border-radius:6px; cursor:pointer; font-size:.92rem; }
+    .btn-approve:hover  { background:#27ae60; }
+    .btn-revise:hover   { background:#e74c3c; }
+    .btn-finalize:hover { background:#2980b9; }
+    .btn-approve:disabled {
+        background:#ccc; color:#888; cursor:not-allowed; opacity:1;
+    }
+    .axes-badge { display:inline-block; background:#1a5276; color:#fff;
+                  padding:.15rem .55rem; border-radius:10px; font-size:.8rem;
+                  font-weight:700; margin-right:.3rem; }
+    .warning-box { background:#fef9e7; border:1px solid #f9ca24; border-radius:6px;
+                   padding:.7rem 1rem; font-size:.85rem; color:#7d6608; margin-bottom:1rem; }
+    .score-row { display:flex; align-items:center; gap:.8rem; padding:.4rem 0;
+                 border-bottom:1px solid #f0f0f0; }
+    .score-row:last-child { border-bottom:none; }
+    .score-ax { font-weight:700; color:#1a5276; width:50px; }
+    .score-hint { font-size:.8rem; color:#888; }
+</style>
+
+<div class="page-header">
+    <h1>主題 {{ proposal.proposal_number }}：{{ task_def.topic if task_def else '' }}</h1>
+    {% if proposal.topic %}
+        <p style="opacity:.88;font-size:.9rem;margin:.2rem 0 0;">{{ proposal.topic }}</p>
+    {% endif %}
+    <p>學生：{{ student.name }}（{{ student.student_id }}）</p>
+</div>
+
+<a href="{{ url_for('teacher_self_study_list') }}" style="font-size:.88rem;color:#1a5276;">&larr; 返回列表</a>
+
+{# ── 學習主題說明 ── #}
+<div class="section-card" style="margin-top:1rem;">
+    <div class="section-title">學習主題範疇</div>
+    {% if task_def.description %}
+        <p style="font-size:.9rem;color:#555;line-height:1.6;margin:0 0 .7rem;">{{ task_def.description }}</p>
+    {% endif %}
+    {% if score_axes %}
+        <div style="margin-top:.5rem;">
+            {% for ax in score_axes %}
+            <div class="evidence-row" style="background:#f0f4f8;border-color:#aed6f1;margin:.35rem 0;">
+                <span class="axes-badge">{{ ax }}</span>
+                <span class="evidence-desc">{{ axes_desc.get(ax, ax) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+{# ── 學生學習計畫（通用顯示）── #}
+<div class="section-card">
+    <div class="section-title">學生學習計畫</div>
+    {% if proposal.topic %}
+        <label>副標題</label><div class="readonly-box">{{ proposal.topic }}</div>
+    {% endif %}
+    <label>學習計畫</label><div class="readonly-box">{{ proposal.motivation or '（未填）' }}</div>
+    <label>預期成果</label><div class="readonly-box">{{ proposal.expected_output or '（未填）' }}</div>
+    {% if proposal.schedule %}
+        <label>執行時程</label><div class="readonly-box">{{ proposal.schedule }}</div>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════
+   審核中（submitted）→ 顯示核准 / 退回表單
+   ══════════════════════════════════════════════════════════════════════ #}
+{% if proposal.approval_status == 'submitted' %}
+<div class="section-card">
+    <div class="section-title">審核提案</div>
+    <form method="post" action="{{ url_for('teacher_self_study_approve', proposal_id=proposal.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <label style="margin-top:0;">教師備注（可選，核准或退回時均可填寫）</label>
+        <textarea name="teacher_comment" placeholder="給學生的說明或建議...">{{ proposal.teacher_comment }}</textarea>
+
+        <div style="margin-top:1rem;background:#eaf4fb;border:1px solid #aed6f1;border-radius:6px;padding:.8rem 1rem;">
+            <div style="font-size:.88rem;font-weight:700;color:#1a5276;margin-bottom:.5rem;">核准前確認</div>
+            {% for ax in score_axes %}
+            <div class="evidence-row" style="background:#fff;">
+                <input type="checkbox" id="ev_{{ loop.index }}" name="evidence_{{ ax }}" required
+                       onchange="(function(){
+                           var boxes=[...document.querySelectorAll('input[name^=evidence_]')];
+                           document.getElementById('btn-approve').disabled=boxes.some(function(c){return !c.checked});
+                       })()">
+                <label for="ev_{{ loop.index }}" style="margin:0;font-weight:normal;display:inline;">
+                    <span class="axes-badge">{{ ax }}</span>
+                    <span class="evidence-label" style="font-size:.88rem;"> {{ axes_desc.get(ax, ax) }}</span>
+                    <span class="evidence-desc"> — 確認可產生至少 1 條具體學習證據</span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="margin-top:1.2rem;display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">
+            <button type="submit" name="decision" value="approve" class="btn-approve"
+                    id="btn-approve" disabled>核准提案</button>
+            <button type="submit" name="decision" value="revise" class="btn-revise"
+                    onclick="this.form.querySelectorAll('input[type=checkbox]').forEach(c=>c.removeAttribute('required'))">
+                退回修改
+            </button>
+        </div>
+    </form>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════
+   成果審閱（result_submitted）→ 顯示成果 + 評分表單
+   ══════════════════════════════════════════════════════════════════════ #}
+{% elif proposal.approval_status == 'result_submitted' %}
+<div class="section-card">
+    <div class="section-title">學生繳交成果</div>
+    <label>成果說明</label><div class="readonly-box">{{ proposal.result_content }}</div>
+    {% if proposal.reflection %}
+        <label>反思</label><div class="readonly-box">{{ proposal.reflection }}</div>
+    {% endif %}
+    {% if proposal.result_file_name %}
+        <p style="font-size:.88rem;margin-top:.5rem;">
+            附件：{{ proposal.result_file_name }}
+        </p>
+    {% endif %}
+</div>
+<div class="section-card">
+    <div class="section-title">Rubric 評分（1–5 分）</div>
+
+    <div style="margin-bottom:1rem;">
+        <button type="button" id="aiRubricBtn" onclick="fetchAiRubric()"
+                style="background:#8e44ad;color:#fff;border:none;padding:.5rem 1.2rem;border-radius:5px;cursor:pointer;font-size:.9rem;">
+            🤖 AI 建議 Rubric
+        </button>
+        <span id="aiRubricStatus" style="margin-left:.75rem;font-size:.85rem;color:#666;"></span>
+    </div>
+    <div id="aiRubricComment" style="display:none;background:#f5eefb;border-left:3px solid #8e44ad;padding:.75rem 1rem;margin-bottom:1rem;font-size:.88rem;color:#444;border-radius:4px;"></div>
+
+    <form method="post" action="{{ url_for('teacher_self_study_finalize', proposal_id=proposal.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        {% for ax in score_axes %}
+        <div class="score-row">
+            <span class="score-ax">{{ ax }}</span>
+            <span style="font-size:.8rem;color:#666;margin-right:.5rem;">{{ axes_desc.get(ax, '') | truncate(18, true, '…') }}</span>
+            <input type="number" id="score_input_{{ ax }}" name="score_{{ ax }}" min="1" max="5" placeholder="1–5">
+            <span class="score-hint">1=不足 / 3=達標 / 5=優秀</span>
+        </div>
+        {% endfor %}
+
+        <label style="margin-top:1rem;">教師評語</label>
+        <textarea id="finalFeedback" name="final_feedback" placeholder="給學生的整體回饋...">{{ proposal.final_feedback }}</textarea>
+
+        <div style="margin-top:1.2rem;">
+            <button type="submit" class="btn-finalize">確認評閱並完成認證</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function fetchAiRubric() {
+    const btn = document.getElementById('aiRubricBtn');
+    const status = document.getElementById('aiRubricStatus');
+    const commentBox = document.getElementById('aiRubricComment');
+    btn.disabled = true;
+    status.textContent = '產生中…';
+    commentBox.style.display = 'none';
+
+    fetch('{{ url_for("teacher_self_study_ai_rubric", proposal_id=proposal.id) }}')
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.error) {
+                status.textContent = data.message || data.error;
+                return;
+            }
+            const scores = data.rubric_scores || {};
+            let filled = 0;
+            Object.entries(scores).forEach(([ax, score]) => {
+                const el = document.getElementById('score_input_' + ax);
+                if (el) { el.value = score; filled++; }
+            });
+            if (data.comment) {
+                commentBox.textContent = '📝 AI 評語：' + data.comment;
+                commentBox.style.display = 'block';
+            }
+            status.textContent = `已填入 ${filled} 個向度，請確認後送出。`;
+        })
+        .catch(e => {
+            btn.disabled = false;
+            status.textContent = '連線失敗：' + e;
+        });
+}
+</script>
+
+{# ══════════════════════════════════════════════════════════════════════
+   其他狀態（approved / finalized / draft / revise_needed）→ 唯讀
+   ══════════════════════════════════════════════════════════════════════ #}
+{% else %}
+<div class="section-card">
+    <p style="color:#888;font-size:.9rem;">
+        目前狀態：<strong>{{ proposal.approval_status }}</strong>。
+        {% if proposal.approval_status == 'approved' %}學生正在執行，尚未繳交成果。
+        {% elif proposal.approval_status == 'finalized' %}已完成評閱。
+        {% elif proposal.approval_status in ('draft','revise_needed') %}學生尚未提交審核。
+        {% endif %}
+    </p>
+    {% if proposal.approval_status == 'finalized' %}
+        <label>評語</label><div class="readonly-box">{{ proposal.final_feedback or '（無）' }}</div>
+        {% if proposal.rubric_json %}
+            <label>Rubric 分數</label>
+            <div class="readonly-box">
+                {% set scores = proposal.rubric_json | tojson %}
+                {{ proposal.rubric_json }}
+            </div>
+        {% endif %}
+    {% endif %}
+    {% if proposal.teacher_comment %}
+        <label>教師備注</label><div class="readonly-box">{{ proposal.teacher_comment }}</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

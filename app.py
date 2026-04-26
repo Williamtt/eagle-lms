@@ -2,10 +2,14 @@ import os
 import csv
 import io
 import json
+import secrets
+from functools import wraps
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 from flask import (Flask, render_template, request, redirect,
                    url_for, flash, send_from_directory, jsonify,
-                   Response)
+                   Response, abort, session)
 from flask_login import (LoginManager, login_user, logout_user,
                          login_required, current_user)
 from werkzeug.utils import secure_filename
@@ -21,12 +25,16 @@ from models import (db, User,
                     Submission,          # Submission 保留供舊資料查詢
                     TutorConversation,
                     Message, MessageRead,
-                    Workshop, WorkshopParticipation)
+                    Workshop, WorkshopParticipation,
+                    LearningEvent, TaskSubmissionSnapshot,
+                    TaskSchedule, TaskDateChangeLog,
+                    SelfStudyProposal, OralPresentationAssessment)
 from sqlalchemy import or_, and_
 import requests as http_requests
 import ai_service
 import notify
-from task_definitions import TASKS, SEMESTER, SYSTEM_VERSION, LEARNING_JOURNALS
+from task_definitions import (TASKS, SEMESTER, SYSTEM_VERSION, LEARNING_JOURNALS,
+                              CONTROL_GROUP_TASKS, AXES_DESCRIPTIONS)
 
 # 允許的班級選項（學生註冊用）
 VALID_CLASS_GROUPS = ['營建管理A班', '營建管理B班']
@@ -43,25 +51,44 @@ def _run_migrations():
     with app.app_context():
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
-        if 'users' in tables:
-            cols = [c['name'] for c in inspector.get_columns('users')]
-            with db.engine.connect() as conn:
-                if 'status' not in cols:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN status VARCHAR(10) DEFAULT 'active'"
-                    ))
-                if 'reset_requested_at' not in cols:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN reset_requested_at TIMESTAMP"
-                    ))
-                if 'reset_contact_email' not in cols:
-                    conn.execute(text(
-                        "ALTER TABLE users ADD COLUMN reset_contact_email VARCHAR(120)"
-                    ))
-                conn.commit()
-        # v2.5.0: Workshop 模組
-        if 'workshops' not in tables or 'workshop_participations' not in tables:
-            db.create_all()
+
+        def cols(table): return [c['name'] for c in inspector.get_columns(table)]
+
+        with db.engine.connect() as conn:
+            # ── users ──
+            if 'users' in tables:
+                u = cols('users')
+                if 'status' not in u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR(10) DEFAULT 'active'"))
+                if 'consent_agreed_at' not in u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN consent_agreed_at TIMESTAMP"))
+                if 'reset_requested_at' not in u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN reset_requested_at TIMESTAMP"))
+                if 'reset_contact_email' not in u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN reset_contact_email VARCHAR(120)"))
+                if 'experimental_group' not in u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN experimental_group VARCHAR(20)"))
+
+            # ── teacher_reviews ──
+            if 'teacher_reviews' in tables:
+                tr = cols('teacher_reviews')
+                if 'rubric_json' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN rubric_json TEXT DEFAULT ''"))
+                if 'rubric_finalized_at' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN rubric_finalized_at TIMESTAMP"))
+                if 'rubric_source' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN rubric_source VARCHAR(40) DEFAULT ''"))
+
+            # ── learning_journals ──
+            if 'learning_journals' in tables:
+                lj = cols('learning_journals')
+                if 'evaluation_json' not in lj:
+                    conn.execute(text("ALTER TABLE learning_journals ADD COLUMN evaluation_json TEXT DEFAULT ''"))
+
+            conn.commit()
+
+        # 新表（包含 v2.5.0 Workshop + 所有 v2.5.0 新增表）
+        db.create_all()
 
 
 login_manager = LoginManager()
@@ -71,6 +98,32 @@ login_manager.login_message = '請先登入。'
 
 ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'docx', 'doc',
                       'png', 'jpg', 'jpeg', 'zip'}
+
+
+# ─── 簡易 CSRF 防護（只給高風險教師路由用） ──────────────────────────────────
+# 全站 CSRF 後續再上 Flask-WTF；這裡僅針對破壞性教師操作做最低限度防護。
+def _get_csrf_token():
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+
+def csrf_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        sent = request.form.get('_csrf') or request.headers.get('X-CSRFToken', '')
+        expected = session.get('_csrf_token', '')
+        if not expected or not secrets.compare_digest(sent, expected):
+            abort(400, 'CSRF token invalid or missing.')
+        return view(*args, **kwargs)
+    return wrapper
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {'csrf_token': _get_csrf_token}
 
 
 def _student_scope_key(user):
@@ -91,7 +144,7 @@ def _student_msg_filter(user):
 @app.context_processor
 def inject_unread_count():
     if not current_user.is_authenticated:
-        return {'unread_count': 0, 'reset_request_count': 0}
+        return {'unread_count': 0, 'reset_request_count': 0, 'proposal_pending_count': 0}
     read_ids = db.session.query(MessageRead.message_id).filter_by(user_id=current_user.id)
     if current_user.is_teacher:
         msg_count = Message.query.filter(
@@ -102,13 +155,17 @@ def inject_unread_count():
             User.role == 'student',
             User.reset_requested_at != None
         ).count()
-        return {'unread_count': msg_count, 'reset_request_count': reset_count}
+        proposal_pending = SelfStudyProposal.query.filter(
+            SelfStudyProposal.approval_status.in_(['submitted', 'result_submitted'])
+        ).count()
+        return {'unread_count': msg_count, 'reset_request_count': reset_count,
+                'proposal_pending_count': proposal_pending}
     else:
         count = Message.query.filter(
             Message.id.notin_(read_ids),
             _student_msg_filter(current_user)
         ).count()
-        return {'unread_count': count, 'reset_request_count': 0}
+        return {'unread_count': count, 'reset_request_count': 0, 'proposal_pending_count': 0}
 
 # Jinja2 custom filter：將 JSON 字串解析為 Python 物件（供問卷選項使用）
 @app.template_filter('from_json')
@@ -248,11 +305,17 @@ def logout():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
 
 @app.route('/manual')
+@login_required
 def manual():
+    if not current_user.is_teacher and current_user.experimental_group != 'experimental':
+        flash('任務手冊僅開放給實驗組學生。', 'info')
+        return redirect(url_for('dashboard'))
     return render_template('manual.html',
                            system_version=SYSTEM_VERSION,
                            semester=SEMESTER)
@@ -295,14 +358,16 @@ def dashboard():
     journal_status = {}
     for j_def in LEARNING_JOURNALS:
         j_num = j_def['journal_number']
+        j_def_group = _journal_for_group(j_def, current_user.experimental_group)
         journal = LearningJournal.query.filter_by(
             user_id=current_user.id,
             journal_number=j_num,
             semester=SEMESTER
         ).first()
         journal_status[j_num] = {
-            'title':      j_def['title'],
+            'title':      j_def_group['title'],
             'week':       j_def['week'],
+            'due_date':   j_def.get('due_date', ''),
             'submitted':  journal is not None,
             'journal_id': journal.id if journal else None,
         }
@@ -352,6 +417,13 @@ def dashboard():
                 and now <= w.reflection_due_at:
             reflection_pending.append({'workshop': w, 'participation': p})
 
+    # 對照組：查詢自主學習提案
+    self_study_proposals = []
+    if current_user.experimental_group == 'control':
+        self_study_proposals = SelfStudyProposal.query.filter_by(
+            user_id=current_user.id, semester=SEMESTER
+        ).order_by(SelfStudyProposal.proposal_number).all()
+
     return render_template('student/dashboard.html',
                            task_status=task_status,
                            journal_status=journal_status,
@@ -361,7 +433,9 @@ def dashboard():
                            upcoming_workshops=upcoming_workshops,
                            reflection_pending=reflection_pending,
                            workshop_type_labels=WORKSHOP_TYPE_LABELS,
-                           tasks=TASKS)
+                           tasks=TASKS,
+                           self_study_proposals=self_study_proposals,
+                           ctrl_tasks=CONTROL_GROUP_TASKS)
 
 
 # ─── Student: Task & Structured Submission ────────────────────────────────────
@@ -369,6 +443,9 @@ def dashboard():
 @app.route('/task/<int:task_number>')
 @login_required
 def view_task(task_number):
+    if current_user.experimental_group == 'control':
+        flash('此功能僅開放給實驗組學生。', 'error')
+        return redirect(url_for('dashboard'))
     task_def = TASKS.get(task_number)
     if not task_def:
         flash('無效的任務編號。', 'error')
@@ -428,6 +505,9 @@ def view_task(task_number):
 @app.route('/submit/<int:task_number>', methods=['POST'])
 @login_required
 def submit_task(task_number):
+    if current_user.experimental_group == 'control':
+        flash('此功能僅開放給實驗組學生。', 'error')
+        return redirect(url_for('dashboard'))
     task_def = TASKS.get(task_number)
     if not task_def:
         flash('無效的任務編號。', 'error')
@@ -443,7 +523,7 @@ def submit_task(task_number):
     # 已評閱的任務不可再提交
     if sub and sub.status == 'reviewed':
         flash('此任務已完成評閱，不可再修改或重新提交。', 'error')
-        return redirect(url_for('task_page', task_number=task_number))
+        return redirect(url_for('view_task', task_number=task_number))
 
     is_update = sub is not None
 
@@ -549,6 +629,21 @@ def submit_task(task_number):
         flash('草稿已暫存。你可以隨時回來繼續編輯，完成後請記得點「正式提交」。', 'info')
         return redirect(url_for('view_task', task_number=task_number))
 
+    # ── Snapshot 1：首次提交或重交 trigger ────────────────────────────────────
+    from services.competency import determine_resubmit_trigger, _snapshot_submission
+    if is_update:
+        resubmit_trigger = determine_resubmit_trigger(sub.id, current_user.id)
+        _snapshot_submission(sub, trigger=resubmit_trigger)
+        db.session.add(LearningEvent(
+            user_id      = current_user.id,
+            event_type   = 'task_resubmitted',
+            entity_type  = 'task_submission',
+            entity_id    = sub.id,
+            payload_json = json.dumps({'trigger': resubmit_trigger}, ensure_ascii=False),
+        ))
+    else:
+        _snapshot_submission(sub, trigger='submitted_initial')
+
     # ── AI 整體回饋 ────────────────────────────────────────────────────────────
     if app.config.get('ANTHROPIC_API_KEY'):
         # 整合所有文字回答供 AI 評閱
@@ -559,17 +654,29 @@ def submit_task(task_number):
             submission_text,
             current_user.name
         )
-        db.session.add(AIFeedback(
+        ai_fb = AIFeedback(
             task_submission_id = sub.id,
             feedback_type      = 'overall',
             feedback           = result.get('feedback', ''),
             scores             = json.dumps(
                 result.get('scores', {}), ensure_ascii=False),
             model_used         = 'claude-sonnet-4-20250514'
+        )
+        db.session.add(ai_fb)
+        db.session.flush()  # 取得 ai_fb.id
+        db.session.add(LearningEvent(
+            user_id      = current_user.id,
+            event_type   = 'ai_feedback_received',
+            entity_type  = 'task_submission',
+            entity_id    = sub.id,
+            payload_json = json.dumps({'ai_feedback_id': ai_fb.id}, ensure_ascii=False),
         ))
+        # Snapshot 2：AI 回饋附加完成
+        _snapshot_submission(sub, trigger='ai_feedback_attached', ai_feedback_id=ai_fb.id)
         db.session.commit()
         flash('提交成功！AI 助教已提供初步回饋。', 'success')
     else:
+        db.session.commit()  # 確保 Snapshot 1 也寫入
         flash('提交成功！', 'success')
 
     notify.notify_new_submission(
@@ -661,12 +768,143 @@ def view_task_submission(submission_id):
                            teacher_review=teacher_review)
 
 
+# ─── 對照組自主學習 ────────────────────────────────────────────────────────────
+
+# 每個提案編號對應的評量向度與最低證據要求（教師核准時檢核）
+def _proposal_axes(proposal_number):
+    """Return scoring axes for a given proposal_number (from CONTROL_GROUP_TASKS)."""
+    return CONTROL_GROUP_TASKS.get(proposal_number, {}).get('axes', ['DP1', 'DP2', 'DP3', 'DP4'])
+
+
+@app.route('/self-study')
+@login_required
+def self_study_list():
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_self_study_list'))
+    if current_user.experimental_group != 'control':
+        flash('此功能僅開放給對照組學生。', 'error')
+        return redirect(url_for('dashboard'))
+
+    # 防呆：若有缺漏則補建固定 4 份提案
+    existing_nums = {p.proposal_number for p in
+                     SelfStudyProposal.query.filter_by(
+                         user_id=current_user.id, semester=SEMESTER).all()}
+    for n in CONTROL_GROUP_TASKS:
+        if n not in existing_nums:
+            db.session.add(SelfStudyProposal(
+                user_id=current_user.id,
+                proposal_number=n,
+                semester=SEMESTER,
+            ))
+    if len(existing_nums) < 4:
+        db.session.commit()
+
+    proposals = SelfStudyProposal.query.filter_by(
+        user_id=current_user.id, semester=SEMESTER
+    ).order_by(SelfStudyProposal.proposal_number).all()
+    return render_template('student/self_study_list.html',
+                           proposals=proposals,
+                           ctrl_tasks=CONTROL_GROUP_TASKS)
+
+
+@app.route('/self-study/new', methods=['POST'])
+@login_required
+def self_study_new():
+    # 4 份提案由系統自動建立，此路由保留以兼容舊書籤
+    flash('四份自主學習提案已由系統自動建立，請直接點選進入填寫。', 'info')
+    return redirect(url_for('self_study_list'))
+
+
+@app.route('/self-study/<int:n>', methods=['GET', 'POST'])
+@login_required
+def self_study_detail(n):
+    if current_user.is_teacher:
+        return redirect(url_for('teacher_self_study_list'))
+    if current_user.experimental_group != 'control':
+        flash('此功能僅開放給對照組學生。', 'error')
+        return redirect(url_for('dashboard'))
+    if n not in range(1, 5):
+        flash('無效的提案編號。', 'error')
+        return redirect(url_for('self_study_list'))
+
+    proposal = SelfStudyProposal.query.filter_by(
+        user_id=current_user.id, proposal_number=n, semester=SEMESTER
+    ).first_or_404()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        # ── 儲存/提交提案 ──
+        if action in ('save_draft', 'submit_proposal') and \
+                proposal.approval_status in ('draft', 'revise_needed'):
+            proposal.topic           = request.form.get('subtitle', '').strip()  # 副標題
+            proposal.motivation      = request.form.get('motivation', '').strip()
+            proposal.expected_output = request.form.get('expected_output', '').strip()
+            proposal.schedule        = request.form.get('schedule', '').strip()
+            if action == 'submit_proposal':
+                if not all([proposal.motivation, proposal.expected_output]):
+                    flash('請填寫學習計畫與預期成果後再提交。', 'error')
+                    t_def = CONTROL_GROUP_TASKS.get(n, {})
+                    return render_template('student/self_study_detail.html',
+                                           proposal=proposal, task_def=t_def)
+                proposal.approval_status = 'submitted'
+                proposal.proposed_at = datetime.utcnow()
+                flash(f'提案 {n} 已送出，等待教師審核。', 'success')
+            else:
+                flash('草稿已儲存。', 'info')
+            db.session.commit()
+            return redirect(url_for('self_study_detail', n=n))
+
+        # ── 提交成果 ──
+        if action == 'submit_result' and proposal.approval_status == 'approved':
+            proposal.result_content = request.form.get('result_content', '').strip()
+            proposal.reflection     = request.form.get('reflection', '').strip()
+
+            file = request.files.get('result_file')
+            if file and file.filename and allowed_file(file.filename):
+                upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(current_user.id))
+                os.makedirs(upload_dir, exist_ok=True)
+                safe_name = secure_filename(
+                    f"{current_user.student_id}_ss{n}_{file.filename}"
+                )
+                fpath = os.path.join(upload_dir, safe_name)
+                file.save(fpath)
+                proposal.result_file_path = fpath
+                proposal.result_file_name = file.filename
+
+            if not proposal.result_content:
+                flash('請填寫成果說明後再提交。', 'error')
+                t_def = CONTROL_GROUP_TASKS.get(n, {})
+                return render_template('student/self_study_detail.html',
+                                       proposal=proposal, task_def=t_def)
+            proposal.approval_status    = 'result_submitted'
+            proposal.result_submitted_at = datetime.utcnow()
+            db.session.commit()
+            flash(f'提案 {n} 成果已送出，等待教師評閱。', 'success')
+            return redirect(url_for('self_study_detail', n=n))
+
+    t_def = CONTROL_GROUP_TASKS.get(n, {})
+    return render_template('student/self_study_detail.html',
+                           proposal=proposal, task_def=t_def)
+
+
 # ─── Student: Learning Journal ────────────────────────────────────────────────
+
+def _journal_for_group(j_def, group):
+    """Return journal def with group-appropriate title and prompt."""
+    if group == 'control' and 'title_control' in j_def:
+        return {**j_def,
+                'title':  j_def['title_control'],
+                'prompt': j_def['prompt_control']}
+    return j_def
+
 
 @app.route('/journal')
 @login_required
 def journal_list():
-    journals = {j['journal_number']: j for j in LEARNING_JOURNALS}
+    group = current_user.experimental_group
+    journals = {j['journal_number']: _journal_for_group(j, group)
+                for j in LEARNING_JOURNALS}
     submitted = {
         lj.journal_number: lj
         for lj in LearningJournal.query.filter_by(
@@ -680,7 +918,8 @@ def journal_list():
 @app.route('/journal/<int:journal_number>', methods=['GET', 'POST'])
 @login_required
 def view_journal(journal_number):
-    j_defs = {j['journal_number']: j for j in LEARNING_JOURNALS}
+    j_defs = {j['journal_number']: _journal_for_group(j, current_user.experimental_group)
+              for j in LEARNING_JOURNALS}
     j_def = j_defs.get(journal_number)
     if not j_def:
         flash('無效的日誌編號。', 'error')
@@ -697,25 +936,55 @@ def view_journal(journal_number):
         if not content:
             flash('請填寫日誌內容。', 'error')
         else:
+            eval_json = existing.evaluation_json if existing else ''
+            if journal_number == 5:
+                dp5_rating   = request.form.get('dp5_self_rating', '').strip()
+                dp5_evidence = request.form.get('dp5_evidence', '').strip()
+                try:
+                    ev = json.loads(eval_json) if eval_json else {}
+                except Exception:
+                    ev = {}
+                rating_val = None
+                if dp5_rating:
+                    try:
+                        v = int(dp5_rating)
+                        if 1 <= v <= 5:
+                            rating_val = v
+                    except ValueError:
+                        pass
+                ev['DP5'] = {'self_rating': rating_val, 'evidence': dp5_evidence}
+                eval_json = json.dumps(ev, ensure_ascii=False)
+
             if existing:
                 existing.content    = content
                 existing.updated_at = datetime.utcnow()
+                if journal_number == 5:
+                    existing.evaluation_json = eval_json
             else:
                 existing = LearningJournal(
-                    user_id        = current_user.id,
-                    journal_number = journal_number,
-                    week           = j_def['week'],
-                    semester       = SEMESTER,
-                    content        = content,
+                    user_id          = current_user.id,
+                    journal_number   = journal_number,
+                    week             = j_def['week'],
+                    semester         = SEMESTER,
+                    content          = content,
+                    evaluation_json  = eval_json if journal_number == 5 else '',
                 )
                 db.session.add(existing)
             db.session.commit()
             flash('學習日誌已儲存。', 'success')
             return redirect(url_for('view_journal', journal_number=journal_number))
 
+    dp5_data = {}
+    if journal_number == 5 and existing and existing.evaluation_json:
+        try:
+            dp5_data = json.loads(existing.evaluation_json).get('DP5', {})
+        except Exception:
+            pass
+
     return render_template('student/journal.html',
                            j_def=j_def,
-                           existing=existing)
+                           existing=existing,
+                           dp5_data=dp5_data)
 
 
 # ─── Student: Questionnaire ───────────────────────────────────────────────────
@@ -770,6 +1039,22 @@ def view_questionnaire(q_code):
                            existing_answers=existing_answers)
 
 
+# ─── Student: Competency Radar ────────────────────────────────────────────────
+
+@app.route('/my/competency')
+@login_required
+def my_competency():
+    if current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    from services.competency import aggregate_competency, compute_arcsa_ac_perception
+    competency = aggregate_competency(current_user.id, SEMESTER)
+    arcsa      = compute_arcsa_ac_perception(current_user.id)
+    return render_template('student/competency.html',
+                           competency=competency,
+                           arcsa=arcsa,
+                           axes_desc=AXES_DESCRIPTIONS)
+
+
 # ─── v1 Legacy: Submission Detail (read-only) ─────────────────────────────────
 
 @app.route('/submission/<int:submission_id>')
@@ -813,9 +1098,23 @@ def teacher_dashboard():
         User.role == 'student',
         User.reset_requested_at != None
     ).order_by(User.reset_requested_at.asc()).all()
-    total_subs    = TaskSubmission.query.filter(
+    # 只計實驗組的任務提交
+    experimental_user_ids = db.session.query(User.id).filter(
+        User.role == 'student',
+        User.status == 'active',
+        User.experimental_group == 'experimental'
+    ).subquery()
+    experimental_count = db.session.query(db.func.count()).select_from(
+        User
+    ).filter(
+        User.role == 'student',
+        User.status == 'active',
+        User.experimental_group == 'experimental'
+    ).scalar()
+    total_subs = TaskSubmission.query.filter(
         TaskSubmission.semester == SEMESTER,
-        TaskSubmission.status != 'draft'
+        TaskSubmission.status != 'draft',
+        TaskSubmission.user_id.in_(experimental_user_ids)
     ).count()
     reviewed_count = TeacherReview.query.filter_by(published=True).count()
 
@@ -824,7 +1123,8 @@ def teacher_dashboard():
         subs = TaskSubmission.query.filter(
             TaskSubmission.task_number == t_num,
             TaskSubmission.semester == SEMESTER,
-            TaskSubmission.status != 'draft'
+            TaskSubmission.status != 'draft',
+            TaskSubmission.user_id.in_(experimental_user_ids)
         ).all()
         task_stats[t_num] = {
             'name':              t_def['name'],
@@ -836,6 +1136,18 @@ def teacher_dashboard():
             ),
         }
 
+    # 各學生提案數（對照組用）
+    proposal_counts = {
+        uid: count
+        for uid, count in db.session.query(
+            SelfStudyProposal.user_id,
+            db.func.count(SelfStudyProposal.id)
+        ).filter(
+            SelfStudyProposal.semester == SEMESTER,
+            SelfStudyProposal.approval_status != 'draft'
+        ).group_by(SelfStudyProposal.user_id).all()
+    }
+
     return render_template('teacher/dashboard.html',
                            students=students,
                            pending_users=pending_users,
@@ -844,11 +1156,15 @@ def teacher_dashboard():
                            total_submissions=total_subs,
                            reviewed_count=reviewed_count,
                            task_stats=task_stats,
-                           tasks=TASKS)
+                           tasks=TASKS,
+                           proposal_counts=proposal_counts,
+                           semester=SEMESTER,
+                           experimental_count=experimental_count)
 
 
 @app.route('/teacher/user/<int:uid>/approve', methods=['POST'])
 @login_required
+@csrf_required
 def teacher_approve_user(uid):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
@@ -862,6 +1178,7 @@ def teacher_approve_user(uid):
 
 @app.route('/teacher/user/<int:uid>/reject', methods=['POST'])
 @login_required
+@csrf_required
 def teacher_reject_user(uid):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
@@ -877,6 +1194,7 @@ def teacher_reject_user(uid):
 
 @app.route('/teacher/user/<int:uid>/toggle', methods=['POST'])
 @login_required
+@csrf_required
 def teacher_toggle_user(uid):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
@@ -891,6 +1209,7 @@ def teacher_toggle_user(uid):
 
 @app.route('/teacher/user/<int:uid>/delete', methods=['POST'])
 @login_required
+@csrf_required
 def teacher_delete_user(uid):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
@@ -916,6 +1235,63 @@ def teacher_delete_user(uid):
             # 學習日誌
             conn.execute(text(
                 "DELETE FROM learning_journals WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # v2.5.0 新增表
+            conn.execute(text(
+                "DELETE FROM learning_events WHERE user_id = :uid"
+            ), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM self_study_proposals WHERE user_id = :uid"
+            ), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM oral_presentation_assessments WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # 訊息與已讀記錄（含此使用者寄出 / 收到的所有訊息）
+            conn.execute(text("""
+                DELETE FROM message_reads
+                WHERE user_id = :uid
+                   OR message_id IN (
+                       SELECT id FROM messages
+                       WHERE sender_id = :uid OR recipient_id = :uid
+                   )
+            """), {'uid': uid})
+            conn.execute(text("""
+                DELETE FROM messages
+                WHERE sender_id = :uid OR recipient_id = :uid
+            """), {'uid': uid})
+
+            # AI tutor 對話、工作坊參與
+            conn.execute(text(
+                "DELETE FROM tutor_conversations WHERE user_id = :uid"
+            ), {'uid': uid})
+            conn.execute(text(
+                "DELETE FROM workshop_participations WHERE user_id = :uid"
+            ), {'uid': uid})
+
+            # snapshots 參照 ai_feedbacks，須在刪 ai_feedbacks 前處理
+            conn.execute(text("""
+                DELETE FROM task_submission_snapshots
+                WHERE task_submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+
+            # AI review suggestions（FK 到 task_submissions，須在刪 task_submissions 前）
+            conn.execute(text("""
+                DELETE FROM ai_review_suggestions
+                WHERE task_submission_id IN (
+                    SELECT id FROM task_submissions WHERE user_id = :uid
+                )
+            """), {'uid': uid})
+
+            # 任務日期 audit：set_by / changed_by 是 nullable FK，set NULL 即可
+            conn.execute(text(
+                "UPDATE task_schedules SET set_by = NULL WHERE set_by = :uid"
+            ), {'uid': uid})
+            conn.execute(text(
+                "UPDATE task_date_change_logs SET changed_by = NULL WHERE changed_by = :uid"
             ), {'uid': uid})
 
             # v2 任務提交的所有子表
@@ -986,6 +1362,7 @@ def teacher_delete_user(uid):
 
 @app.route('/teacher/user/<int:uid>/reset-password', methods=['POST'])
 @login_required
+@csrf_required
 def teacher_reset_password(uid):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
@@ -1011,6 +1388,217 @@ def teacher_reset_password(uid):
     db.session.commit()
     flash(f'已重設 {user.name} 的密碼，並已傳送私訊通知。', 'success')
     return redirect(url_for('teacher_dashboard'))
+
+
+@app.route('/teacher/manage-groups', methods=['GET', 'POST'])
+@login_required
+def teacher_manage_groups():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    students = User.query.filter_by(role='student', status='active')\
+        .order_by(User.class_group, User.student_id).all()
+
+    if request.method == 'POST':
+        updated = 0
+        for student in students:
+            val = request.form.get(f'group_{student.id}', '')
+            new_group = val if val in ('experimental', 'control') else None
+            old_group = student.experimental_group
+            if old_group != new_group:
+                student.experimental_group = new_group
+                updated += 1
+                # 新分配至對照組 → 自動建立 4 份固定提案
+                if new_group == 'control':
+                    existing_nums = {p.proposal_number for p in
+                                     SelfStudyProposal.query.filter_by(
+                                         user_id=student.id, semester=SEMESTER).all()}
+                    for n in CONTROL_GROUP_TASKS:
+                        if n not in existing_nums:
+                            db.session.add(SelfStudyProposal(
+                                user_id=student.id,
+                                proposal_number=n,
+                                semester=SEMESTER,
+                            ))
+        db.session.commit()
+        flash(f'已更新 {updated} 位學生的研究分組。', 'success')
+        return redirect(url_for('teacher_manage_groups'))
+
+    group_counts = {
+        'experimental': sum(1 for s in students if s.experimental_group == 'experimental'),
+        'control':      sum(1 for s in students if s.experimental_group == 'control'),
+        'unassigned':   sum(1 for s in students if not s.experimental_group),
+    }
+    return render_template('teacher/manage_groups.html',
+                           students=students,
+                           group_counts=group_counts)
+
+
+@app.route('/teacher/self-study')
+@login_required
+def teacher_self_study_list():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    proposals = (SelfStudyProposal.query
+                 .join(User, User.id == SelfStudyProposal.user_id)
+                 .filter(User.experimental_group == 'control',
+                         SelfStudyProposal.semester == SEMESTER)
+                 .order_by(User.student_id, SelfStudyProposal.proposal_number)
+                 .all())
+
+    tab_groups = {
+        'submitted':        [p for p in proposals if p.approval_status == 'submitted'],
+        'approved':         [p for p in proposals if p.approval_status == 'approved'],
+        'result_submitted': [p for p in proposals if p.approval_status == 'result_submitted'],
+        'finalized':        [p for p in proposals if p.approval_status == 'finalized'],
+        'other':            [p for p in proposals if p.approval_status in ('draft', 'revise_needed', 'overdue')],
+    }
+    return render_template('teacher/self_study_list.html',
+                           tab_groups=tab_groups)
+
+
+@app.route('/teacher/self-study/<int:proposal_id>', methods=['GET'])
+@login_required
+def teacher_self_study_review(proposal_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    proposal = db.session.get(SelfStudyProposal, proposal_id)
+    if not proposal:
+        flash('找不到此提案。', 'error')
+        return redirect(url_for('teacher_self_study_list'))
+    student  = db.session.get(User, proposal.user_id)
+    task_def = CONTROL_GROUP_TASKS.get(proposal.proposal_number, {})
+    score_axes = task_def.get('axes', ['DP1', 'DP2', 'DP3', 'DP4'])
+    return render_template('teacher/self_study_review.html',
+                           proposal=proposal,
+                           student=student,
+                           task_def=task_def,
+                           score_axes=score_axes,
+                           axes_desc=AXES_DESCRIPTIONS)
+
+
+@app.route('/teacher/self-study/<int:proposal_id>/review', methods=['POST'])
+@login_required
+@csrf_required
+def teacher_self_study_approve(proposal_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    proposal = db.session.get(SelfStudyProposal, proposal_id)
+    if not proposal or proposal.approval_status != 'submitted':
+        flash('此提案目前不可審核。', 'error')
+        return redirect(url_for('teacher_self_study_list'))
+
+    decision = request.form.get('decision')
+
+    # v5 規範：核准前必須勾選每個評量向度的最低證據
+    if decision == 'approve':
+        axes = _proposal_axes(proposal.proposal_number)
+        missing = [ax for ax in axes if request.form.get(f'evidence_{ax}') != 'on']
+        if missing:
+            flash(f'請先勾選所有評量向度的證據確認（缺：{", ".join(missing)}）。', 'error')
+            return redirect(url_for('teacher_self_study_review', proposal_id=proposal.id))
+
+    proposal.teacher_comment = request.form.get('teacher_comment', '').strip()
+    proposal.reviewed_by     = current_user.id
+    proposal.reviewed_at     = datetime.utcnow()
+
+    topic_label = f'「{proposal.topic}」' if proposal.topic else f'提案 {proposal.proposal_number}'
+    if decision == 'approve':
+        proposal.approval_status = 'approved'
+        msg_body = (
+            f'您的自主學習{topic_label}已獲教師核准。\n\n'
+            f'請依計畫完成自主學習，並回到提案頁面繳交成果。'
+        )
+        if proposal.teacher_comment:
+            msg_body += f'\n\n教師備注：{proposal.teacher_comment}'
+        flash('提案已核准。', 'success')
+    else:
+        proposal.approval_status = 'revise_needed'
+        msg_body = (
+            f'您的自主學習{topic_label}需要修改後再提交。\n\n'
+            f'請回到提案頁面依據教師意見修改並重新提交。'
+        )
+        if proposal.teacher_comment:
+            msg_body += f'\n\n教師意見：{proposal.teacher_comment}'
+        flash('已退回學生修改提案。', 'info')
+
+    db.session.add(Message(
+        sender_id=current_user.id,
+        recipient_id=proposal.user_id,
+        scope='personal',
+        subject=f'自主學習提案審核結果：{topic_label}',
+        body=msg_body
+    ))
+    db.session.commit()
+    return redirect(url_for('teacher_self_study_list'))
+
+
+@app.route('/teacher/self-study/<int:proposal_id>/finalize', methods=['POST'])
+@login_required
+@csrf_required
+def teacher_self_study_finalize(proposal_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    proposal = db.session.get(SelfStudyProposal, proposal_id)
+    if not proposal or proposal.approval_status != 'result_submitted':
+        flash('此提案目前不可評閱。', 'error')
+        return redirect(url_for('teacher_self_study_list'))
+
+    rubric_scores = {}
+    for ax in _proposal_axes(proposal.proposal_number):
+        val = request.form.get(f'score_{ax}', '').strip()
+        if val:
+            try:
+                score = int(val)
+                if 1 <= score <= 5:
+                    rubric_scores[ax] = score
+            except ValueError:
+                pass
+
+    import json as _json
+    proposal.rubric_json     = _json.dumps(rubric_scores, ensure_ascii=False)
+    proposal.final_feedback  = request.form.get('final_feedback', '').strip()
+    proposal.reviewer_id     = current_user.id
+    proposal.finalized_at    = datetime.utcnow()
+    proposal.approval_status = 'finalized'
+    db.session.commit()
+    flash('成果已評閱並完成認證。', 'success')
+    return redirect(url_for('teacher_self_study_list'))
+
+
+@app.route('/teacher/self-study/<int:proposal_id>/ai_rubric_suggestion')
+@login_required
+def teacher_self_study_ai_rubric(proposal_id):
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+    proposal = db.session.get(SelfStudyProposal, proposal_id)
+    if not proposal:
+        return jsonify({'error': 'not_found'}), 404
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        return jsonify({'error': 'ai_disabled',
+                        'message': 'AI 建議功能尚未啟用（缺少 ANTHROPIC_API_KEY）。'}), 200
+
+    axes     = _proposal_axes(proposal.proposal_number)
+    text_parts = []
+    if proposal.topic:
+        text_parts.append(f'【學習主題】{proposal.topic}')
+    if proposal.motivation:
+        text_parts.append(f'【學習動機與目標】{proposal.motivation}')
+    if proposal.expected_output:
+        text_parts.append(f'【預期成果】{proposal.expected_output}')
+    if proposal.result_content:
+        text_parts.append(f'【成果報告】{proposal.result_content}')
+    if proposal.reflection:
+        text_parts.append(f'【學習反思】{proposal.reflection}')
+    proposal_text = '\n\n'.join(text_parts)
+
+    if not proposal_text.strip():
+        return jsonify({'error': 'empty', 'message': '提案內容為空，無法產生建議。'}), 200
+
+    from ai_service import generate_self_study_rubric_suggestion
+    result = generate_self_study_rubric_suggestion(proposal_text, axes, AXES_DESCRIPTIONS)
+    return jsonify(result)
 
 
 @app.route('/profile/change-password', methods=['GET', 'POST'])
@@ -1056,6 +1644,11 @@ def teacher_task_submissions(task_number):
 @app.route('/teacher/review/<int:submission_id>', methods=['GET', 'POST'])
 @login_required
 def teacher_review(submission_id):
+    if request.method == 'POST':
+        sent = request.form.get('_csrf') or request.headers.get('X-CSRFToken', '')
+        expected = session.get('_csrf_token', '')
+        if not expected or not secrets.compare_digest(sent, expected):
+            abort(400, 'CSRF token invalid or missing.')
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
 
@@ -1066,15 +1659,75 @@ def teacher_review(submission_id):
 
     task_def = TASKS.get(sub.task_number, {})
 
+    existing_review = sub.teacher_reviews.order_by(TeacherReview.id.asc()).first()
+
     if request.method == 'POST':
+        action = request.form.get('action', 'feedback')
+
+        if action in ('rubric_save', 'rubric_finalize'):
+            # 已 finalized 的 Rubric 不可再覆寫（學生雷達圖讀的是 finalized 後的數值）
+            if existing_review and existing_review.rubric_finalized_at:
+                flash('此 Rubric 已鎖定，不可再修改。', 'error')
+                return redirect(url_for('teacher_review', submission_id=sub.id))
+
+            rubric_axes = task_def.get('axes', [])
+            rubric_scores = {}
+            for ax in rubric_axes:
+                val = request.form.get(f'rubric_{ax}', '').strip()
+                if not val:
+                    continue
+                try:
+                    s = int(val)
+                except ValueError:
+                    continue
+                if 1 <= s <= 5:
+                    rubric_scores[ax] = s
+
+            if not existing_review:
+                existing_review = TeacherReview(
+                    task_submission_id=sub.id,
+                    teacher_id=current_user.id,
+                    feedback='',
+                )
+                db.session.add(existing_review)
+                db.session.flush()
+
+            existing_review.rubric_json   = json.dumps(rubric_scores, ensure_ascii=False)
+            existing_review.rubric_source = request.form.get('rubric_source_hint', 'teacher_manual')
+
+            if action == 'rubric_finalize':
+                if len(rubric_scores) == len(rubric_axes) and rubric_axes:
+                    existing_review.rubric_finalized_at = datetime.utcnow()
+                    if existing_review.rubric_source == 'ai_adopted':
+                        existing_review.rubric_source = 'ai_adopted_then_confirmed'
+                    db.session.commit()
+                    flash('Rubric 已確認鎖定。', 'success')
+                else:
+                    db.session.commit()
+                    flash('請填寫全部評量向度後再確認。', 'error')
+            else:
+                db.session.commit()
+                flash('Rubric 已暫存。', 'success')
+            return redirect(url_for('teacher_review', submission_id=sub.id))
+
+        # action == 'feedback'（預設）
         feedback = request.form.get('feedback', '').strip()
-        score    = request.form.get('score', None)
+        score_raw = request.form.get('score', '').strip()
         publish  = request.form.get('publish') == 'on'
 
-        existing_review = sub.teacher_reviews.first()
+        score_val = None
+        if score_raw:
+            try:
+                v = float(score_raw)
+                if 0 <= v <= 100:
+                    score_val = v
+            except ValueError:
+                flash('分數格式錯誤（需 0–100）。', 'error')
+                return redirect(url_for('teacher_review', submission_id=sub.id))
+
         if existing_review:
             existing_review.feedback    = feedback
-            existing_review.score       = float(score) if score else None
+            existing_review.score       = score_val
             existing_review.published   = publish
             existing_review.reviewed_at = datetime.utcnow()
         else:
@@ -1082,15 +1735,14 @@ def teacher_review(submission_id):
                 task_submission_id = sub.id,
                 teacher_id         = current_user.id,
                 feedback           = feedback,
-                score              = float(score) if score else None,
+                score              = score_val,
                 published          = publish,
             ))
         if publish:
             sub.status = 'reviewed'
         db.session.commit()
         flash('評閱已儲存。' + (' 已發布給學生。' if publish else ''), 'success')
-        return redirect(url_for('teacher_task_submissions',
-                                task_number=sub.task_number))
+        return redirect(url_for('teacher_review', submission_id=sub.id))
 
     # 整理回答供顯示
     pq_map = {r.question_id: r.answer for r in sub.question_responses}
@@ -1098,8 +1750,15 @@ def teacher_review(submission_id):
     rq_map = {r.question_id: r.answer for r in sub.reflection_responses}
     du_map = {du.deliverable_id: du   for du in sub.deliverable_uploads}
 
-    ai_fb          = sub.ai_feedbacks.order_by(AIFeedback.created_at.desc()).first()
-    existing_review = sub.teacher_reviews.first()
+    ai_fb = sub.ai_feedbacks.order_by(AIFeedback.created_at.desc()).first()
+
+    rubric_axes = task_def.get('axes', [])
+    rubric_data = {}
+    if existing_review and existing_review.rubric_json:
+        try:
+            rubric_data = json.loads(existing_review.rubric_json)
+        except Exception:
+            pass
 
     # AI 建議改由前端 AJAX 呼叫 /teacher/review/<id>/ai_suggestion 取得，
     # 避免每次打開頁面都阻塞等 Claude 回應。
@@ -1111,7 +1770,33 @@ def teacher_review(submission_id):
                            rq_map=rq_map,
                            du_map=du_map,
                            ai_feedback=ai_fb,
-                           existing_review=existing_review)
+                           existing_review=existing_review,
+                           rubric_axes=rubric_axes,
+                           rubric_data=rubric_data,
+                           axes_desc=AXES_DESCRIPTIONS)
+
+
+@app.route('/teacher/review/<int:submission_id>/ai_rubric_scores')
+@login_required
+def teacher_review_ai_rubric_scores(submission_id):
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+    sub = db.session.get(TaskSubmission, submission_id)
+    if not sub:
+        return jsonify({'error': 'not_found'}), 404
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        return jsonify({'error': 'ai_disabled',
+                        'message': 'AI 建議功能尚未啟用（缺少 ANTHROPIC_API_KEY）。'}), 200
+    task_def = TASKS.get(sub.task_number, {})
+    axes = task_def.get('axes', [])
+    if not axes:
+        return jsonify({'error': 'no_axes', 'message': '此任務無 Rubric 向度設定。'}), 200
+    text = _build_submission_text_for_ai(sub, task_def)
+    if not text.strip():
+        return jsonify({'error': 'empty', 'message': '提交內容為空。'}), 200
+    from ai_service import generate_self_study_rubric_suggestion
+    result = generate_self_study_rubric_suggestion(text, axes, AXES_DESCRIPTIONS)
+    return jsonify(result)
 
 
 @app.route('/teacher/review/<int:submission_id>/ai_suggestion')
@@ -1599,6 +2284,13 @@ def export_journals():
 @app.route('/uploads/<path:filename>')
 @login_required
 def uploaded_file(filename):
+    # 路徑格式為 "<owner_user_id>/<safe_filename>"，由 submit_task() 寫入時固定
+    parts = filename.split('/', 1)
+    if len(parts) < 2 or not parts[0].isdigit():
+        abort(404)
+    owner_id = int(parts[0])
+    if not current_user.is_teacher and current_user.id != owner_id:
+        abort(403)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
@@ -1753,6 +2445,76 @@ def view_student_questionnaire_response(q_id, uid):
 
 # ─── API ──────────────────────────────────────────────────────────────────────
 
+@app.route('/api/event/competency-radar-viewed', methods=['POST'])
+@login_required
+def api_competency_radar_viewed():
+    if current_user.is_teacher:
+        return {'ok': False}, 403
+    # 同一 user 同一 semester 同一日只記一次
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    exists = LearningEvent.query.filter(
+        LearningEvent.user_id == current_user.id,
+        LearningEvent.event_type == 'competency_radar_viewed',
+        LearningEvent.created_at >= today_start,
+    ).first()
+    if exists:
+        return {'ok': True, 'deduped': True}
+    db.session.add(LearningEvent(
+        user_id     = current_user.id,
+        event_type  = 'competency_radar_viewed',
+        entity_type = '',
+        payload_json= json.dumps({'semester': SEMESTER}),
+    ))
+    db.session.commit()
+    return {'ok': True}
+
+
+@app.route('/api/event/ai-feedback-viewed', methods=['POST'])
+@login_required
+def api_ai_feedback_viewed():
+    if current_user.is_teacher:
+        return {'ok': False}, 403
+    data = request.get_json(silent=True) or {}
+    try:
+        submission_id = int(data.get('submission_id'))
+    except (TypeError, ValueError):
+        return {'ok': False, 'error': 'invalid_submission_id'}, 400
+    try:
+        feedback_id = int(data.get('feedback_id')) if data.get('feedback_id') else None
+    except (TypeError, ValueError):
+        feedback_id = None
+
+    # Ownership check：學生只能標記自己的提交
+    sub = db.session.get(TaskSubmission, submission_id)
+    if not sub or sub.user_id != current_user.id:
+        return {'ok': False, 'error': 'not_owner'}, 403
+
+    # 同一 (user, submission, feedback) 已存在則略過，避免刷頁面重複寫。
+    # 包 } 或 , 確保 12 不會 prefix-match 到 123。
+    exists_q = LearningEvent.query.filter_by(
+        user_id=current_user.id,
+        event_type='ai_feedback_viewed',
+        entity_type='task_submission',
+        entity_id=submission_id,
+    )
+    if feedback_id is not None:
+        exists_q = exists_q.filter(
+            LearningEvent.payload_json.like(f'%"feedback_id": {feedback_id}}}%')
+        )
+    if exists_q.first():
+        return {'ok': True, 'deduped': True}
+
+    db.session.add(LearningEvent(
+        user_id     = current_user.id,
+        event_type  = 'ai_feedback_viewed',
+        entity_type = 'task_submission',
+        entity_id   = submission_id,
+        payload_json= json.dumps({'feedback_id': feedback_id}),
+    ))
+    db.session.commit()
+    return {'ok': True}
+
+
 @app.route('/api/regenerate-feedback/<int:submission_id>', methods=['POST'])
 @login_required
 def regenerate_feedback(submission_id):
@@ -1762,17 +2524,31 @@ def regenerate_feedback(submission_id):
     if not current_user.is_teacher and sub.user_id != current_user.id:
         return jsonify({'error': '無權限'}), 403
 
+    # 沒設 API key 直接拒絕；否則會寫入 fallback feedback + 假 ai_feedback_received event 污染 trigger
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        return jsonify({'error': 'AI 功能尚未啟用'}), 503
+
     task_def = TASKS.get(sub.task_number, {})
     text     = _build_submission_text_for_ai(sub, task_def)
     result   = ai_service.generate_instant_feedback(
         sub.task_number, 'structured', text, sub.author.name
     )
-    db.session.add(AIFeedback(
+    ai_fb = AIFeedback(
         task_submission_id = sub.id,
         feedback_type      = 'overall',
         feedback           = result.get('feedback', ''),
         scores             = json.dumps(result.get('scores', {}), ensure_ascii=False),
         model_used         = 'claude-sonnet-4-20250514'
+    )
+    db.session.add(ai_fb)
+    db.session.flush()  # 取得 ai_fb.id
+    # user_id 用提交者，因教師也可觸發 regenerate
+    db.session.add(LearningEvent(
+        user_id      = sub.user_id,
+        event_type   = 'ai_feedback_received',
+        entity_type  = 'task_submission',
+        entity_id    = sub.id,
+        payload_json = json.dumps({'ai_feedback_id': ai_fb.id}, ensure_ascii=False),
     ))
     db.session.commit()
     return jsonify({'success': True, 'feedback': result.get('feedback', '')})
@@ -1783,7 +2559,7 @@ def regenerate_feedback(submission_id):
 @app.route('/api/tutor/chat', methods=['POST'])
 @login_required
 def tutor_chat():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     user_message = (data.get('message') or '').strip()
     if not user_message:
         return jsonify({'error': '請輸入問題'}), 400
@@ -1798,7 +2574,10 @@ def tutor_chat():
         db.session.add(conv)
         db.session.flush()
 
-    messages = json.loads(conv.messages)
+    try:
+        messages = json.loads(conv.messages or '[]')
+    except (json.JSONDecodeError, TypeError):
+        messages = []
 
     # Sliding window: last 5 rounds (10 messages)
     recent = messages[-10:] if len(messages) > 10 else messages
@@ -1818,13 +2597,20 @@ def tutor_chat():
         )
         if resp.status_code != 200:
             return jsonify({'error': 'AI 服務暫時無法使用'}), 502
-        result = resp.json()
+        try:
+            result = resp.json()
+        except ValueError:
+            return jsonify({'error': 'AI 服務回傳格式錯誤'}), 502
     except Exception:
         return jsonify({'error': 'AI 服務連線失敗'}), 502
 
+    answer = (result or {}).get('answer')
+    if not isinstance(answer, str) or not answer.strip():
+        return jsonify({'error': 'AI 服務未回傳有效內容'}), 502
+
     # Append both messages to conversation
     messages.append({'role': 'user', 'content': user_message})
-    messages.append({'role': 'assistant', 'content': result['answer']})
+    messages.append({'role': 'assistant', 'content': answer})
     conv.messages = json.dumps(messages, ensure_ascii=False)
     conv.updated_at = datetime.utcnow()
     db.session.commit()
@@ -2751,6 +3537,133 @@ def my_workshops():
     return render_template('student/my_workshops.html',
                            items=items, now=now,
                            type_labels=WORKSHOP_TYPE_LABELS)
+
+
+# ─── Teacher: Oral Presentation Assessment ───────────────────────────────────
+
+@app.route('/teacher/oral-assessment')
+@login_required
+def teacher_oral_assessment_list():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    students = User.query.filter(
+        User.experimental_group.isnot(None),
+        User.experimental_group != ''
+    ).order_by(User.experimental_group, User.class_group, User.name).all()
+    assessments = {
+        a.user_id: a
+        for a in OralPresentationAssessment.query.filter_by(semester=SEMESTER).all()
+    }
+    return render_template('teacher/oral_assessment_list.html',
+                           students=students, assessments=assessments)
+
+
+@app.route('/teacher/oral-assessment/batch-open', methods=['POST'])
+@login_required
+def teacher_oral_assessment_batch_open():
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    students = User.query.filter(
+        User.experimental_group.isnot(None),
+        User.experimental_group != ''
+    ).order_by(User.experimental_group, User.class_group, User.name).all()
+    finalized_ids = {
+        a.user_id for a in OralPresentationAssessment.query.filter_by(semester=SEMESTER)
+        .filter(OralPresentationAssessment.finalized_at.isnot(None)).all()
+    }
+    for s in students:
+        if s.id not in finalized_ids:
+            return redirect(url_for('teacher_oral_assessment_detail', user_id=s.id))
+    flash('所有學生已完成口頭報告評分。', 'success')
+    return redirect(url_for('teacher_oral_assessment_list'))
+
+
+@app.route('/teacher/oral-assessment/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def teacher_oral_assessment_detail(user_id):
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    student = User.query.get_or_404(user_id)
+    assessment = OralPresentationAssessment.query.filter_by(
+        user_id=user_id, semester=SEMESTER
+    ).first()
+
+    if request.method == 'POST':
+        # CSRF
+        sent = request.form.get('_csrf') or request.headers.get('X-CSRFToken', '')
+        expected = session.get('_csrf_token', '')
+        if not expected or not secrets.compare_digest(sent, expected):
+            abort(400, 'CSRF token invalid or missing.')
+
+        # 已 finalized 不可再改
+        if assessment and assessment.finalized_at:
+            flash('此口頭報告評分已鎖定，不可再修改。', 'error')
+            return redirect(url_for('teacher_oral_assessment_list'))
+
+        def _parse_score(name):
+            raw = request.form.get(name, '').strip()
+            if not raw:
+                return None, True
+            try:
+                v = int(raw)
+            except ValueError:
+                return None, False
+            if not (1 <= v <= 5):
+                return None, False
+            return v, True
+
+        sc, ok1 = _parse_score('score_content')
+        ss, ok2 = _parse_score('score_structure')
+        sd, ok3 = _parse_score('score_delivery')
+        sq, ok4 = _parse_score('score_qa')
+        if not all([ok1, ok2, ok3, ok4]):
+            flash('分數格式錯誤，每項需為 1–5 整數。', 'error')
+            return redirect(url_for('teacher_oral_assessment_detail', user_id=user_id))
+
+        comment  = request.form.get('teacher_comment', '').strip()
+        finalize = request.form.get('finalize') == '1'
+
+        if not assessment:
+            assessment = OralPresentationAssessment(user_id=user_id, semester=SEMESTER)
+            db.session.add(assessment)
+
+        assessment.score_content   = sc
+        assessment.score_structure = ss
+        assessment.score_delivery  = sd
+        assessment.score_qa        = sq
+        assessment.teacher_comment = comment
+        assessment.updated_at      = datetime.utcnow()
+
+        if finalize and all(s is not None for s in [sc, ss, sd, sq]):
+            assessment.finalized_at = datetime.utcnow()
+            assessment.reviewer_id  = current_user.id
+            db.session.commit()
+            flash(f'{student.name} 的口頭報告評分已確認。', 'success')
+            return redirect(url_for('teacher_oral_assessment_list'))
+
+        # 暫存（含 finalize 漏填情境，依然 commit 不丟資料）
+        db.session.commit()
+        if finalize:
+            flash('請填寫全部 4 個評分向度後再確認；目前已暫存填寫部分。', 'error')
+        else:
+            flash('評分已暫存。', 'success')
+        return redirect(url_for('teacher_oral_assessment_detail', user_id=user_id))
+
+    # 取學生 journal 5 DP5 自評（perception series 參考）
+    journal5 = LearningJournal.query.filter_by(
+        user_id=user_id, journal_number=5, semester=SEMESTER
+    ).first()
+    dp5_perception = {}
+    if journal5 and journal5.evaluation_json:
+        try:
+            dp5_perception = json.loads(journal5.evaluation_json).get('DP5', {})
+        except Exception:
+            pass
+
+    return render_template('teacher/oral_assessment_detail.html',
+                           student=student,
+                           assessment=assessment,
+                           dp5_perception=dp5_perception)
 
 
 # ─── DB Init ──────────────────────────────────────────────────────────────────

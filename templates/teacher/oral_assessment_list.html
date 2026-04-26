@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}口頭報告評分 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header { background:linear-gradient(135deg,#1a5276,#2980b9); color:#fff;
+                   padding:1.4rem 2rem; border-radius:8px; margin-bottom:1.5rem; }
+    .page-header h1 { font-size:1.4rem; margin:0; }
+    .filter-row { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .filter-btn { padding:.35rem .9rem; border-radius:20px; border:1px solid #ccc;
+                  background:#fff; cursor:pointer; font-size:.85rem; color:#555; }
+    .filter-btn.active { background:#1a5276; color:#fff; border-color:#1a5276; }
+    table { width:100%; border-collapse:collapse; background:#fff;
+            border-radius:8px; overflow:hidden;
+            box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    th { background:#1a5276; color:#fff; padding:.6rem .9rem; font-size:.87rem;
+         text-align:left; }
+    td { padding:.6rem .9rem; border-bottom:1px solid #f0f0f0; font-size:.88rem; }
+    tr:last-child td { border-bottom:none; }
+    .badge { display:inline-block; padding:.2rem .6rem; border-radius:12px;
+             font-size:.78rem; font-weight:600; }
+    .badge-none    { background:#f0f0f0; color:#888; }
+    .badge-draft   { background:#fef9e7; color:#d4ac0d; border:1px solid #f9ca24; }
+    .badge-done    { background:#eafaf1; color:#1e8449; border:1px solid #a9dfbf; }
+    .btn-sm { padding:.3rem .8rem; border-radius:5px; font-size:.82rem;
+              border:none; cursor:pointer; text-decoration:none; display:inline-block; }
+    .btn-primary { background:#2980b9; color:#fff; }
+    .btn-primary:hover { background:#1a5276; }
+    .btn-batch { background:#1e8449; color:#fff; border:none; padding:.6rem 1.4rem;
+                 border-radius:6px; cursor:pointer; font-size:.9rem; }
+    .btn-batch:hover { background:#27ae60; }
+    .summary-row { display:flex; gap:1.2rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .summary-box { background:#fff; border-radius:8px; padding:.8rem 1.2rem;
+                   box-shadow:0 2px 6px rgba(0,0,0,.06); text-align:center; min-width:90px; }
+    .summary-num { font-size:1.5rem; font-weight:700; color:#1a5276; }
+    .summary-lbl { font-size:.78rem; color:#888; margin-top:.1rem; }
+</style>
+
+<div class="page-header">
+    <h1>期末口頭報告評分</h1>
+    <p style="opacity:.88;font-size:.88rem;margin:.3rem 0 0;">
+        DP5 performance 資料源 ‧ 兩組共用
+    </p>
+</div>
+
+{% set total   = students|length %}
+{% set n_done  = students|selectattr('id','in', assessments.keys())|selectattr('id','in',
+                   assessments.values()|selectattr('finalized_at')|map(attribute='user_id')|list)|list|length %}
+{% set n_done  = namespace(val=0) %}
+{% for s in students %}{% if assessments.get(s.id) and assessments[s.id].finalized_at %}{% set n_done.val = n_done.val + 1 %}{% endif %}{% endfor %}
+{% set n_draft = namespace(val=0) %}
+{% for s in students %}{% if assessments.get(s.id) and not assessments[s.id].finalized_at %}{% set n_draft.val = n_draft.val + 1 %}{% endif %}{% endfor %}
+
+<div class="summary-row">
+    <div class="summary-box">
+        <div class="summary-num">{{ total }}</div>
+        <div class="summary-lbl">學生總數</div>
+    </div>
+    <div class="summary-box">
+        <div class="summary-num" style="color:#1e8449;">{{ n_done.val }}</div>
+        <div class="summary-lbl">已完成</div>
+    </div>
+    <div class="summary-box">
+        <div class="summary-num" style="color:#d4ac0d;">{{ n_draft.val }}</div>
+        <div class="summary-lbl">評分中</div>
+    </div>
+    <div class="summary-box">
+        <div class="summary-num" style="color:#e74c3c;">{{ total - n_done.val - n_draft.val }}</div>
+        <div class="summary-lbl">未開始</div>
+    </div>
+</div>
+
+<div style="margin-bottom:1rem;">
+    <form method="post" action="{{ url_for('teacher_oral_assessment_batch_open') }}" style="display:inline;">
+        <button type="submit" class="btn-batch">連續評分（下一位未完成）</button>
+    </form>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>組別</th>
+            <th>班級</th>
+            <th>姓名</th>
+            <th>學號</th>
+            <th>狀態</th>
+            <th>四向度平均</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in students %}
+        {% set a = assessments.get(s.id) %}
+        <tr>
+            <td>
+                {% if s.experimental_group == 'experimental' %}
+                    <span style="color:#1a5276;font-weight:600;">實驗</span>
+                {% else %}
+                    <span style="color:#7d6608;font-weight:600;">對照</span>
+                {% endif %}
+            </td>
+            <td>{{ s.class_group }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.student_id }}</td>
+            <td>
+                {% if a and a.finalized_at %}
+                    <span class="badge badge-done">已完成</span>
+                {% elif a %}
+                    <span class="badge badge-draft">評分中</span>
+                {% else %}
+                    <span class="badge badge-none">未開始</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if a and a.finalized_at %}
+                    {% set avg = ((a.score_content + a.score_structure + a.score_delivery + a.score_qa) / 4) %}
+                    {{ "%.1f"|format(avg) }}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('teacher_oral_assessment_detail', user_id=s.id) }}"
+                   class="btn-sm btn-primary">
+                    {% if a and a.finalized_at %}查看{% elif a %}繼續評分{% else %}開始評分{% endif %}
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

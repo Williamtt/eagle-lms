@@ -207,3 +207,51 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
     except Exception as e:
         print(f"[ai_service] generate_review_suggestion error: {e}")
         return {"suggestion": f"AI 建議生成失敗：{e}", "suggested_score": None}
+
+
+def generate_self_study_rubric_suggestion(proposal_text: str, axes: list, axes_desc: dict) -> dict:
+    """為對照組自主學習成果產生 Rubric 建議分數（每軸 1–5）。"""
+    client = get_client()
+    if not client:
+        return {"error": "ai_disabled", "rubric_scores": {}, "comment": ""}
+
+    axes_block = '\n'.join(
+        f'- {ax}：{axes_desc.get(ax, ax)}' for ax in axes
+    )
+    system_prompt = f"""你是協助教師評閱學生自主學習成果的 AI 助手。
+請依據以下評分向度，對學生的成果報告給出建議分數（各 1–5 分）。
+
+評分向度：
+{axes_block}
+
+評分標準：1=明顯不足 / 2=有待加強 / 3=基本達標 / 4=良好 / 5=優秀
+
+請以 JSON 格式回覆，僅回傳 JSON，不要其他文字：
+{{
+  "rubric_scores": {{{', '.join(f'"{ax}": 整數1到5' for ax in axes)}}},
+  "comment": "給教師參考的整體評語（100字以內）"
+}}"""
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=600,
+            system=system_prompt,
+            messages=[{"role": "user", "content": f"學生成果內容：\n\n{proposal_text}"}]
+        )
+        raw = message.content[0].text.strip()
+        if raw.startswith('```'):
+            raw = raw.split('```')[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+            raw = raw.strip()
+        result = json.loads(raw)
+        # 確保分數在 1–5 範圍內
+        for ax in axes:
+            v = result.get('rubric_scores', {}).get(ax)
+            if v is not None:
+                result['rubric_scores'][ax] = max(1, min(5, int(v)))
+        return result
+    except Exception as e:
+        print(f"[ai_service] generate_self_study_rubric_suggestion error: {e}")
+        return {"error": str(e), "rubric_scores": {}, "comment": f"AI 建議生成失敗：{e}"}

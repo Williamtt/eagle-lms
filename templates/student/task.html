@@ -557,14 +557,16 @@ function toggleChecked(itemId) {
             completeness:   '完整度',
             depth:          '深度',
         };
-        let html = '';
+        // 用 DOM API 建立 element，避免 AI 回傳含 HTML 字串造成 XSS
+        container.textContent = '';
         for (const [k, v] of Object.entries(scores)) {
-            if (v !== null && v !== undefined) {
-                const label = labelMap[k] || k;
-                html += `<span class="score-badge">${label}：${v}</span>`;
-            }
+            if (v === null || v === undefined) continue;
+            const label = labelMap[k] || k;
+            const span = document.createElement('span');
+            span.className = 'score-badge';
+            span.textContent = `${label}：${v}`;
+            container.appendChild(span);
         }
-        container.innerHTML = html;
     } catch(e) { /* 無法解析則靜默略過 */ }
 })();
 
