@@ -3666,6 +3666,493 @@ def teacher_oral_assessment_detail(user_id):
                            dp5_perception=dp5_perception)
 
 
+# ─── v2.7.0：研究資料完整性檢查 + 研究匯出 bundle ───────────────────────────
+
+@app.route('/teacher/data-check')
+@login_required
+def teacher_data_check():
+    """每位學生資料完整性一覽（v2.7.0 §3.5）。"""
+    if not current_user.is_teacher:
+        flash('無教師權限。', 'error')
+        return redirect(url_for('dashboard'))
+
+    from services.data_completeness import all_students_completeness, LABELS
+    rows = all_students_completeness(SEMESTER)
+
+    summary = {
+        'total':     len(rows),
+        'eligible':  sum(1 for r in rows if r['research_eligible']),
+        'has_miss':  sum(1 for r in rows if r['missing']),
+        'has_anom':  sum(1 for r in rows if r['anomalies']),
+    }
+    return render_template('teacher/data_check.html',
+                           rows=rows, labels=LABELS, summary=summary,
+                           semester=SEMESTER)
+
+
+@app.route('/teacher/data-check/export')
+@login_required
+def teacher_data_check_export():
+    """缺漏項目 CSV（一行一學生）。"""
+    if not current_user.is_teacher:
+        flash('無教師權限。', 'error')
+        return redirect(url_for('dashboard'))
+
+    from services.data_completeness import all_students_completeness, LABELS
+    rows = all_students_completeness(SEMESTER)
+
+    fieldnames = ['student_id', 'name', 'class_group', 'experimental_group',
+                  'research_eligible', 'missing_count', 'missing_items',
+                  'anomalies']
+    out_rows = []
+    for r in rows:
+        miss_labels = [LABELS.get(m, m) for m in r['missing']]
+        anom_labels = [LABELS.get(a, a) for a in r['anomalies']]
+        out_rows.append({
+            'student_id':         r['student_id'],
+            'name':               r['name'],
+            'class_group':        r['class_group'] or '',
+            'experimental_group': r['experimental_group'] or '',
+            'research_eligible':  '1' if r['research_eligible'] else '0',
+            'missing_count':      len(r['missing']),
+            'missing_items':      '; '.join(miss_labels),
+            'anomalies':          '; '.join(anom_labels),
+        })
+
+    fname = f'data_check_{SEMESTER}_{datetime.now().strftime("%Y%m%d")}.csv'
+    return _csv_response(out_rows, fieldnames, fname)
+
+
+@app.route('/teacher/export/research-bundle/preview')
+@login_required
+def teacher_research_bundle_preview():
+    """ZIP 內容預覽（行數 + eligible 數）。"""
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+
+    from services.data_completeness import all_students_completeness
+    rows = all_students_completeness(SEMESTER)
+    eligible_uids = {r['user_id'] for r in rows if r['research_eligible']}
+
+    counts = {
+        'total_students':    len(rows),
+        'eligible_students': len(eligible_uids),
+        'teacher_reviews':   TeacherReview.query
+                              .filter(TeacherReview.rubric_finalized_at != None)
+                              .join(TaskSubmission,
+                                    TeacherReview.task_submission_id == TaskSubmission.id)
+                              .filter(TaskSubmission.user_id.in_(eligible_uids))
+                              .count() if eligible_uids else 0,
+        'self_study_proposals': SelfStudyProposal.query
+                                  .filter(SelfStudyProposal.user_id.in_(eligible_uids),
+                                          SelfStudyProposal.semester == SEMESTER,
+                                          SelfStudyProposal.finalized_at != None)
+                                  .count() if eligible_uids else 0,
+        'oral_assessments':  OralPresentationAssessment.query
+                              .filter(OralPresentationAssessment.user_id.in_(eligible_uids),
+                                      OralPresentationAssessment.semester == SEMESTER,
+                                      OralPresentationAssessment.finalized_at != None)
+                              .count() if eligible_uids else 0,
+        'learning_journals': LearningJournal.query
+                              .filter(LearningJournal.user_id.in_(eligible_uids),
+                                      LearningJournal.semester == SEMESTER)
+                              .count() if eligible_uids else 0,
+    }
+    return jsonify(counts)
+
+
+@app.route('/teacher/export/research-bundle')
+@login_required
+def teacher_research_bundle():
+    """打包多 CSV + 文件成 ZIP（v2.7.0 §3.3）。"""
+    if not current_user.is_teacher:
+        flash('無教師權限。', 'error')
+        return redirect(url_for('dashboard'))
+
+    import zipfile
+    from services.data_completeness import all_students_completeness, LABELS
+
+    completeness_rows = all_students_completeness(SEMESTER)
+    eligible_uids = {r['user_id'] for r in completeness_rows if r['research_eligible']}
+
+    def _csv_bytes(rows, fieldnames):
+        buf = io.StringIO()
+        buf.write('﻿')
+        writer = csv.DictWriter(buf, fieldnames=fieldnames,
+                                extrasaction='ignore', lineterminator='\r\n')
+        writer.writeheader()
+        writer.writerows(rows)
+        return buf.getvalue().encode('utf-8')
+
+    # ── 主表 1：competency_scores.csv ─────────────────────────────────────
+    comp_fields = ['student_id', 'class_group', 'experimental_group',
+                   'axis', 'source', 'score', 'reference_id',
+                   'research_eligible', 'semester']
+    comp_rows = []
+    for cr in completeness_rows:
+        if cr['user_id'] not in eligible_uids:
+            continue
+        u = User.query.get(cr['user_id'])
+        # source: teacher (TeacherReview rubric)
+        reviews = (TeacherReview.query
+                   .join(TaskSubmission,
+                         TeacherReview.task_submission_id == TaskSubmission.id)
+                   .filter(TaskSubmission.user_id == u.id,
+                           TaskSubmission.semester == SEMESTER,
+                           TeacherReview.rubric_finalized_at != None)
+                   .all())
+        for tr in reviews:
+            try:
+                axes = json.loads(tr.rubric_json) if tr.rubric_json else {}
+            except (json.JSONDecodeError, TypeError):
+                axes = {}
+            for axis, score in axes.items():
+                if score is None:
+                    continue
+                comp_rows.append({
+                    'student_id': u.student_id, 'class_group': u.class_group or '',
+                    'experimental_group': cr['experimental_group'],
+                    'axis': axis, 'source': 'teacher', 'score': score,
+                    'reference_id': f'TeacherReview#{tr.id}',
+                    'research_eligible': 1, 'semester': SEMESTER,
+                })
+        # source: self_study rubric (control)
+        proposals = SelfStudyProposal.query.filter(
+            SelfStudyProposal.user_id == u.id,
+            SelfStudyProposal.semester == SEMESTER,
+            SelfStudyProposal.finalized_at != None,
+        ).all()
+        for p in proposals:
+            try:
+                axes = json.loads(p.rubric_json) if p.rubric_json else {}
+            except (json.JSONDecodeError, TypeError):
+                axes = {}
+            for axis, score in axes.items():
+                if score is None:
+                    continue
+                comp_rows.append({
+                    'student_id': u.student_id, 'class_group': u.class_group or '',
+                    'experimental_group': cr['experimental_group'],
+                    'axis': axis, 'source': 'self_study_rubric', 'score': score,
+                    'reference_id': f'SelfStudyProposal#{p.id}',
+                    'research_eligible': 1, 'semester': SEMESTER,
+                })
+        # source: oral_assessment (DP5)
+        oral = OralPresentationAssessment.query.filter_by(
+            user_id=u.id, semester=SEMESTER
+        ).first()
+        if oral and oral.finalized_at:
+            for axis_name, score in [('content', oral.score_content),
+                                      ('structure', oral.score_structure),
+                                      ('delivery', oral.score_delivery),
+                                      ('qa', oral.score_qa)]:
+                if score is None:
+                    continue
+                comp_rows.append({
+                    'student_id': u.student_id, 'class_group': u.class_group or '',
+                    'experimental_group': cr['experimental_group'],
+                    'axis': f'DP5_{axis_name}', 'source': 'oral_assessment',
+                    'score': score, 'reference_id': f'OralPresentationAssessment#{oral.id}',
+                    'research_eligible': 1, 'semester': SEMESTER,
+                })
+        # source: self_report_journal (journal5 DP5)
+        j5 = LearningJournal.query.filter_by(
+            user_id=u.id, journal_number=5, semester=SEMESTER
+        ).order_by(LearningJournal.submitted_at.desc()).first()
+        if j5 and j5.evaluation_json:
+            try:
+                ev = json.loads(j5.evaluation_json)
+                rating = ev.get('DP5', {}).get('self_rating')
+                if rating is not None:
+                    comp_rows.append({
+                        'student_id': u.student_id, 'class_group': u.class_group or '',
+                        'experimental_group': cr['experimental_group'],
+                        'axis': 'DP5', 'source': 'self_report_journal',
+                        'score': rating, 'reference_id': f'LearningJournal#{j5.id}',
+                        'research_eligible': 1, 'semester': SEMESTER,
+                    })
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    # ── 主表 2：teacher_reviews.csv ───────────────────────────────────────
+    tr_fields = ['student_id', 'class_group', 'task_number', 'task_submission_id',
+                 'rubric_json', 'rubric_finalized_at', 'rubric_source',
+                 'score', 'feedback', 'reviewed_at', 'research_eligible']
+    tr_rows = []
+    for tr in (TeacherReview.query
+               .join(TaskSubmission,
+                     TeacherReview.task_submission_id == TaskSubmission.id)
+               .filter(TaskSubmission.user_id.in_(eligible_uids),
+                       TaskSubmission.semester == SEMESTER,
+                       TeacherReview.rubric_finalized_at != None)
+               .all() if eligible_uids else []):
+        sub = db.session.get(TaskSubmission, tr.task_submission_id)
+        u = sub.author if sub else None
+        tr_rows.append({
+            'student_id':       u.student_id if u else '',
+            'class_group':      (u.class_group if u else '') or '',
+            'task_number':      sub.task_number if sub else '',
+            'task_submission_id': tr.task_submission_id,
+            'rubric_json':      tr.rubric_json or '',
+            'rubric_finalized_at': tr.rubric_finalized_at.strftime('%Y-%m-%d %H:%M:%S')
+                                    if tr.rubric_finalized_at else '',
+            'rubric_source':    getattr(tr, 'rubric_source', '') or '',
+            'score':            tr.score if tr.score is not None else '',
+            'feedback':         tr.feedback or '',
+            'reviewed_at':      tr.reviewed_at.strftime('%Y-%m-%d %H:%M:%S')
+                                  if tr.reviewed_at else '',
+            'research_eligible': 1,
+        })
+
+    # ── 主表 3：self_study_proposals.csv ──────────────────────────────────
+    ssp_fields = ['student_id', 'class_group', 'proposal_number',
+                  'topic', 'approval_status', 'final_score',
+                  'rubric_json', 'finalized_at', 'research_eligible']
+    ssp_rows = []
+    for p in (SelfStudyProposal.query
+              .filter(SelfStudyProposal.user_id.in_(eligible_uids),
+                      SelfStudyProposal.semester == SEMESTER,
+                      SelfStudyProposal.finalized_at != None)
+              .all() if eligible_uids else []):
+        u = User.query.get(p.user_id)
+        ssp_rows.append({
+            'student_id':       u.student_id if u else '',
+            'class_group':      (u.class_group if u else '') or '',
+            'proposal_number':  p.proposal_number,
+            'topic':            p.topic or '',
+            'approval_status':  p.approval_status,
+            'final_score':      p.final_score if p.final_score is not None else '',
+            'rubric_json':      p.rubric_json or '',
+            'finalized_at':     p.finalized_at.strftime('%Y-%m-%d %H:%M:%S')
+                                  if p.finalized_at else '',
+            'research_eligible': 1,
+        })
+
+    # ── 主表 4：oral_presentation_assessments.csv ─────────────────────────
+    oral_fields = ['student_id', 'class_group', 'experimental_group',
+                   'score_content', 'score_structure', 'score_delivery', 'score_qa',
+                   'teacher_comment', 'finalized_at', 'research_eligible']
+    oral_rows = []
+    for o in (OralPresentationAssessment.query
+              .filter(OralPresentationAssessment.user_id.in_(eligible_uids),
+                      OralPresentationAssessment.semester == SEMESTER,
+                      OralPresentationAssessment.finalized_at != None)
+              .all() if eligible_uids else []):
+        u = User.query.get(o.user_id)
+        oral_rows.append({
+            'student_id':         u.student_id if u else '',
+            'class_group':        (u.class_group if u else '') or '',
+            'experimental_group': u.experimental_group if u else '',
+            'score_content':      o.score_content if o.score_content is not None else '',
+            'score_structure':    o.score_structure if o.score_structure is not None else '',
+            'score_delivery':     o.score_delivery if o.score_delivery is not None else '',
+            'score_qa':           o.score_qa if o.score_qa is not None else '',
+            'teacher_comment':    o.teacher_comment or '',
+            'finalized_at':       o.finalized_at.strftime('%Y-%m-%d %H:%M:%S')
+                                    if o.finalized_at else '',
+            'research_eligible':  1,
+        })
+
+    # ── 主表 5：learning_journals.csv（含 DP5 自評解析） ──────────────────
+    lj_fields = ['student_id', 'class_group', 'experimental_group',
+                 'journal_number', 'week', 'content',
+                 'dp5_self_rating', 'dp5_evidence',
+                 'submitted_at', 'research_eligible']
+    lj_rows = []
+    for j in (LearningJournal.query
+              .filter(LearningJournal.user_id.in_(eligible_uids),
+                      LearningJournal.semester == SEMESTER)
+              .order_by(LearningJournal.user_id, LearningJournal.journal_number)
+              .all() if eligible_uids else []):
+        u = User.query.get(j.user_id)
+        dp5_rating, dp5_evidence = '', ''
+        if j.evaluation_json:
+            try:
+                ev = json.loads(j.evaluation_json)
+                dp5 = ev.get('DP5', {})
+                dp5_rating = dp5.get('self_rating', '') if dp5.get('self_rating') is not None else ''
+                dp5_evidence = dp5.get('evidence', '') or ''
+            except (json.JSONDecodeError, TypeError):
+                pass
+        lj_rows.append({
+            'student_id':         u.student_id if u else '',
+            'class_group':        (u.class_group if u else '') or '',
+            'experimental_group': u.experimental_group if u else '',
+            'journal_number':     j.journal_number,
+            'week':               j.week,
+            'content':            j.content or '',
+            'dp5_self_rating':    dp5_rating,
+            'dp5_evidence':       dp5_evidence,
+            'submitted_at':       j.submitted_at.strftime('%Y-%m-%d %H:%M:%S')
+                                    if j.submitted_at else '',
+            'research_eligible':  1,
+        })
+
+    # ── 主表 6：arcsa_responses.csv ───────────────────────────────────────
+    arcsa_fields = ['student_id', 'class_group', 'experimental_group',
+                    'timepoint', 'item_code', 'value', 'submitted_at',
+                    'research_eligible']
+    arcsa_rows = []
+    for code, timepoint in [('arcsa_pre', 'pre'), ('arcsa_post', 'post')]:
+        q = Questionnaire.query.filter_by(code=code).first()
+        if not q:
+            continue
+        for qs in (QuestionnaireSubmission.query
+                   .filter(QuestionnaireSubmission.questionnaire_id == q.id,
+                           QuestionnaireSubmission.user_id.in_(eligible_uids))
+                   .all() if eligible_uids else []):
+            u = User.query.get(qs.user_id)
+            for ans in qs.answers:
+                arcsa_rows.append({
+                    'student_id':         u.student_id if u else '',
+                    'class_group':        (u.class_group if u else '') or '',
+                    'experimental_group': u.experimental_group if u else '',
+                    'timepoint':          timepoint,
+                    'item_code':          ans.item_code,
+                    'value':              ans.value,
+                    'submitted_at':       qs.submitted_at.strftime('%Y-%m-%d %H:%M:%S')
+                                            if qs.submitted_at else '',
+                    'research_eligible':  1,
+                })
+
+    # ── 主表 7：task_schedules + change_logs ─────────────────────────────
+    ts_fields = ['id', 'task_number', 'opens_at', 'deadline_at',
+                 'effective_from', 'date_source', 'set_by']
+    ts_rows = []
+    for ts in TaskSchedule.query.order_by(TaskSchedule.task_number,
+                                           TaskSchedule.effective_from).all():
+        ts_rows.append({
+            'id': ts.id, 'task_number': ts.task_number,
+            'opens_at':       ts.opens_at.strftime('%Y-%m-%d %H:%M:%S')
+                                if ts.opens_at else '',
+            'deadline_at':    ts.deadline_at.strftime('%Y-%m-%d %H:%M:%S')
+                                if ts.deadline_at else '',
+            'effective_from': ts.effective_from.strftime('%Y-%m-%d %H:%M:%S')
+                                if ts.effective_from else '',
+            'date_source': ts.date_source or '', 'set_by': ts.set_by or '',
+        })
+    tdcl_fields = ['id', 'task_number', 'schedule_id', 'field_name',
+                   'old_value', 'new_value', 'changed_by', 'reason', 'changed_at']
+    tdcl_rows = []
+    for log in TaskDateChangeLog.query.order_by(TaskDateChangeLog.changed_at).all():
+        tdcl_rows.append({
+            'id': log.id, 'task_number': log.task_number,
+            'schedule_id': log.schedule_id, 'field_name': log.field_name,
+            'old_value': log.old_value or '', 'new_value': log.new_value,
+            'changed_by': log.changed_by or '', 'reason': log.reason or '',
+            'changed_at': log.changed_at.strftime('%Y-%m-%d %H:%M:%S')
+                            if log.changed_at else '',
+        })
+
+    # ── 補充表 1：ai_feedbacks_raw.csv ────────────────────────────────────
+    aifb_fields = ['student_id', 'task_submission_id', 'task_number',
+                   'scores', 'feedback_text', 'created_at',
+                   'research_eligible']
+    aifb_rows = []
+    for fb in (AIFeedback.query
+               .join(TaskSubmission, AIFeedback.task_submission_id == TaskSubmission.id)
+               .filter(TaskSubmission.semester == SEMESTER)
+               .all()):
+        sub = db.session.get(TaskSubmission, fb.task_submission_id)
+        u = sub.author if sub else None
+        aifb_rows.append({
+            'student_id':         u.student_id if u else '',
+            'task_submission_id': fb.task_submission_id,
+            'task_number':        sub.task_number if sub else '',
+            'scores':             fb.scores or '',
+            'feedback_text':      fb.feedback or '',
+            'created_at':         fb.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                                    if fb.created_at else '',
+            'research_eligible':  0,
+        })
+
+    # ── 補充表 2：learning_events.csv ────────────────────────────────────
+    le_fields = ['user_id', 'student_id', 'event_type',
+                 'entity_type', 'entity_id', 'payload_json', 'created_at',
+                 'research_eligible']
+    le_rows = []
+    for ev in LearningEvent.query.order_by(LearningEvent.created_at).all():
+        u = User.query.get(ev.user_id)
+        le_rows.append({
+            'user_id':    ev.user_id,
+            'student_id': u.student_id if u else '',
+            'event_type': ev.event_type,
+            'entity_type': ev.entity_type or '',
+            'entity_id':   ev.entity_id or '',
+            'payload_json': ev.payload_json or '',
+            'created_at':  ev.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                             if ev.created_at else '',
+            'research_eligible': 0,
+        })
+
+    # ── data_quality_report.txt ───────────────────────────────────────────
+    report_lines = [
+        f'# Eagle-LMS 研究資料完整性報告',
+        f'學期：{SEMESTER}',
+        f'產生時間：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
+        f'',
+        f'學生總數：{len(completeness_rows)}',
+        f'符合 research_eligible 條件人數：{len(eligible_uids)}',
+        f'',
+        f'## 缺漏摘要',
+    ]
+    for r in completeness_rows:
+        if not r['missing'] and not r['anomalies']:
+            continue
+        miss = '、'.join(LABELS.get(m, m) for m in r['missing']) or '無'
+        anom = '、'.join(LABELS.get(a, a) for a in r['anomalies']) or '無'
+        report_lines.append(
+            f"- [{r['experimental_group'] or '未分組'}] "
+            f"{r['student_id']} {r['name']}：缺漏=[{miss}]；異常=[{anom}]"
+        )
+    report_text = '\n'.join(report_lines).encode('utf-8')
+
+    readme_text = (
+        f'Eagle-LMS 研究資料匯出包\n'
+        f'學期：{SEMESTER}\n'
+        f'產生時間：{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n\n'
+        f'## 主表（research_eligible=true 之學生）\n'
+        f'- competency_scores.csv：每生 × 各軸 × 各 source 分數\n'
+        f'- teacher_reviews.csv：教師認證 rubric（finalized）\n'
+        f'- self_study_proposals.csv：對照組自學提案 finalized\n'
+        f'- oral_presentation_assessments.csv：DP5 口頭報告教師評分\n'
+        f'- learning_journals.csv：學習日誌（解析 DP5 自評）\n'
+        f'- arcsa_responses.csv：ARCSA 前後測作答\n'
+        f'- task_schedules.csv / task_date_change_logs.csv：任務日期權威表 + audit\n\n'
+        f'## 補充表（教學參考用，非研究主分析）\n'
+        f'- _supplementary/ai_feedbacks_raw.csv：所有 AI 初步回饋（research_eligible=false）\n'
+        f'- _supplementary/learning_events.csv：行為事件 log（research_eligible=false）\n\n'
+        f'## 文件\n'
+        f'- data_quality_report.txt：每生缺漏項目摘要\n'
+    ).encode('utf-8')
+
+    # ── 打包 ZIP ──────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('competency_scores.csv', _csv_bytes(comp_rows, comp_fields))
+        zf.writestr('teacher_reviews.csv', _csv_bytes(tr_rows, tr_fields))
+        zf.writestr('self_study_proposals.csv', _csv_bytes(ssp_rows, ssp_fields))
+        zf.writestr('oral_presentation_assessments.csv', _csv_bytes(oral_rows, oral_fields))
+        zf.writestr('learning_journals.csv', _csv_bytes(lj_rows, lj_fields))
+        zf.writestr('arcsa_responses.csv', _csv_bytes(arcsa_rows, arcsa_fields))
+        zf.writestr('task_schedules.csv', _csv_bytes(ts_rows, ts_fields))
+        zf.writestr('task_date_change_logs.csv', _csv_bytes(tdcl_rows, tdcl_fields))
+        zf.writestr('_supplementary/ai_feedbacks_raw.csv',
+                    _csv_bytes(aifb_rows, aifb_fields))
+        zf.writestr('_supplementary/learning_events.csv',
+                    _csv_bytes(le_rows, le_fields))
+        zf.writestr('data_quality_report.txt', report_text)
+        zf.writestr('README.txt', readme_text)
+    buf.seek(0)
+
+    fname = f'eagle_research_bundle_{SEMESTER}_{datetime.now().strftime("%Y%m%d_%H%M")}.zip'
+    return Response(
+        buf.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{fname}"'}
+    )
+
+
 # ─── DB Init ──────────────────────────────────────────────────────────────────
 
 with app.app_context():

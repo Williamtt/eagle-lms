@@ -302,6 +302,11 @@
         <h3 style="color:#0e6b56;">🎯 工作坊管理</h3>
         <p>建立課後工作坊、產生簽到碼、查看報名 / 出席 / 反思</p>
     </a>
+    <a href="{{ url_for('teacher_data_check') }}" class="tool-card"
+       style="border-left-color:#8e44ad;">
+        <h3 style="color:#6a1b9a;">📋 資料完整性檢查</h3>
+        <p>查看每位學生 ARCSA / 任務 / 日誌 / 口頭報告 / 問卷的繳交狀態</p>
+    </a>
 </div>
 
 {# ── 資料匯出 ── #}
@@ -333,6 +338,11 @@
         <a href="{{ url_for('export_journals') }}"
            class="btn btn-secondary btn-small" style="background:#1e8449;">
             ⬇ 學習日誌
+        </a>
+        {# v2.7 研究資料完整 ZIP #}
+        <a href="{{ url_for('teacher_research_bundle') }}"
+           class="btn btn-secondary btn-small" style="background:#8e44ad;">
+            📦 研究資料完整 ZIP
         </a>
     </div>
     <p style="font-size:0.8rem;color:#aaa;margin-top:0.75rem;">

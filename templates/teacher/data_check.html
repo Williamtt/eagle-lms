@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}資料完整性檢查 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<style>
+    .page-header {
+        background: linear-gradient(135deg, #6a1b9a 0%, #8e44ad 100%);
+        color: #fff; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .page-header h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+    .page-header p  { margin: 0; opacity: 0.85; font-size: 0.92rem; }
+
+    .summary-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .summary-chip {
+        padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.88rem; font-weight: 600;
+    }
+    .chip-total    { background: #f2f3f4; color: #555; }
+    .chip-eligible { background: #d4efdf; color: #1e8449; }
+    .chip-miss     { background: #fdebd0; color: #af601a; }
+    .chip-anom     { background: #fadbd8; color: #c0392b; }
+
+    .toolbar { margin-bottom: 1rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .btn {
+        padding: 0.5rem 1.1rem; border-radius: 6px; font-size: 0.9rem;
+        font-weight: 600; text-decoration: none; display: inline-block;
+        border: none; cursor: pointer;
+    }
+    .btn-export { background: #6a1b9a; color: #fff; }
+    .btn-bundle { background: #1a5276; color: #fff; }
+    .btn-back   { background: #95a5a6; color: #fff; }
+
+    .check-table {
+        width: 100%; border-collapse: collapse; background: #fff;
+        border-radius: 8px; overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .check-table th {
+        background: #6a1b9a; color: #fff; padding: 0.75rem 0.8rem;
+        text-align: left; font-size: 0.88rem;
+    }
+    .check-table td {
+        padding: 0.6rem 0.8rem; border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem; vertical-align: top;
+    }
+    .check-table tr:last-child td { border-bottom: none; }
+    .check-table tr:hover td { background: #f8f9fa; }
+
+    .group-tag {
+        padding: 0.15rem 0.55rem; border-radius: 12px;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .tag-exp  { background: #d4efdf; color: #1e8449; }
+    .tag-ctrl { background: #d6eaf8; color: #1a5276; }
+    .tag-none { background: #f2f3f4; color: #888; }
+
+    .miss-chip {
+        display: inline-block;
+        background: #fdebd0; color: #af601a;
+        padding: 0.15rem 0.5rem; margin: 0.1rem 0.2rem 0.1rem 0;
+        border-radius: 10px; font-size: 0.78rem;
+        text-decoration: none;
+    }
+    .miss-chip.linked { background: #fadbd8; color: #c0392b; }
+    .miss-chip.linked:hover { background: #f5b7b1; }
+    .anom-chip {
+        display: inline-block;
+        background: #f5b7b1; color: #922b21;
+        padding: 0.15rem 0.5rem; border-radius: 10px;
+        font-size: 0.78rem; font-weight: 600;
+    }
+    .ok-mark { color: #1e8449; font-weight: 700; }
+
+    .filter-row { margin-bottom: 0.8rem; }
+    .filter-row label { margin-right: 0.5rem; font-size: 0.9rem; }
+</style>
+
+<div class="page-header">
+    <h1>📋 研究資料完整性檢查</h1>
+    <p>學期 {{ semester }}　檢查每位學生 ARCSA / 任務 / 日誌 / 口頭報告 / 滿意度問卷的繳交狀態</p>
+</div>
+
+<div class="summary-bar">
+    <span class="summary-chip chip-total">學生總數 {{ summary.total }}</span>
+    <span class="summary-chip chip-eligible">符合研究條件 {{ summary.eligible }}</span>
+    <span class="summary-chip chip-miss">資料缺漏 {{ summary.has_miss }}</span>
+    <span class="summary-chip chip-anom">行為異常 {{ summary.has_anom }}</span>
+</div>
+
+<div class="toolbar">
+    <a href="{{ url_for('teacher_data_check_export') }}" class="btn btn-export">⬇️ 匯出缺漏清單 CSV</a>
+    <a href="{{ url_for('teacher_research_bundle') }}" class="btn btn-bundle">📦 下載研究資料 ZIP</a>
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-back">← 回教師儀表板</a>
+</div>
+
+<div class="filter-row">
+    <label><input type="checkbox" id="hide-eligible"> 僅顯示有缺漏的學生</label>
+</div>
+
+<table class="check-table" id="check-table">
+    <thead>
+        <tr>
+            <th>學號</th>
+            <th>姓名</th>
+            <th>分組</th>
+            <th>缺漏項目</th>
+            <th>異常標記</th>
+            <th>研究可用</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+        <tr data-eligible="{{ '1' if r.research_eligible else '0' }}">
+            <td>{{ r.student_id }}</td>
+            <td>{{ r.name }}</td>
+            <td>
+                {% if r.experimental_group == 'experimental' %}
+                    <span class="group-tag tag-exp">實驗組</span>
+                {% elif r.experimental_group == 'control' %}
+                    <span class="group-tag tag-ctrl">對照組</span>
+                {% else %}
+                    <span class="group-tag tag-none">未分組</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if r.missing %}
+                    {% for m in r.missing %}
+                        {% if r.links.get(m) %}
+                            <a href="{{ r.links[m] }}" class="miss-chip linked">{{ labels.get(m, m) }}</a>
+                        {% else %}
+                            <span class="miss-chip">{{ labels.get(m, m) }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <span class="ok-mark">✓ 完整</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if r.anomalies %}
+                    {% for a in r.anomalies %}
+                        <span class="anom-chip">{{ labels.get(a, a) }}</span>
+                    {% endfor %}
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+            <td>
+                {% if r.research_eligible %}
+                    <span class="ok-mark">✓</span>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+document.getElementById('hide-eligible').addEventListener('change', function (e) {
+    const hide = e.target.checked;
+    document.querySelectorAll('#check-table tbody tr').forEach(tr => {
+        tr.style.display = (hide && tr.dataset.eligible === '1') ? 'none' : '';
+    });
+});
+</script>
+{% endblock %}
