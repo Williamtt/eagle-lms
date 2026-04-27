@@ -333,7 +333,7 @@
         <li><a href="#group-learning">小組合作學習</a></li>
         <li><a href="#task1">任務 1：專案建立</a></li>
         <li><a href="#task2">任務 2：施工日誌與監造報表（雙階段）</a></li>
-        <li><a href="#task3">任務 3：工程進度計算與填寫</a></li>
+        <li><a href="#task3">任務 3：工程排程判讀、WBS 建模與進度分析</a></li>
         <li><a href="#task4">任務 4：自主查核表填寫</a></li>
         <li><a href="#reflection">總結反思與自我評量</a></li>
         <li><a href="#resources">附錄：學習資源與參考連結</a></li>
@@ -406,7 +406,7 @@
         <tr><th>任務</th><th>名稱</th><th>對應課程週次</th><th>模擬工期對應</th><th>核心學習主題</th></tr>
         <tr><td>任務 1</td><td>專案建立</td><td>第 3–4 週</td><td>模擬開工前準備</td><td>工程契約、WBS、專案管理架構</td></tr>
         <tr><td>任務 2</td><td>施工日誌與監造報表</td><td>第 5–6 週</td><td>Phase A：1–2 天施工日誌；Phase B：第 1–61 天監造報表（至進度 30%）</td><td>施工管理、角色對比、監造責任</td></tr>
-        <tr><td>任務 3</td><td>工程進度計算與填寫</td><td>第 7–8 週</td><td>模擬第 61 天進度分析</td><td>CPM、EVM、進度分析與控制</td></tr>
+        <tr><td>任務 3</td><td>工程排程判讀、WBS 建模與進度分析</td><td>第 7–8 週</td><td>模擬第 61 天進度分析</td><td>WBS、CPM 排程建模、EVM 資料判讀與進度管理建議</td></tr>
         <tr><td>任務 4</td><td>自主查核表填寫</td><td>第 9–10 週</td><td>模擬施工品質查核階段</td><td>品質管理、三級品管、施工查驗</td></tr>
     </table>
 
@@ -1079,53 +1079,77 @@
 <!-- ===== 任務 3 ===== -->
 <section id="task3">
     <div class="task-header">
-        <h2>任務 3：工程進度計算與填寫
+        <h2>任務 3：工程排程判讀、WBS 建模與進度分析
         {% if current_user.is_authenticated %}
             <a href="{{ url_for('view_task', task_number=3) }}" class="submit-task-btn">提交作業</a>
         {% endif %}
         </h2>
         <div class="task-meta">
             <span>對應週次：第 7–8 週</span>
-            <span>預估時間：4–6 小時</span>
+            <span>預估時間：5–7 小時</span>
             <span>難度：中高</span>
         </div>
     </div>
 
     <h3>3.1 任務目標</h3>
-    <p>運用課堂所學的 CPM（要徑法）和 EVM（實獲值管理法），結合磺港溪工程的真實工程資料，進行工程進度的計算與分析，並在 EAGLE 2.0 的進度表中檢視與驗證你的分析結果。此外，你將分析本工程的變更設計對進度與成本的影響。透過此任務，你將從「填寫日誌」的執行層面，提升到「分析進度」的管理層面。</p>
+
+    <div class="box box-highlight">
+        <span class="box-label">任務定位說明</span>
+        <p>本任務使用的「工程網狀圖」教材，實際上是排程軟體輸出的<strong>綱要進度甘特圖</strong>，並非完整 CPM 網狀圖。它提供工項名稱、工期、起訖時間與部分工作順序箭線，可作為建立排程模型的素材。</p>
+        <p>你需要先參考標單主要項目建立 3–4 層 WBS，再由最底層工作包定義作業，依照「定義作業、排序作業、估算工期、計算排程」的步驟，建立簡化前置關係表與 AON 圖，最後進行 CPM 計算與 EVM 分析。</p>
+        <p><strong>你的排程模型可以合理簡化，但總工期與主要階段時間必須回到教材甘特圖進行校準。</strong>教材不是答案，而是分析素材。</p>
+    </div>
+
+    <p>任務 3 的核心是訓練你從不完整、實務型的工程資料中建立可分析的管理模型：從標單、甘特圖理解工程範圍；用 WBS 分解工作；依進度計畫四步驟自行建立排程；完成 CPM 分析；再以正確的資料來源執行 EVM 評估，並在 EAGLE 2.0 的進度表中驗證。透過此任務，你將從「填寫日誌」的執行層面，提升到「規劃排程、分析進度、提出管理建議」的管理層面。</p>
 
     <h3>3.2 學習標的</h3>
     <ol>
-        <li>運用 CPM 方法，根據工程網狀圖計算要徑、最早/最晚開始與完成時間、浮時。</li>
-        <li>運用 EVM 方法，計算計畫值（PV）、實獲值（EV）與實際成本（AC），分析進度偏差（SV）與成本偏差（CV）。</li>
-        <li>理解變更設計對工程進度與成本的影響，學會判斷變更後應如何調整進度基準。</li>
-        <li>在 EAGLE 2.0 的進度表中檢視預定 vs 實際 S 曲線，驗證自己的計算結果。</li>
-        <li>理解進度管控對工程專案成敗的關鍵影響。</li>
-        <li>培養以數據為基礎的工程管理決策能力。</li>
+        <li>能判讀排程軟體輸出的綱要進度甘特圖，理解其與傳統 CPM 網狀圖的差異。</li>
+        <li>能參考標單（BOQ）主要項目建立 3–4 層 WBS，並說明 WBS 與 BOQ 在組織邏輯上的異同。</li>
+        <li>能從 WBS 最底層工作包定義可排程作業，建立作業定義表。</li>
+        <li>能依「定義作業、排序作業、估算工期、計算排程」四步驟，建立簡化排程模型並說明前置關係的判斷依據。</li>
+        <li>能將自行建立的排程模型校準至教材甘特圖的總工期與主要階段時間，並說明差異原因。</li>
+        <li>能進行 CPM 前推、後推計算，計算 ES、EF、LS、LF、TF，辨識可能要徑。</li>
+        <li>能正確區分 EVM 三種資料來源（PV 來自進度曲線表、EV 來自進度表正式確認值、AC 以估驗計價累計金額作為代理值），並說明監造報表在 EVM 中扮演的角色。</li>
+        <li>能計算 PV、EV、AC、SV、CV、SPI、CPI，並提出具體的進度管理建議。</li>
+        <li>能正確理解 EAGLE 2.0 進度表 S 曲線的資料來源與手動輸入機制。</li>
+        <li>能分析變更設計對 BAC、進度基準、CPM 要徑與 EVM 指標的影響。</li>
     </ol>
 
     <h3>3.3 角色與責任</h3>
-    <p>身為監造工程師，進度管控是你最重要的職責之一。你需要定期向主辦機關提報工程進度報告，分析承攬廠商的施工進度是否符合預定計畫，如有落後需提出原因分析與因應建議。進度報告的品質直接影響主辦機關對工程的掌控能力。</p>
+    <p>身為監造工程師，進度管控是你最重要的職責之一。你需要定期向主辦機關提報工程進度報告，分析承攬廠商的施工進度是否符合預定計畫，如有落後需提出原因分析與因應建議。這份任務所訓練的，不只是套公式，而是從標單、甘特圖、進度表、估驗資料中建立可溝通、可追蹤的管理模型。</p>
 
     <div class="box box-accountability">
         <span class="box-label">當責提醒</span>
-        進度落後是公共工程最常見的問題之一。如果監造工程師未能及時發現進度落後並提出警示，等到問題擴大後再處理，不僅增加趕工成本，更可能影響工程品質。因此，進度報告不只是「記錄現狀」，更是「預警管理」的重要工具。你的每一次進度分析，都可能影響這個工程最終能否如期完工。
+        進度報告不只是「記錄現狀」，更是「預警管理」的工具。進度落後是公共工程最常見的問題之一——監造工程師若未能及時發現並提出警示，等問題擴大後再處理，不僅增加趕工成本，更可能影響工程品質。你在本任務中建立的每一個排程假設、輸入的每一個進度數字，都反映你對工程現況的專業判斷。
     </div>
 
     <h3>3.4 自主學習教材</h3>
     <div class="materials">
         <h4>請先閱讀與準備以下資料：</h4>
         <ul>
-            <li><strong>工程網狀圖</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/工程網狀圖.pdf 📂</a>）：工程各工項的排程與邏輯關係。</li>
-            <li><strong>進度曲線表</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/進度曲線表.pdf 📂</a>）：預定進度 S 曲線。</li>
-            <li><strong>原契約工項</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/原契約.csv 📂</a>）：各工項的金額，作為 EVM 計算的基礎。</li>
-            <li><strong>第 1 次變更設計</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/磺港溪...第1次變更設計.csv 📂</a>）：變更後的工項與金額，用於分析變更設計對進度的影響。</li>
-            <li><strong>工程變更明細表</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/工程變更明細表.xlsx 📂</a>）：詳列各工項變更前後的數量與金額差異。</li>
-            <li><strong>估驗計價資料</strong>（<a href="https://drive.google.com/drive/folders/1_4hMp8t2lGQ1Xckrq4psmv2pe9V2JcEE" target="_blank">9.估驗計價/ 📂</a>）：實際完成工項的金額紀錄，可作為 EV 與 AC 的參考。</li>
-            <li><strong>任務 2 成果</strong>：你在監造報表中記錄的每日施工進度數據，以及系統中的進度表 S 曲線。</li>
-            <li><strong>課堂講義</strong>：CPM 計算方法與 EVM 分析方法（Ch5 工程規劃：進度排程）。</li>
+            <li><strong>綱要進度排程圖</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/工程網狀圖.pdf 📂</a>）：排程軟體輸出的甘特圖，含 12 個綱要工項的工期、起訖日期與箭線順序關係。<strong>此圖不是完整 CPM 網狀圖，而是建立排程模型的素材。</strong>你需要從中讀取工項邏輯，並配合 WBS 方法整理出前置關係表。</li>
+            <li><strong>進度曲線表</strong>（<a href="https://drive.google.com/drive/folders/1CjYaRPdBBZaFeEyFDCVps_4VPOcj3ZX9" target="_blank">16.進度表/進度曲線表.pdf 📂</a>）：預定進度 S 曲線，EVM 計算 PV 的依據。</li>
+            <li><strong>原契約工項</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/原契約.csv 📂</a>）：標單主要項目，建立 WBS 的起點，也是 EVM 的 BAC 來源。</li>
+            <li><strong>第 1 次變更設計</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/磺港溪...第1次變更設計.csv 📂</a>）與<strong>工程變更明細表</strong>（<a href="https://drive.google.com/drive/folders/1wPq1yyxcPCFzuo8k9hOHusDUk-ZBKkse" target="_blank">1.契約工項/工程變更明細表.xlsx 📂</a>）：分析變更設計影響使用。</li>
+            <li><strong>估驗計價資料</strong>（<a href="https://drive.google.com/drive/folders/1_4hMp8t2lGQ1Xckrq4psmv2pe9V2JcEE" target="_blank">9.估驗計價/ 📂</a>）：各期已核發估驗金額。嚴格 EVM 定義的 AC 是承攬商實際發生的成本，但監造工程師無法取得承攬商帳務；<strong>本任務以估驗計價累計金額作為 AC 的代理值</strong>，此為公共工程實務上的合理近似。</li>
+            <li><strong>EAGLE 2.0 進度表</strong>：你在任務 2 Phase B 結束後，手動輸入並正式確認的各期累計實際進度，EVM 計算 EV 的依據（詳見步驟 D）。</li>
+            <li><strong>課堂講義</strong>：WBS 建模方法、進度計畫四步驟、CPM 計算、EVM 分析（Ch5 工程規劃：進度排程）。</li>
         </ul>
-        <div class="box box-info" style="margin-top: 1rem;">
+
+        <div class="box box-info" style="margin-top:1rem;">
+            <span class="box-label">四種資料各扮演什麼角色？</span>
+            <table>
+                <tr><th>教材</th><th>任務用途</th><th>EVM 角色</th></tr>
+                <tr><td>原契約工項.csv</td><td>建立 WBS 的工作類別依據</td><td>BAC 組成與各工作包預算權重</td></tr>
+                <tr><td>進度曲線表.pdf</td><td>讀取各期預定累計進度 %</td><td>PV = BAC × 預定累計 %</td></tr>
+                <tr><td>EAGLE 2.0 進度表（手動確認值）</td><td>正式確認的期間累計實際進度</td><td>EV = BAC × 正式確認累計實際 %</td></tr>
+                <tr><td>監造報表（系統報表參考欄）</td><td>每日觀測記錄，供正式確認時參考</td><td>EV 的原始參考依據，不直接等於 EV</td></tr>
+                <tr><td>估驗計價.pdf（C-C(1)(2)(4)）</td><td>各期已申報估驗金額</td><td>AC 代理值（監造端無法取得承攬商實際成本，以此近似）</td></tr>
+            </table>
+        </div>
+
+        <div class="box box-info" style="margin-top:1rem;">
             <span class="box-label">教材下載</span>
             所有教材請從 <a href="https://drive.google.com/drive/folders/1XS0HFfmQgLUGZSGNqlpQAuw7YRq6L6Gp" target="_blank" style="color: #2980b9; font-weight: bold;">Google 雲端硬碟</a> 開啟與下載。
         </div>
@@ -1133,125 +1157,285 @@
 
     <h3>3.5 任務執行步驟</h3>
 
-    <h4>步驟 A：CPM 分析</h4>
+    <!-- 步驟 A -->
+    <h4>步驟 A：判讀綱要進度甘特圖，建立 WBS</h4>
+
+    <div class="box box-highlight">
+        <span class="box-label">背景知識：這張圖是什麼？能讀到什麼？</span>
+        <p>課程提供的「工程網狀圖.pdf」，嚴格而言是排程軟體（如 MS Project）輸出的<strong>綱要進度甘特圖（Summary Schedule Gantt Chart）</strong>。它以時間軸橫條方式呈現 12 個大工項，並以箭線標示部分前後置關係。</p>
+        <p>傳統 CPM 網狀圖（AON 或 AOA）應以節點或箭頭直接標示所有作業的邏輯關係，並提供完整的前置關係資料。本圖的箭線只標示主要的邏輯關係，且以甘特圖格式呈現——這是實際工程中排程軟體最常見的輸出方式，直觀易讀，但不等於完整 CPM 網路。</p>
+        <p>你可以從這張圖讀取：工程總工期（180 工作日）、各大工項名稱與工期、各工項起訖時間、部分工項間的先後箭線。這些是你建立 WBS 與排程模型的素材，但前置關係需要你配合施工邏輯進一步推論。</p>
+    </div>
+
     <ol class="steps">
-        <li>根據工程網狀圖，繪製（或整理出）本工程的前置關係圖（Activity-on-Node 或 Activity-on-Arrow）。</li>
-        <li>標示每項工作的工期，並執行前推（Forward Pass）與後推（Backward Pass）計算：
+        <li>
+            <strong>閱讀綱要進度甘特圖，填寫工項基本資訊表：</strong>
             <ul>
-                <li>最早開始時間（ES）與最早完成時間（EF）</li>
-                <li>最晚開始時間（LS）與最晚完成時間（LF）</li>
-                <li>總浮時（TF）= LS - ES 或 LF - EF</li>
+                <li>各工項名稱、工期（工作日）、計畫起始與完成日期</li>
+                <li>箭線所標示的前後置關係（能從圖上明確看出的）</li>
+                <li>哪些工項在前段、中段、後段執行？哪些工項可能平行施作？</li>
+                <li>哪些工項的延誤可能影響整體完工（初步判斷）？</li>
             </ul>
         </li>
-        <li>辨識要徑（Critical Path）：浮時為零的路徑。</li>
-        <li>列出要徑上的工作項目，標示哪些項目在工程進度 30% 時已經在執行或即將開始。</li>
+        <li>
+            <strong>閱讀原契約工項（BOQ），辨識主要工作類別：</strong>
+            <ul>
+                <li>找出 BOQ 的大分類（如「工程費」）與次分類（「整備工程」、「土建景觀工程」、「植栽工程」、「照明工程」等）</li>
+                <li>思考：BOQ 是依<strong>成本與計價</strong>邏輯分類的；WBS 應依<strong>工作與管理</strong>邏輯分類。兩者相似但不相同——請說明你的 WBS 與 BOQ 在哪裡一致、哪裡做了調整。</li>
+            </ul>
+        </li>
+        <li>
+            <strong>繪製 3–4 層 WBS：</strong>
+            <table>
+                <tr><th>WBS 層級</th><th>說明</th><th>範例</th></tr>
+                <tr><td>L1</td><td>專案（整個工程）</td><td>磺港溪再造步道整建工程</td></tr>
+                <tr><td>L2</td><td>主要工程類別（參考 BOQ 大項目，依施工邏輯重新組織）</td><td>前置與假設工程、拆除整備、土建工程、植栽景觀、照明工程</td></tr>
+                <tr><td>L3</td><td>施工階段或主要分項工程</td><td>人行道鋪面、透水混凝土、金屬構件</td></tr>
+                <tr><td>L4（選做）</td><td>可排程的工作包（Work Package）</td><td>對應 BOQ 細項的具體工作</td></tr>
+            </table>
+            <p style="margin-top:0.5rem;">提示：假設工程（安全圍籬、臨時設施）在 BOQ 中屬於「安全設施費」，但在施工排程中貫穿全程——你的 WBS 如何處理這類跨期工項？</p>
+        </li>
     </ol>
 
-    <h4>步驟 B：EVM 分析</h4>
+    <!-- 步驟 B -->
+    <h4>步驟 B：定義作業、排序作業、估算工期，建立前置關係表</h4>
+
     <ol class="steps">
-        <li>以契約金額為基礎，建立 EVM 分析表。選定分析的時間點（建議以「工程進度 30%」作為分析時間點）。</li>
-        <li>計算各指標：
+        <li>
+            <strong>定義作業（從 WBS L3/L4 整理出 8–12 個可排程作業）：</strong>
+            <p>把 WBS 最底層工作包整合為可排程的作業——太細的標單項目可合併，太大的工程階段需拆分。每個作業需說明：名稱、工作範疇、可交付成果（完成標準）。</p>
             <table>
-                <tr><th>指標</th><th>公式</th><th>意義</th></tr>
-                <tr><td>PV（計畫值）</td><td>截至分析時間點，預定應完成工作的預算金額</td><td>我們原本計畫做多少？</td></tr>
-                <tr><td>EV（實獲值）</td><td>截至分析時間點，實際完成工作的預算金額</td><td>我們實際做了多少？</td></tr>
-                <tr><td>AC（實際成本）</td><td>截至分析時間點，實際花費的金額</td><td>我們花了多少錢？</td></tr>
-                <tr><td>SV（進度偏差）</td><td>EV - PV</td><td>正值=超前，負值=落後</td></tr>
-                <tr><td>CV（成本偏差）</td><td>EV - AC</td><td>正值=節省，負值=超支</td></tr>
-                <tr><td>SPI（進度績效指標）</td><td>EV ÷ PV</td><td>&gt;1 超前，&lt;1 落後</td></tr>
-                <tr><td>CPI（成本績效指標）</td><td>EV ÷ AC</td><td>&gt;1 節省，&lt;1 超支</td></tr>
+                <tr><th>作業代號</th><th>作業名稱</th><th>對應 WBS</th><th>可交付成果</th></tr>
+                <tr><td colspan="4" style="text-align:center;color:#888;">（由學生自行填寫）</td></tr>
             </table>
         </li>
-        <li>根據估驗計價資料（9.估驗計價/磺港C-C(1).pdf 等），交叉比對 EV 與 AC 的計算結果。</li>
-    </ol>
-
-    <h4>步驟 C：在 EAGLE 2.0 中檢視與驗證進度分析</h4>
-    <ol class="steps">
-        <li>進入系統的「施工管理」→「進度表」，檢視你在任務 2 Phase B 中透過監造報表累積的進度數據。</li>
-        <li>在進度表頁面中，觀察 S 曲線圖：
+        <li>
+            <strong>排序作業，建立前置關係表：</strong>
+            <p>根據三種來源設定各作業的前置作業：</p>
             <ul>
-                <li><strong>藍色線（預定進度）</strong>：你在任務 1 上傳的預定進度計畫。</li>
-                <li><strong>橙色線（實際進度）</strong>：根據施工日誌中的完成數量自動計算。</li>
-                <li>兩線之間的色塊代表進度偏差——對照你的 EVM 分析中的 SV 與 SPI。</li>
+                <li>甘特圖中的箭線關係（圖面明確標示的）</li>
+                <li>施工技術邏輯（物理條件、材料條件、工法限制等）</li>
+                <li>課堂知識的工程常識推論</li>
+            </ul>
+            <table>
+                <tr><th>作業代號</th><th>作業名稱</th><th>工期（工作日）</th><th>前置作業</th><th>判斷依據</th></tr>
+                <tr><td colspan="5" style="text-align:center;color:#888;">（由學生自行填寫）</td></tr>
+            </table>
+            <p style="margin-top:0.5rem;">請在「判斷依據」欄明確標示：哪些關係來自甘特圖箭線，哪些是施工邏輯推論，哪些是為了簡化所做的假設。</p>
+        </li>
+        <li>
+            <strong>估算工期並校準至原始甘特圖：</strong>
+            <ul>
+                <li>以教材甘特圖中的工期為主要參考，但先自行推估後再對照</li>
+                <li>若你將某個大工項拆成多個作業，需確認拆分後的總工期與原圖一致</li>
+                <li>校準原則：你的排程總工期必須在 180 工作日內；主要施工邏輯（拆除後進入土建、金屬等主要施作，中後段照明與景觀可平行進行）不應違反甘特圖所呈現的工項順序</li>
             </ul>
         </li>
-        <li>在進度資訊表中，確認各期的預定百分比、實際百分比與偏差數值，驗證是否與你手算的 EVM 結果一致。</li>
-        <li>若需修正進度數據，可點擊「編輯進度數據」按鈕直接在表中調整。</li>
+    </ol>
+
+    <!-- 步驟 C -->
+    <h4>步驟 C：CPM 計算，識別可能要徑</h4>
+
+    <ol class="steps">
+        <li>
+            <strong>繪製 AON（Activity-on-Node）前置關係圖：</strong>
+            以步驟 B 的前置關係表為基礎，手繪或以試算表繪製 AON 圖，標示各作業節點與箭頭方向。
+        </li>
+        <li>
+            <strong>執行前推計算（Forward Pass）：</strong>
+            <ul>
+                <li>ES（最早開始時間）：所有前置作業 EF 的最大值</li>
+                <li>EF（最早完成時間）= ES + 工期</li>
+            </ul>
+        </li>
+        <li>
+            <strong>執行後推計算（Backward Pass）：</strong>
+            <ul>
+                <li>LF（最晚完成時間）：所有後續作業 LS 的最小值；最末作業 LF = EF</li>
+                <li>LS（最晚開始時間）= LF - 工期</li>
+            </ul>
+        </li>
+        <li>
+            <strong>計算總浮時，識別要徑：</strong>
+            <ul>
+                <li>TF（總浮時）= LS - ES（或 LF - EF）</li>
+                <li>要徑（Critical Path）：TF = 0 的作業所連成的路徑</li>
+                <li>列出要徑上的所有作業，並說明：在分析時間點（工程進度約 30%，約第 61 天）正在執行的要徑作業有哪些？</li>
+            </ul>
+        </li>
+        <li>
+            <strong>驗證與對照：</strong>
+            <ul>
+                <li>你的 CPM 總工期是否符合 180 工作日？若有差異，說明原因。</li>
+                <li>你的要徑路徑與甘特圖的主要邏輯連線是否一致？哪裡相同、哪裡不同？</li>
+                <li>評分重點：計算是否自洽、前置關係是否合理、假設是否說明清楚；不以「和教師範例完全一致」為唯一標準。</li>
+            </ul>
+        </li>
     </ol>
 
     <div class="box box-tip">
-        <span class="box-label">操作提示</span>
-        EAGLE 2.0 的進度表提供的是數據化的進度比較圖。你的 CPM/EVM 分析報告（含原因分析與建議）請另以文件方式撰寫，作為本任務的產出。
+        <span class="box-label">提示</span>
+        由於教材不是完整 CPM 網狀圖，不同同學從甘特圖讀取的前置關係可能略有不同，因此要徑不一定只有唯一答案。關鍵是：你的前置關係是否符合施工邏輯、假設是否清楚說明、計算結果是否自洽。
     </div>
 
-    <h4>步驟 D：分析變更設計對進度的影響</h4>
+    <!-- 步驟 D -->
+    <h4>步驟 D：EVM 分析與 EAGLE 2.0 進度表驗證</h4>
+
+    <div class="box box-warning">
+        <span class="box-label">重要：EAGLE 2.0 S 曲線的實際運作方式</span>
+        <ul>
+            <li><strong>橙色線（實際進度）</strong>：不是系統自動計算的，也不是由施工日誌或監造報表直接驅動。橙色線來自你在進度表「本期實際（%）」欄<strong>手動輸入並儲存</strong>的正式確認值。</li>
+            <li><strong>表格底部灰字「本期實際（報表）」</strong>：從你在任務 2 Phase B 填寫的監造報表自動帶入的每日觀測參考值，唯讀，不會自動更新橙色線。</li>
+            <li>這個設計反映實際工程流程：監造報表是每日原始觀測記錄；進度表的正式確認值是定期彙整後向業主申報的正式數字，兩者地位不同。</li>
+        </ul>
+    </div>
+
+    <div class="box box-highlight" style="margin-top:1rem;">
+        <span class="box-label">為什麼 EV 不能直接用監造報表數字？</span>
+        <p>監造報表的「施工實際進度 %」是監造工程師每天在現場的即時觀測記錄，具有即時性，但也有主觀性。進度表「本期實際（%）」是監造工程師定期彙整監造報表後，<strong>正式確認</strong>的期間進度——這是向業主申報的正式數字，具有法律意義。</p>
+        <p>EVM 計算應使用「正式確認的數字」，因為 EVM 是對外呈報的管理報告工具，必須基於正式認定的進度，而非每日觀測的初步估計。如果你尚未在進度表手動確認，請先完成以下操作再計算 EV。</p>
+    </div>
+
     <ol class="steps">
-        <li>閱讀「第 1 次變更設計 CSV」與「工程變更明細表」，了解本工程的契約變更內容：
+        <li>
+            <strong>在 EAGLE 2.0 中完成進度表正式確認：</strong>
+            <ol style="list-style-type:lower-alpha;">
+                <li>進入「施工管理」→「進度表」，點擊「編輯進度值」。</li>
+                <li>對照表格底部「本期實際（報表）」灰字參考列，逐期確認是否同意以此值作為正式進度；若有差異，說明原因並調整。</li>
+                <li>在「本期實際（%）」欄輸入你確認的各期實際進度百分比，點擊「儲存實際進度」。</li>
+                <li>確認橙色 S 曲線已更新。</li>
+            </ol>
+        </li>
+        <li>
+            <strong>確認分析時間點與 BAC：</strong>
+            <ul>
+                <li>分析時間點：工程進度約 30%（模擬第 61 天，約 2026/4/30）</li>
+                <li>BAC 選擇：暫定選擇原契約金額（22,700,000 元）或變更後金額（14,261,156 元），說明理由。步驟 E 將深入分析。</li>
+            </ul>
+        </li>
+        <li>
+            <strong>計算 PV、EV、AC：</strong>
+            <table>
+                <tr><th>指標</th><th>計算方式</th><th>資料來源</th></tr>
+                <tr><td><strong>PV</strong>（計畫值）</td><td>BAC × 分析日期的預定累計進度 %</td><td>進度曲線表.pdf</td></tr>
+                <tr><td><strong>EV</strong>（實獲值）</td><td>BAC × EAGLE 2.0 進度表中正式確認的累計實際 %</td><td>EAGLE 2.0 進度表（你手動儲存的值）</td></tr>
+                <tr><td><strong>AC</strong>（實際成本代理值）</td><td>截至分析日期，所有已核發估驗計價的累計金額（作為 AC 代理值，詳見說明）</td><td>估驗計價 C-C(1)(2)(4).pdf</td></tr>
+            </table>
+            <div class="box box-tip" style="margin-top:0.75rem;">
+                <span class="box-label">AC 代理值說明</span>
+                嚴格 EVM 定義的 AC 是承攬商實際發生的施工成本（工資、材料、機具等）。監造工程師通常無法取得承攬商內部帳務，因此本任務以<strong>累計估驗計價金額作為 AC 的代理值</strong>——這是公共工程監造實務中常見的合理近似。計算時請記錄此假設。
+            </div>
+            <p style="margin-top:0.5rem;">注意：教材提供的估驗計價資料可能不完整（部分期數缺漏）。若資料不足，請說明你的假設並估算，不可直接編造數字。</p>
+        </li>
+        <li>
+            <strong>計算績效指標：</strong>
+            <table>
+                <tr><th>指標</th><th>公式</th><th>意義</th></tr>
+                <tr><td>SV（進度偏差）</td><td>EV – PV</td><td>正 = 超前；負 = 落後</td></tr>
+                <tr><td>CV（成本偏差）</td><td>EV – AC</td><td>正 = 節省；負 = 超支</td></tr>
+                <tr><td>SPI（進度績效指標）</td><td>EV ÷ PV</td><td>&gt;1 超前；&lt;1 落後</td></tr>
+                <tr><td>CPI（成本績效指標）</td><td>EV ÷ AC</td><td>&gt;1 節省；&lt;1 超支</td></tr>
+            </table>
+        </li>
+        <li>
+            <strong>交叉驗證：</strong>
+            觀察 EAGLE 2.0 S 曲線中預定線（藍色）與實際線（橙色）的相對位置，確認超前或落後方向與你的 SV、SPI 一致。若數值有差異，分析可能原因（計算方式差異？資料來源不同？）
+        </li>
+    </ol>
+
+    <!-- 步驟 E -->
+    <h4>步驟 E：分析變更設計對進度與成本基準的影響</h4>
+
+    <ol class="steps">
+        <li>
+            <strong>閱讀「第 1 次變更設計 CSV」與「工程變更明細表」，了解契約變更內容：</strong>
             <ul>
                 <li>原契約金額：新臺幣 22,700,000 元</li>
-                <li>變更後契約金額：新臺幣 14,261,156 元</li>
-                <li>金額減少了約 37%</li>
+                <li>變更後契約金額：新臺幣 14,261,156 元（減少約 37%）</li>
             </ul>
         </li>
-        <li>比對原契約與變更設計，分析：
+        <li>
+            <strong>分析變更對工程範疇與 WBS 的影響：</strong>
             <ul>
-                <li>哪些工項被刪除或大幅減少？哪些工項是新增的？</li>
-                <li>被刪除的工項是否在要徑上？如果是，對工期有什麼影響？</li>
-                <li>變更設計發生在工程的哪個階段？對已完成的工作有影響嗎？</li>
+                <li>哪些工項被刪除或大幅縮減？哪些工項新增？</li>
+                <li>這些變動是否影響你在步驟 A 建立的 WBS 結構？需要增刪哪些工作包？</li>
             </ul>
         </li>
-        <li>思考 EVM 分析中的關鍵問題：變更設計後，BAC（完工預算）應該用原契約金額（22,700,000 元）還是變更後金額（14,261,156 元）？你的選擇會如何影響 SPI 和 CPI 的計算結果？</li>
+        <li>
+            <strong>分析變更對 CPM 要徑的影響：</strong>
+            <ul>
+                <li>被刪除的工項是否在你在步驟 C 識別的要徑上？如果是，對總工期有何影響？</li>
+                <li>新增工項需插入到前置關係圖的哪個位置？</li>
+            </ul>
+        </li>
+        <li>
+            <strong>比較兩種 BAC 選擇對 EVM 指標的影響：</strong>
+            <p>分別以 22,700,000 元和 14,261,156 元作為 BAC，各算一次 SPI 與 CPI，填入下表：</p>
+            <table>
+                <tr><th>BAC 選擇</th><th>PV</th><th>EV</th><th>SPI</th><th>CPI</th></tr>
+                <tr><td>原契約 22,700,000 元</td><td></td><td></td><td></td><td></td></tr>
+                <tr><td>變更後 14,261,156 元</td><td></td><td></td><td></td><td></td></tr>
+            </table>
+            <p style="margin-top:0.5rem;">哪個 BAC 對業主監督工程進度的意義更大？你的選擇需說明理由。</p>
+        </li>
     </ol>
 
     <div class="box box-accountability">
         <span class="box-label">當責思考</span>
-        變更設計在公共工程中很常見，但它不只是「改幾個數字」那麼簡單。變更設計會影響工程進度基準、成本預算、施工排程，甚至合約關係。身為監造工程師，你必須能夠分析變更設計的連鎖影響，並向主辦機關提出專業建議。這正是「以數據為基礎的工程管理決策能力」的核心展現。
+        變更設計不只是「改幾個數字」——它影響工程範疇、進度基準、成本預算、施工排程，甚至合約關係。身為監造工程師，你必須能說清楚：變更前後，工程的管理基準（WBS、要徑、BAC）各有什麼變化，並向主辦機關提出有根據的管理建議。
     </div>
 
     <h3>3.6 提示問題</h3>
     <div class="questions">
         <ol>
-            <li>在本工程中，要徑上有哪些工作項目？如果這些項目延遲，對整體工期有什麼影響？（請根據你在任務產出 CPM 計算工作表中完成的計算作答）</li>
-            <li>如果 SPI = 0.85，代表什麼意義？監造工程師應該向主辦機關提出什麼建議？</li>
-            <li>本工程有一次變更設計，契約金額從 2,270 萬降為 1,426 萬。這對 EVM 分析有什麼影響？應該用哪個金額作為 BAC（完工預算）？</li>
-            <li>進度報告中的數據如果不準確，可能造成什麼管理決策上的失誤？</li>
-            <li>如果你發現進度已嚴重落後（SPI &lt; 0.7），但承攬廠商堅稱「可以趕上」，你會怎麼處理？</li>
+            <li>你在步驟 A 繪製的 WBS 中，哪個層次的項目被定義為 CPM 的排程作業？你的作業定義方式與教材甘特圖的 12 個綱要工項相比，有哪些相同、哪些不同？請說明你做出不同選擇的理由。</li>
+            <li>在建立前置關係表時，哪些前置關係是從甘特圖箭線直接讀取的？哪些是根據施工技術邏輯推論的？這兩類判斷在工程管理中各有什麼意義？</li>
+            <li>你的 CPM 計算結果識別的要徑是什麼？如果要徑上的某個作業延遲 5 個工作日，對整體完工日有什麼影響？監造工程師應採取什麼行動？</li>
+            <li>EVM 的實獲值（EV）為什麼應使用 EAGLE 2.0 進度表中你手動確認的累計實際 %，而不是直接加總監造報表每日記錄的施工實際進度？兩者在工程管理中各自代表什麼？</li>
+            <li>你以兩種 BAC（原契約 vs. 變更後）分別計算 SPI 和 CPI 後，結果有何差異？哪個 BAC 對業主的工程監督更具參考價值？你的理由是什麼？</li>
+            <li>如果你在進度表輸入的「本期實際（%）」數字被高估，導致 EV 虛高、SPI 好看，短期和長期分別會造成什麼管理決策上的問題？這個數字由你輸入，你願意為它負責嗎？</li>
         </ol>
     </div>
 
     <h3>3.7 自我檢核清單</h3>
     <ul class="checklist">
-        <li>已完成工程網狀圖的 CPM 計算（ES、EF、LS、LF、TF），並正確辨識要徑。</li>
-        <li>已建立 EVM 分析表，計算 PV、EV、AC、SV、CV、SPI、CPI。</li>
-        <li>EVM 計算結果與估驗計價資料可交叉驗證。（估驗計價資料可在 EAGLE 2.0 的估驗計價模組，或課程提供的歷史估驗計價表中取得）</li>
-        <li>已在 EAGLE 2.0 的進度表中檢視 S 曲線，確認與手算結果一致。</li>
-        <li>已分析變更設計對工項、要徑與 BAC 的影響，並對 BAC 的選擇做出有根據的判斷。</li>
-        <li>進度分析報告包含數據分析與專業建議，而非僅列數字。</li>
+        <li>已判讀綱要進度甘特圖，理解其不是完整 CPM 網狀圖，並整理出工項基本資訊表。</li>
+        <li>已參考標單（BOQ）主要項目建立 3–4 層 WBS，並說明 WBS 與 BOQ 的組織邏輯差異。</li>
+        <li>已從 WBS 最底層工作包整理出 8–12 個可排程作業，完成作業定義表。</li>
+        <li>已建立前置關係表，並標示每條關係的判斷依據（圖面、施工邏輯或假設）。</li>
+        <li>已完成 CPM 前推/後推計算（ES、EF、LS、LF、TF），識別可能要徑，並說明總工期如何與教材甘特圖校準。</li>
+        <li>已在 EAGLE 2.0 進度表手動輸入各期實際進度並儲存，確認橙色 S 曲線已正確更新。</li>
+        <li>EVM 計算使用了正確的資料來源：PV ← 進度曲線表；EV ← EAGLE 2.0 進度表正式確認值；AC ← 估驗計價累計金額（作為代理值），並說明監造報表數字在 EVM 中的角色。</li>
+        <li>已用兩種 BAC 各別計算 SPI、CPI，並說明差異與選擇理由。</li>
+        <li>已分析變更設計對 WBS、要徑與 BAC 的影響，並向主辦機關提出具體管理建議。</li>
+        <li>進度分析報告包含數據解讀與管理建議，而非僅列計算結果。</li>
     </ul>
 
     <h3>3.8 當責反思</h3>
     <div class="box box-accountability">
         <span class="box-label">反思題</span>
         <ol>
-            <li>CPM 和 EVM 的計算看似繁複，但在實際工程中，這些計算結果如何幫助監造工程師做出更好的管理決策？</li>
-            <li>如果進度報告中的數據被「美化」（例如高估實際進度），短期看起來問題不大，但長期會造成什麼後果？</li>
-            <li>你在計算過程中犯過哪些錯誤？這些錯誤如果發生在真實工程中，可能有什麼影響？</li>
-            <li>「讓數據說話」對於工程管理有什麼重要性？與「憑經驗判斷」相比，各有什麼優劣？</li>
+            <li>WBS 是如何幫助你「有系統地」定義作業，而非憑直覺列清單？如果沒有 WBS，直接進行 CPM 計算，可能會遺漏什麼？</li>
+            <li>你在建立前置關係時，有哪些判斷最難做？這些困難反映了工程排程規劃中哪些現實的不確定性？</li>
+            <li>如果進度報告中的數據被「美化」（例如高估實際進度，使 SPI 好看），短期看起來問題不大，但長期會對業主、監造工程師與承攬廠商各自造成什麼後果？</li>
+            <li>你現在是一個學生，不是真正的監造工程師——但如果你是，你願意在每份進度報告上簽名背書嗎？是什麼讓你有或沒有信心做到？</li>
         </ol>
     </div>
 
     <h3>3.9 任務產出</h3>
     <div class="deliverables">
         <ol>
-            <li>CPM 計算工作表：包含完整的前推/後推計算與要徑標示。</li>
-            <li>EVM 分析表：包含 PV、EV、AC、SV、CV、SPI、CPI 的計算過程與結果。</li>
-            <li>變更設計影響分析：說明變更內容、對要徑的影響、BAC 選擇的理由。</li>
-            <li>EAGLE 2.0 進度表 S 曲線截圖，標示你的分析時間點與偏差。</li>
-            <li>個人反思報告（200–300 字），包含：
+            <li><strong>WBS 工作分解圖</strong>（3–4 層，可手繪或以試算表製作），並附「WBS 節點與 BOQ 對應說明表」，標示 WBS 各 L2/L3 項目對應 BOQ 的哪個分類，以及兩者的組織邏輯差異。</li>
+            <li><strong>作業定義與前置關係表</strong>：含作業代號、作業名稱、工期、前置作業、判斷依據（圖面 / 施工邏輯 / 假設）。</li>
+            <li><strong>簡化 AON 圖與 CPM 計算工作表</strong>：含 ES、EF、LS、LF、TF；標示要徑；說明總工期如何與教材甘特圖校準，以及兩者主要差異與原因。</li>
+            <li><strong>EVM 分析表</strong>：含 PV、EV、AC、SV、CV、SPI、CPI 的計算過程與結果；說明各數值來源與假設；提供兩種 BAC 選擇的比較。</li>
+            <li><strong>EAGLE 2.0 進度表 S 曲線截圖</strong>：須確認橙色線已由你手動輸入並儲存，並標示分析時間點，說明預定線與實際線的差距及方向（超前或落後）。</li>
+            <li><strong>變更設計影響分析</strong>：說明哪些工項變動、對 WBS 的影響、對 CPM 要徑的影響、BAC 選擇的理由，以及監造工程師應向主辦機關提出的具體管理建議。</li>
+            <li><strong>個人反思報告</strong>（200–300 字），包含：
                 <ul>
-                    <li>CPM 與 EVM 在實務中如何幫助監造工程師？</li>
-                    <li>變更設計對進度管理帶來什麼挑戰？你如何應對？</li>
-                    <li>對「以數據為基礎的工程管理」有什麼體會？</li>
+                    <li>WBS 如何幫助你建立排程模型，而非只是套公式？</li>
+                    <li>若你是真正的監造工程師，你如何確保進度表中的數字是值得信賴的？</li>
+                    <li>完成此任務後，你對工程管理中「以數據為基礎的決策」有什麼新的認識？</li>
                 </ul>
             </li>
         </ol>
@@ -1480,8 +1664,9 @@
         <tr><td>我能說明工程契約與 WBS 的基本概念</td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr><td>我能在 EAGLE 2.0 中獨立完成專案建立</td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr><td>我能正確填寫監造日報表並計算工程進度</td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td>我能運用 CPM 方法辨識工程要徑</td><td></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td>我能運用 EVM 方法分析進度與成本偏差</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能從 WBS 定義排程作業並建立前置關係表</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能進行 CPM 計算辨識要徑，並將結果校準至實際工程甘特圖</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>我能正確區分 EVM 三種資料來源（PV/EV/AC），並完成進度與成本偏差分析</td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr><td>我能理解三級品管制度並填寫自主查核表</td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr><td>我理解監造工程師的專業責任</td><td></td><td></td><td></td><td></td><td></td></tr>
         <tr><td>我對自己的學習成果負起完全責任</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -1515,7 +1700,7 @@
         <tr><td>9.估驗計價</td><td>6 期估驗計價表</td><td>3</td></tr>
         <tr><td>11.基本資料</td><td>開工報告表、竣工報告表、告示牌、工程採購契約</td><td>1</td></tr>
         <tr><td>13.自主檢查類型</td><td>監造計畫、自主檢查項目、自主檢查樣板（7大類）</td><td>4</td></tr>
-        <tr><td>16.進度表</td><td>工程網狀圖、進度曲線表</td><td>1, 2, 3</td></tr>
+        <tr><td>16.進度表</td><td>綱要進度排程圖（原檔名：工程網狀圖）、進度曲線表</td><td>1, 2, 3</td></tr>
     </table>
 
     <h3>課程相關章節</h3>
@@ -1523,7 +1708,7 @@
         <tr><th>任務</th><th>對應課程章節</th></tr>
         <tr><td>任務 1：專案建立</td><td>Ch3 營建管理基本概念、Ch4 工程契約</td></tr>
         <tr><td>任務 2：施工日誌</td><td>Ch5 工程規劃：進度排程</td></tr>
-        <tr><td>任務 3：進度計算</td><td>Ch5 工程規劃：進度排程（CPM、EVM）</td></tr>
+        <tr><td>任務 3：排程建模與進度分析</td><td>Ch5 工程規劃：進度排程（WBS、CPM 建模、EVM 資料來源判讀）</td></tr>
         <tr><td>任務 4：自主查核</td><td>Ch6 品質管理</td></tr>
     </table>
 
