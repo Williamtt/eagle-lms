@@ -57,8 +57,9 @@
         padding: 0.8rem 1rem; margin-bottom: 0.5rem;
         border-radius: 6px; border: 1px solid #eee;
     }
-    .cl-checked   { background: #eaf4ec; border-color: #a9d8b3; }
-    .cl-unchecked { background: #fafafa; }
+    .cl-done    { background: #eaf4ec; border-color: #a9d8b3; }
+    .cl-partial { background: #fff8e6; border-color: #ffd166; }
+    .cl-not_done{ background: #fafafa; }
     .cl-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
     .cl-text { flex: 1; font-size: 0.95rem; line-height: 1.5; }
     .cl-note {
@@ -144,13 +145,17 @@
 {% set total_cl = task_def.checklist_items | length %}
 {% set total_rq = task_def.reflection_questions | length %}
 {% set answered_pq = namespace(count=0) %}
-{% set checked_cl  = namespace(count=0) %}
+{% set done_cl    = namespace(count=0) %}
+{% set partial_cl = namespace(count=0) %}
 {% set answered_rq = namespace(count=0) %}
 {% for pq in task_def.prompt_questions %}
     {% if pq_map.get(pq.id, '') | trim %}{% set answered_pq.count = answered_pq.count + 1 %}{% endif %}
 {% endfor %}
 {% for cl in task_def.checklist_items %}
-    {% if cl_map.get(cl.id) and cl_map.get(cl.id).checked %}{% set checked_cl.count = checked_cl.count + 1 %}{% endif %}
+    {% set cr = cl_map.get(cl.id) %}
+    {% set cl_st = (cr.status if cr and cr.status else ('done' if cr and cr.checked else 'not_done')) %}
+    {% if cl_st == 'done'    %}{% set done_cl.count    = done_cl.count    + 1 %}{% endif %}
+    {% if cl_st == 'partial' %}{% set partial_cl.count = partial_cl.count + 1 %}{% endif %}
 {% endfor %}
 {% for rq in task_def.reflection_questions %}
     {% if rq_map.get(rq.id, '') | trim %}{% set answered_rq.count = answered_rq.count + 1 %}{% endif %}
@@ -163,7 +168,7 @@
     </div>
     <div class="stat-box">
         <div class="stat-label">自我檢核</div>
-        <div class="stat-value">{{ checked_cl.count }}/{{ total_cl }}</div>
+        <div class="stat-value">{{ done_cl.count }}✓ {{ partial_cl.count }}△ / {{ total_cl }}</div>
     </div>
     <div class="stat-box">
         <div class="stat-label">當責反思</div>
@@ -208,19 +213,21 @@
         <span class="section-badge">二</span>
         自我檢核清單
         <span style="font-size:0.85rem;color:#888;font-weight:normal;">
-            已勾選 {{ checked_cl.count }}/{{ total_cl }}
+            完成 {{ done_cl.count }}／部分 {{ partial_cl.count }}／共 {{ total_cl }} 項
         </span>
     </h2>
 
     {% for cl in task_def.checklist_items %}
-        {% set cr = cl_map.get(cl.id) %}
-        {% set is_checked = cr and cr.checked %}
-        <div class="cl-item {% if is_checked %}cl-checked{% else %}cl-unchecked{% endif %}">
-            <span class="cl-icon">{% if is_checked %}✅{% else %}⬜{% endif %}</span>
+        {% set cr    = cl_map.get(cl.id) %}
+        {% set cl_st = (cr.status if cr and cr.status else ('done' if cr and cr.checked else 'not_done')) %}
+        {% set icon  = '✅' if cl_st == 'done' else ('🔶' if cl_st == 'partial' else '⬜') %}
+        {% set label = '已完成' if cl_st == 'done' else ('部分完成' if cl_st == 'partial' else '未完成') %}
+        <div class="cl-item cl-{{ cl_st }}">
+            <span class="cl-icon">{{ icon }}</span>
             <div class="cl-text">
-                {{ loop.index }}. {{ cl.text }}
+                <span style="font-size:0.8rem;color:#888;margin-right:0.4rem;">{{ label }}</span>{{ loop.index }}. {{ cl.text }}
                 {% if cr and cr.note | trim %}
-                    <div class="cl-note">📝 備註：{{ cr.note }}</div>
+                    <div class="cl-note">📝 說明：{{ cr.note }}</div>
                 {% endif %}
             </div>
         </div>

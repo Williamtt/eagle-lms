@@ -85,6 +85,15 @@ def _run_migrations():
                 if 'evaluation_json' not in lj:
                     conn.execute(text("ALTER TABLE learning_journals ADD COLUMN evaluation_json TEXT DEFAULT ''"))
 
+            # ── checklist_responses ── (v2.5.2: 二元勾選 → 三態 status)
+            if 'checklist_responses' in tables:
+                cr = cols('checklist_responses')
+                if 'status' not in cr:
+                    conn.execute(text("ALTER TABLE checklist_responses ADD COLUMN status VARCHAR(10) DEFAULT 'not_done'"))
+                    conn.execute(text(
+                        "UPDATE checklist_responses SET status = CASE WHEN checked = 1 THEN 'done' ELSE 'not_done' END"
+                    ))
+
             conn.commit()
 
         # 新表（包含 v2.5.0 Workshop + 所有 v2.5.0 新增表）
@@ -466,7 +475,7 @@ def view_task(task_number):
     #   dv_text / dv_file → name="dv_text_{deliverable_id}" / name="dv_file_{deliverable_id}"
     existing_data = {
         'pq':      {},   # question_id  → answer (str)
-        'cl':      {},   # item_id      → {'checked': bool, 'note': str}
+        'cl':      {},   # item_id      → {'status': str, 'note': str}
         'rq':      {},   # question_id  → answer (str)
         'dv_text': {},   # deliverable_id → content (str)
         'dv_file': {},   # deliverable_id → file_name (str)
@@ -477,7 +486,8 @@ def view_task(task_number):
             existing_data['pq'][qr.question_id] = qr.answer
         for cr in existing_sub.checklist_responses:
             existing_data['cl'][cr.item_id] = {
-                'checked': cr.checked, 'note': cr.note
+                'status': cr.status or ('done' if cr.checked else 'not_done'),
+                'note': cr.note
             }
         for rr in existing_sub.reflection_responses:
             existing_data['rq'][rr.question_id] = rr.answer
@@ -553,14 +563,16 @@ def submit_task(task_number):
             answer=answer
         ))
 
-    # ── 自我檢核（form field: cl_{item_id}  +  cl_note_{item_id}）───────────────
+    # ── 自我檢核（form field: cl_{item_id}=done|partial|not_done + cl_note_{item_id}）──
     for cl in task_def['checklist_items']:
-        checked = request.form.get(f'cl_{cl["id"]}') == 'on'
-        note    = request.form.get(f'cl_note_{cl["id"]}', '').strip()
+        raw_status = request.form.get(f'cl_{cl["id"]}', 'not_done')
+        status     = raw_status if raw_status in ('done', 'partial', 'not_done') else 'not_done'
+        note       = request.form.get(f'cl_note_{cl["id"]}', '').strip()
         db.session.add(ChecklistResponse(
             submission_id=sub.id,
-            item_id=cl['id'],        # e.g. "t1_cl1"
-            checked=checked,
+            item_id=cl['id'],
+            status=status,
+            checked=(status == 'done'),   # 向後相容欄位
             note=note
         ))
 
@@ -702,11 +714,13 @@ def _build_submission_text_for_ai(sub, task_def):
     cl_map = {r.item_id: r for r in sub.checklist_responses}
     if cl_map:
         parts.append('\n【自我檢核】')
+        _cl_icons = {'done': '✓ 完成', 'partial': '△ 部分完成', 'not_done': '✗ 未完成'}
         for cl in task_def['checklist_items']:
             cr = cl_map.get(cl['id'])
-            status = '✓' if (cr and cr.checked) else '✗'
-            note = f'（{cr.note}）' if (cr and cr.note) else ''
-            parts.append(f"{status} {cl['text']}{note}")
+            cl_status = (cr.status or ('done' if cr.checked else 'not_done')) if cr else 'not_done'
+            icon = _cl_icons.get(cl_status, '✗')
+            note = f'（說明：{cr.note}）' if (cr and cr.note) else ''
+            parts.append(f"{icon} {cl['text']}{note}")
 
     # 當責反思
     rq_map = {r.question_id: r.answer
@@ -1947,7 +1961,7 @@ def teacher_analytics():
             'task_version': s.task_version,
             'reflection_answers': rq_map,
             'checklist_completion': sum(
-                1 for r in s.checklist_responses if r.checked
+                1 for r in s.checklist_responses if (r.status or '') == 'done'
             ),
             'ai_scores': json.loads(ai_fb.scores)
                          if ai_fb and ai_fb.scores else {},
@@ -2058,15 +2072,16 @@ def export_task(task_number):
         for pq in task_def['prompt_questions']:
             row[f'pq_{pq["id"]}'] = pq_map.get(pq['id'], '')
 
-        checked = 0
+        _cl_score_map = {'done': 1.0, 'partial': 0.5, 'not_done': 0.0}
+        score_sum = 0.0
         for cl in task_def['checklist_items']:
             cr = cl_map.get(cl['id'])
-            row[f'cl_{cl["id"]}'] = 1 if (cr and cr.checked) else 0
+            cl_st = (cr.status or ('done' if cr.checked else 'not_done')) if cr else 'not_done'
+            row[f'cl_{cl["id"]}'] = _cl_score_map.get(cl_st, 0.0)
             row[f'cl_note_{cl["id"]}'] = (cr.note if cr else '')
-            if cr and cr.checked:
-                checked += 1
+            score_sum += _cl_score_map.get(cl_st, 0.0)
         total_cl = len(task_def['checklist_items'])
-        row['checklist_score'] = round(checked / total_cl, 4) if total_cl else ''
+        row['checklist_score'] = round(score_sum / total_cl, 4) if total_cl else ''
 
         for rq in task_def['reflection_questions']:
             row[f'rq_{rq["id"]}'] = rq_map.get(rq['id'], '')

@@ -104,8 +104,9 @@ class ChecklistResponse(db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     submission_id = db.Column(db.Integer, db.ForeignKey('task_submissions.id'), nullable=False)
     item_id       = db.Column(db.String(20), nullable=False)  # 如 "t1_cl1"
-    checked       = db.Column(db.Boolean, default=False)
-    note          = db.Column(db.Text, default='')            # 補充說明（選填）
+    checked       = db.Column(db.Boolean, default=False)      # 保留向後相容；由 status 衍生
+    status        = db.Column(db.String(10), default='not_done')  # 'done'/'partial'/'not_done'
+    note          = db.Column(db.Text, default='')            # 說明原因（部分/未完成時建議填寫）
 
 
 class ReflectionResponse(db.Model):

@@ -73,28 +73,41 @@
 
     /* ── 檢核清單 ─────────────────────────────────────────────────────── */
     .checklist-item {
-        display: flex; align-items: flex-start; gap: 0.75rem;
         padding: 0.9rem 1rem; margin-bottom: 0.6rem;
         background: #f9f9f9; border-radius: 6px;
         border: 1px solid #eee; transition: background 0.2s;
     }
-    .checklist-item:hover { background: #f0f4f8; }
-    .checklist-item input[type="checkbox"] {
-        width: 1.1rem; height: 1.1rem; margin-top: 0.15rem;
-        accent-color: #1a5276; cursor: pointer; flex-shrink: 0;
+    .checklist-item.done    { background: #eaf4ec; border-color: #a9d8b3; }
+    .checklist-item.partial { background: #fff8e6; border-color: #ffd166; }
+    .cl-label { font-size: 0.95rem; line-height: 1.5; margin-bottom: 0.5rem; }
+    .cl-radios {
+        display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.5rem;
     }
-    .checklist-text { flex: 1; line-height: 1.5; font-size: 0.95rem; }
+    .cl-radio {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        padding: 0.25rem 0.75rem; border-radius: 12px; cursor: pointer;
+        font-size: 0.87rem; border: 1px solid #ccc; background: #fff;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .cl-radio input[type="radio"] { cursor: pointer; }
+    .cl-radio.opt-done    { border-color: #a9d8b3; }
+    .cl-radio.opt-partial { border-color: #ffd166; }
+    .cl-radio.opt-not_done{ border-color: #ccc; }
+    .cl-radio.opt-done:has(input:checked)    { background: #eaf4ec; font-weight: 600; }
+    .cl-radio.opt-partial:has(input:checked) { background: #fff8e6; font-weight: 600; }
+    .cl-radio.opt-not_done:has(input:checked){ background: #f0f0f0; font-weight: 600; }
     .checklist-note {
-        width: 100%; margin-top: 0.5rem; padding: 0.5rem;
+        width: 100%; padding: 0.5rem;
         border: 1px solid #ddd; border-radius: 4px;
         font-size: 0.88rem; font-family: inherit;
         color: #555; resize: none; height: 60px;
+        box-sizing: border-box;
     }
     .checklist-note:focus {
         outline: none; border-color: #2980b9;
         box-shadow: 0 0 0 2px rgba(41,128,185,0.1);
     }
-    .checklist-item.checked { background: #eaf4ec; border-color: #a9d8b3; }
+    .checklist-note.needs-reason { border-color: #fd7e14; }
 
     /* ── 產出上傳 ─────────────────────────────────────────────────────── */
     .deliverable-block {
@@ -328,28 +341,39 @@
             </span>
         </h2>
         <p style="color:#555;margin-bottom:1.5rem;font-size:0.95rem;">
-            逐項確認你是否已完成各項工作，打勾表示已完成。
-            如有補充說明（如遇到的問題或做法說明），請填寫備註。
+            逐項選擇完成狀態。<strong>部分完成或未完成請在下方說明原因或遇到的困難</strong>——誠實記錄比全打「已完成」更有學習價值。
         </p>
 
         {% for cl in task_def.checklist_items %}
-            {% set cl_state = existing_data.cl.get(cl.id, {}) %}
-            <div class="checklist-item{% if cl_state.get('checked', False) %} checked{% endif %}"
+            {% set cl_state  = existing_data.cl.get(cl.id, {}) %}
+            {% set cl_status = cl_state.get('status', None) %}
+            <div class="checklist-item{% if cl_status %} {{ cl_status }}{% endif %}"
                  id="cli_{{ cl.id }}">
-                <input type="checkbox"
-                       name="cl_{{ cl.id }}"
-                       id="cl_{{ cl.id }}"
-                       {% if cl_state.get('checked', False) %}checked{% endif %}
-                       onchange="toggleChecked('{{ cl.id }}')">
-                <div class="checklist-text">
-                    <label for="cl_{{ cl.id }}" style="cursor:pointer;">
-                        {{ loop.index }}. {{ cl.text }}
+                <div class="cl-label">{{ loop.index }}. {{ cl.text }}</div>
+                <div class="cl-radios">
+                    <label class="cl-radio opt-done">
+                        <input type="radio" name="cl_{{ cl.id }}" value="done"
+                               {% if cl_status == 'done' %}checked{% endif %}
+                               onchange="setStatus('{{ cl.id }}', 'done')">
+                        已完成
                     </label>
-                    <textarea class="checklist-note"
-                              name="cl_note_{{ cl.id }}"
-                              id="cl_note_{{ cl.id }}"
-                              placeholder="備註（選填）：說明操作細節或遇到的問題…">{{ cl_state.get('note', '') }}</textarea>
+                    <label class="cl-radio opt-partial">
+                        <input type="radio" name="cl_{{ cl.id }}" value="partial"
+                               {% if cl_status == 'partial' %}checked{% endif %}
+                               onchange="setStatus('{{ cl.id }}', 'partial')">
+                        部分完成
+                    </label>
+                    <label class="cl-radio opt-not_done">
+                        <input type="radio" name="cl_{{ cl.id }}" value="not_done"
+                               {% if cl_status == 'not_done' %}checked{% endif %}
+                               onchange="setStatus('{{ cl.id }}', 'not_done')">
+                        未完成
+                    </label>
                 </div>
+                <textarea class="checklist-note{% if cl_status and cl_status != 'done' %} needs-reason{% endif %}"
+                          name="cl_note_{{ cl.id }}"
+                          id="cl_note_{{ cl.id }}"
+                          placeholder="{% if cl_status == 'done' %}備註（選填）：說明操作細節…{% else %}請說明原因或遇到的困難（建議填寫）{% endif %}">{{ cl_state.get('note', '') }}</textarea>
             </div>
         {% endfor %}
     </div>
@@ -529,14 +553,18 @@
 {% endif %}
 
 <script>
-/* ── 勾選後切換底色 ─────────────────────────────────────── */
-function toggleChecked(itemId) {
-    const cb  = document.getElementById('cl_' + itemId);
-    const row = document.getElementById('cli_' + itemId);
-    if (cb.checked) {
-        row.classList.add('checked');
+/* ── 三態選擇後更新底色與備註提示 ─────────────────────────────────────── */
+function setStatus(itemId, value) {
+    const row  = document.getElementById('cli_' + itemId);
+    const note = document.getElementById('cl_note_' + itemId);
+    row.classList.remove('done', 'partial', 'not_done');
+    if (value) row.classList.add(value);
+    if (value === 'done') {
+        note.placeholder = '備註（選填）：說明操作細節…';
+        note.classList.remove('needs-reason');
     } else {
-        row.classList.remove('checked');
+        note.placeholder = '請說明原因或遇到的困難（建議填寫）';
+        note.classList.add('needs-reason');
     }
 }
 
