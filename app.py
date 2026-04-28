@@ -91,7 +91,7 @@ def _run_migrations():
                 if 'status' not in cr:
                     conn.execute(text("ALTER TABLE checklist_responses ADD COLUMN status VARCHAR(10) DEFAULT 'not_done'"))
                     conn.execute(text(
-                        "UPDATE checklist_responses SET status = CASE WHEN checked = 1 THEN 'done' ELSE 'not_done' END"
+                        "UPDATE checklist_responses SET status = CASE WHEN checked THEN 'done' ELSE 'not_done' END"
                     ))
 
             conn.commit()
