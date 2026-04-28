@@ -58,7 +58,8 @@
     .task-card-header h3 { font-size: 1.05rem; margin: 0.4rem 0 0; }
 
     .task-card-body { padding: 1.1rem 1.4rem; flex: 1; display: flex; flex-direction: column; }
-    .task-week { font-size: 0.82rem; color: #888; margin-bottom: 0.6rem; }
+    .task-week { font-size: 0.82rem; color: #888; margin-bottom: 0.3rem; }
+    .task-due  { font-size: 0.82rem; color: #c0392b; font-weight: 600; margin-bottom: 0.6rem; }
 
     .status-pill {
         display: inline-block; padding: 0.3rem 0.75rem;
@@ -349,8 +350,10 @@
                 </div>
                 <h3>{{ ts.name }}</h3>
             </div>
+            {% set due_dates = {1: '2026/4/30', 2: '2026/5/8', 3: '2026/5/22', 4: '2026/5/29'} %}
             <div class="task-card-body">
                 <div class="task-week">📅 開放週次：{{ ts.week_range }}</div>
+                <div class="task-due">⏰ 建議完成：{{ due_dates[t_num] }}</div>
                 <span class="status-pill {{ pill_cls }}">{{ pill_text }}</span>
                 {% if ts.updated_at %}
                     <div class="task-updated">
