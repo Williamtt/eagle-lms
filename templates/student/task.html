@@ -474,6 +474,7 @@
                            accept=".pdf,.xlsx,.xls,.docx,.doc,.png,.jpg,.jpeg,.zip"
                            {% if not dv.optional and not old_file and not dv.accept_text %}required{% endif %}>
                     <div class="hint">支援 PDF、Word、Excel、圖片（JPG/PNG）、ZIP，單檔最大 10 MB</div>
+                    <div class="hint">若有多張照片或資料量較多，建議先整合成 PDF 或 PPT 檔案後再上傳。</div>
                 {% endif %}
             </div>
         {% endfor %}

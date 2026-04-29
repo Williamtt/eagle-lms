@@ -11,7 +11,7 @@
     .page-header p  { margin: 0; opacity: 0.85; font-size: 0.92rem; }
 
     .summary-bar {
-        display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;
     }
     .summary-chip {
         padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.88rem; font-weight: 600;
@@ -20,6 +20,27 @@
     .chip-ctrl  { background: #d6eaf8; color: #1a5276; }
     .chip-none  { background: #f2f3f4; color: #888; }
 
+    .toolbar {
+        display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .search-input {
+        padding: 0.45rem 0.8rem; border: 1px solid #ccc; border-radius: 6px;
+        font-size: 0.92rem; width: 220px; outline: none;
+    }
+    .search-input:focus { border-color: #2980b9; box-shadow: 0 0 0 2px rgba(41,128,185,0.15); }
+    .filter-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .filter-btn {
+        padding: 0.35rem 0.9rem; border: 1px solid #ccc; border-radius: 20px;
+        background: #fff; font-size: 0.85rem; cursor: pointer; color: #555;
+        transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: #999; }
+    .filter-btn.active            { background: #1a5276; color: #fff; border-color: #1a5276; }
+    .filter-btn.active.f-unassign { background: #7f8c8d; border-color: #7f8c8d; }
+    .filter-btn.active.f-exp      { background: #1e8449; border-color: #1e8449; }
+    .filter-btn.active.f-ctrl     { background: #1a5276; border-color: #1a5276; }
+    .filter-count { opacity: 0.8; }
+
     .group-table { width: 100%; border-collapse: collapse; background: #fff;
                    border-radius: 8px; overflow: hidden;
                    box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
@@ -27,9 +48,15 @@
         background: #1a5276; color: #fff; padding: 0.75rem 1rem;
         text-align: left; font-size: 0.9rem;
     }
+    .group-table th.sortable { cursor: pointer; user-select: none; }
+    .group-table th.sortable:hover { background: #2471a3; }
+    .sort-icon { font-size: 0.7rem; margin-left: 0.3rem; opacity: 0.7; }
     .group-table td { padding: 0.65rem 1rem; border-bottom: 1px solid #f0f0f0; font-size: 0.92rem; }
     .group-table tr:last-child td { border-bottom: none; }
     .group-table tr:hover td { background: #f8f9fa; }
+    .group-table tr.row-hidden { display: none; }
+
+    .no-results { text-align: center; color: #aaa; padding: 2rem; }
 
     .group-select {
         padding: 0.3rem 0.6rem; border: 1px solid #ccc; border-radius: 4px;
@@ -68,6 +95,16 @@
     <span class="summary-chip chip-none">未分組：{{ group_counts.unassigned }} 人</span>
 </div>
 
+<div class="toolbar">
+    <input type="text" id="search-input" class="search-input" placeholder="搜尋學號或姓名…" autocomplete="off">
+    <div class="filter-btns">
+        <button type="button" class="filter-btn active"      data-filter="">全部 <span class="filter-count" id="cnt-all"></span></button>
+        <button type="button" class="filter-btn f-unassign"  data-filter="unassigned">未分組 <span class="filter-count" id="cnt-none"></span></button>
+        <button type="button" class="filter-btn f-exp"       data-filter="experimental">實驗組 <span class="filter-count" id="cnt-exp"></span></button>
+        <button type="button" class="filter-btn f-ctrl"      data-filter="control">對照組 <span class="filter-count" id="cnt-ctrl"></span></button>
+    </div>
+</div>
+
 <div class="notice">
     ⚠ 分組一旦確定並開始執行後請勿更動，以免影響研究資料完整性。分組資訊不會對學生顯示。
 </div>
@@ -76,20 +113,22 @@
     <table class="group-table">
         <thead>
             <tr>
-                <th>學號</th>
-                <th>姓名</th>
-                <th>班級</th>
-                <th>目前分組</th>
+                <th class="sortable" data-col="0">學號<span class="sort-icon" id="si-0"></span></th>
+                <th class="sortable" data-col="1">姓名<span class="sort-icon" id="si-1"></span></th>
+                <th class="sortable" data-col="2">班級<span class="sort-icon" id="si-2"></span></th>
+                <th class="sortable" data-col="3">目前分組<span class="sort-icon" id="si-3"></span></th>
                 <th>指定分組</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="student-tbody">
         {% for s in students %}
-            <tr>
-                <td>{{ s.student_id }}</td>
-                <td>{{ s.name }}</td>
-                <td>{{ s.class_group }}</td>
-                <td>
+            <tr data-group="{{ s.experimental_group or '' }}"
+                data-sid="{{ s.student_id }}"
+                data-name="{{ s.name }}">
+                <td data-val="{{ s.student_id }}">{{ s.student_id }}</td>
+                <td data-val="{{ s.name }}">{{ s.name }}</td>
+                <td data-val="{{ s.class_group }}">{{ s.class_group }}</td>
+                <td data-val="{{ '0' if not s.experimental_group else ('1' if s.experimental_group == 'experimental' else '2') }}">
                     {% if s.experimental_group == 'experimental' %}
                         <span class="badge-exp">實驗組</span>
                     {% elif s.experimental_group == 'control' %}
@@ -109,10 +148,91 @@
                 </td>
             </tr>
         {% else %}
-            <tr><td colspan="5" style="text-align:center;color:#aaa;padding:2rem;">目前沒有啟用的學生帳號。</td></tr>
+            <tr><td colspan="5" class="no-results">目前沒有啟用的學生帳號。</td></tr>
         {% endfor %}
         </tbody>
     </table>
     <button type="submit" class="btn-save">儲存分組</button>
 </form>
+
+<script>
+(function () {
+    const searchInput = document.getElementById('search-input');
+    const filterBtns  = document.querySelectorAll('.filter-btn');
+    const tbody       = document.getElementById('student-tbody');
+    const headers     = document.querySelectorAll('.group-table th.sortable');
+    const rows        = Array.from(tbody.querySelectorAll('tr[data-group]'));
+
+    let currentFilter = '';
+    let currentSearch = '';
+    let sortCol = -1;
+    let sortAsc = true;
+
+    function applyFilters() {
+        const q = currentSearch.toLowerCase();
+        rows.forEach(function (row) {
+            const g = row.dataset.group;
+            const matchFilter =
+                currentFilter === '' ||
+                (currentFilter === 'unassigned' ? g === '' : g === currentFilter);
+            const matchSearch =
+                !q ||
+                row.dataset.sid.toLowerCase().includes(q) ||
+                row.dataset.name.toLowerCase().includes(q);
+            row.classList.toggle('row-hidden', !(matchFilter && matchSearch));
+        });
+        updateCounts();
+    }
+
+    function updateCounts() {
+        const visible = rows.filter(function (r) { return !r.classList.contains('row-hidden'); });
+        document.getElementById('cnt-all').textContent  = '(' + visible.length + ')';
+        document.getElementById('cnt-none').textContent = '(' + visible.filter(function (r) { return r.dataset.group === ''; }).length + ')';
+        document.getElementById('cnt-exp').textContent  = '(' + visible.filter(function (r) { return r.dataset.group === 'experimental'; }).length + ')';
+        document.getElementById('cnt-ctrl').textContent = '(' + visible.filter(function (r) { return r.dataset.group === 'control'; }).length + ')';
+    }
+
+    function sortRows(colIdx, asc) {
+        var sorted = rows.slice().sort(function (a, b) {
+            var av = a.cells[colIdx].dataset.val || '';
+            var bv = b.cells[colIdx].dataset.val || '';
+            var cmp = av.localeCompare(bv, 'zh-TW', { numeric: true });
+            return asc ? cmp : -cmp;
+        });
+        sorted.forEach(function (row) { tbody.appendChild(row); });
+        applyFilters();
+    }
+
+    searchInput.addEventListener('input', function () {
+        currentSearch = searchInput.value;
+        applyFilters();
+    });
+
+    filterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            filterBtns.forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            applyFilters();
+        });
+    });
+
+    headers.forEach(function (th) {
+        th.addEventListener('click', function () {
+            var col = parseInt(th.dataset.col, 10);
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+            document.querySelectorAll('.sort-icon').forEach(function (el) { el.textContent = ''; });
+            document.getElementById('si-' + col).textContent = sortAsc ? '▲' : '▼';
+            sortRows(col, sortAsc);
+        });
+    });
+
+    updateCounts();
+}());
+</script>
 {% endblock %}
