@@ -87,7 +87,8 @@ def _run_migrations():
                 if 'teacher_first_opened_at' not in tr:
                     conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN teacher_first_opened_at TIMESTAMP"))
                 if 'teacher_modified' not in tr:
-                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN teacher_modified BOOLEAN DEFAULT 0"))
+                    # PostgreSQL 不接受 BOOLEAN DEFAULT 0；用 FALSE 兼容 SQLite/PG
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN teacher_modified BOOLEAN DEFAULT FALSE"))
                 if 'dwell_seconds' not in tr:
                     conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN dwell_seconds INTEGER DEFAULT 0"))
 
