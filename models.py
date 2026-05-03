@@ -172,7 +172,13 @@ class TeacherReview(db.Model):
     # v2.5.0：對稱對照組 finalized 機制
     rubric_json         = db.Column(db.Text, default='')        # {"DP1": 4, "EP4": 3, ...}
     rubric_finalized_at = db.Column(db.DateTime, nullable=True) # 教師按「確認」才寫入
-    rubric_source       = db.Column(db.String(40), default='')  # 'teacher_manual' | 'ai_adopted_then_confirmed'
+    rubric_source       = db.Column(db.String(40), default='')  # 'teacher_manual' | 'ai_adopted_then_confirmed' | 'ai_drafted_then_confirmed'
+    # v2.8.0：AI 預批 anchoring 研究欄位
+    ai_initial_feedback_snapshot = db.Column(db.Text, default='')        # AI 第一次草稿 suggestion 快照
+    ai_initial_rubric_snapshot   = db.Column(db.Text, default='')        # AI 第一次草稿 rubric 快照（JSON）
+    teacher_first_opened_at      = db.Column(db.DateTime, nullable=True) # 教師首次開啟評閱頁時間
+    teacher_modified             = db.Column(db.Boolean, default=False)  # 教師是否動過 AI 草稿
+    dwell_seconds                = db.Column(db.Integer, default=0)      # 累計停留秒數（批次模式重點）
 
     __table_args__ = (
         db.UniqueConstraint('task_submission_id',
@@ -196,6 +202,61 @@ class AIReviewSuggestion(db.Model):
     source_updated_at  = db.Column(db.DateTime, nullable=False)  # 產生當下 submission.updated_at
     model_used         = db.Column(db.String(50), default='')
     created_at         = db.Column(db.DateTime, default=datetime.utcnow)
+    # v2.8.0：rubric 預生持久化（避免每次教師開頁都重算）
+    ai_rubric_scores_json = db.Column(db.Text, default='')   # {"DP1": 4, "EP4": 3, ...}
+    ai_rubric_comment     = db.Column(db.Text, default='')   # AI 給的整體評語（rubric 用）
+
+
+# =============================================================================
+# 模組 C2（v2.8.0）：AI Token 用量、額度核准、批次預生 job
+# =============================================================================
+
+class AIUsageLog(db.Model):
+    """每次呼叫 Claude API 都寫一筆，用於 token cap、研究 audit、anchoring 分析。
+    Codex review 確認：1500–5000 筆/學期可接受，不做 retention。"""
+    __tablename__ = 'ai_usage_logs'
+    id                 = db.Column(db.Integer, primary_key=True)
+    called_at          = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    period             = db.Column(db.String(7), nullable=False, index=True)  # 'YYYY-MM' Asia/Taipei
+    purpose            = db.Column(db.String(40), nullable=False)             # 'review_suggestion' / 'rubric_suggestion' / 'instant_feedback'
+    model_used         = db.Column(db.String(50), default='')
+    input_tokens       = db.Column(db.Integer, default=0)
+    output_tokens      = db.Column(db.Integer, default=0)
+    task_submission_id = db.Column(db.Integer, db.ForeignKey('task_submissions.id'),
+                                   nullable=True, index=True)
+    user_id            = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    success            = db.Column(db.Boolean, default=True)
+    error_message      = db.Column(db.String(500), default='')
+
+    __table_args__ = (
+        db.Index('ix_ai_usage_period_success', 'period', 'success'),
+    )
+
+
+class AIQuotaOverride(db.Model):
+    """教師核准追加 token 額度（超過月 cap 時使用）。Audit log 永久保留。"""
+    __tablename__ = 'ai_quota_overrides'
+    id           = db.Column(db.Integer, primary_key=True)
+    period       = db.Column(db.String(7), nullable=False, index=True)  # 'YYYY-MM'
+    extra_tokens = db.Column(db.Integer, nullable=False)
+    approved_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    approved_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    reason       = db.Column(db.Text, default='')
+
+
+class AIBatchJob(db.Model):
+    """教師按下「📦 預先生成」後建立的批次 job。前端輪詢此表取進度。"""
+    __tablename__ = 'ai_batch_jobs'
+    id          = db.Column(db.Integer, primary_key=True)
+    teacher_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    started_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    status      = db.Column(db.String(20), default='pending')  # pending / running / done / cancelled / failed
+    total       = db.Column(db.Integer, default=0)
+    processed   = db.Column(db.Integer, default=0)
+    skipped     = db.Column(db.Integer, default=0)
+    failed      = db.Column(db.Integer, default=0)
+    last_error  = db.Column(db.String(500), default='')
 
 
 # =============================================================================

@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block title %}AI Token 用量 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:1.5rem auto;">
+    <h1 style="color:#1a5276;font-size:1.3rem;margin-bottom:1rem;
+               border-bottom:3px solid #2980b9;padding-bottom:.5rem;">
+        🪙 AI Token 用量（{{ summary.period }}）
+    </h1>
+
+    <a href="{{ url_for('teacher_dashboard') }}"
+       style="background:#fff;border:1px solid #2980b9;color:#2980b9;
+              padding:.4rem .9rem;border-radius:5px;
+              text-decoration:none;font-size:.82rem;
+              display:inline-block;margin-bottom:1rem;">
+        ← 回教師儀表板
+    </a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div style="padding:.6rem .9rem;border-radius:5px;margin-bottom:.8rem;
+                    background:{% if category == 'success' %}#d4efdf{% elif category == 'error' %}#fadbd8{% else %}#eaf2f8{% endif %};
+                    color:{% if category == 'success' %}#1e8449{% elif category == 'error' %}#c0392b{% else %}#1a5276{% endif %};">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endwith %}
+
+    {# ── 用量總覽 ── #}
+    <div style="background:#fff;border-radius:8px;padding:1.4rem 1.6rem;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:1.4rem;">
+        <h2 style="font-size:1.0rem;color:#1a5276;margin-bottom:1rem;">本月用量</h2>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+            <div>
+                <div style="font-size:.78rem;color:#888;">已用</div>
+                <div style="font-size:1.4rem;font-weight:700;color:#2c3e50;">
+                    {{ '{:,}'.format(summary.used) }}
+                </div>
+            </div>
+            <div>
+                <div style="font-size:.78rem;color:#888;">本月 Cap</div>
+                <div style="font-size:1.4rem;font-weight:700;color:#2c3e50;">
+                    {{ '{:,}'.format(summary.cap) }}
+                </div>
+                <div style="font-size:.72rem;color:#888;">
+                    預設 {{ '{:,}'.format(default_cap) }}
+                    {% if summary.cap > default_cap %}
+                    ＋核准追加 {{ '{:,}'.format(summary.cap - default_cap) }}
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <div style="font-size:.78rem;color:#888;">Soft Ceiling（80%）</div>
+                <div style="font-size:1.4rem;font-weight:700;
+                            color:{% if summary.over_ceiling %}#c0392b{% else %}#888{% endif %};">
+                    {{ '{:,}'.format(summary.soft_ceiling) }}
+                </div>
+            </div>
+            <div>
+                <div style="font-size:.78rem;color:#888;">使用率</div>
+                <div style="font-size:1.4rem;font-weight:700;
+                            color:{% if summary.over_ceiling %}#c0392b{% elif summary.ratio > 0.6 %}#e67e22{% else %}#2c3e50{% endif %};">
+                    {{ '%.1f'|format(summary.ratio * 100) }}%
+                </div>
+            </div>
+        </div>
+
+        {% if summary.over_ceiling %}
+        <div style="background:#fdebd0;color:#7e5109;
+                    padding:.7rem 1rem;border-radius:5px;
+                    font-size:.85rem;margin-top:1rem;">
+            ⚠️ 用量已達 soft ceiling，自動預生（L1 / L2）已暫停。
+            教師單筆 fallback 仍可運作。如需繼續批次預生，請於下方核准追加。
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── 核准追加 ── #}
+    <div style="background:#fff;border-radius:8px;padding:1.4rem 1.6rem;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:1.4rem;">
+        <h2 style="font-size:1.0rem;color:#1a5276;margin-bottom:1rem;">核准追加 Token 額度</h2>
+        <form method="POST"
+              action="{{ url_for('teacher_ai_quota_approve') }}"
+              style="display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div style="flex:1;min-width:160px;">
+                <label style="font-size:.82rem;color:#444;display:block;margin-bottom:.2rem;">
+                    追加 tokens
+                </label>
+                <input type="number" name="extra_tokens"
+                       min="1" max="50000000" step="100000"
+                       value="1000000" required
+                       style="width:100%;padding:.5rem;border:1px solid #ccc;
+                              border-radius:4px;font-size:.9rem;">
+            </div>
+            <div style="flex:2;min-width:240px;">
+                <label style="font-size:.82rem;color:#444;display:block;margin-bottom:.2rem;">
+                    核准理由 *
+                </label>
+                <input type="text" name="reason" required
+                       placeholder="例：期末批改高峰，預估 500 份提交"
+                       style="width:100%;padding:.5rem;border:1px solid #ccc;
+                              border-radius:4px;font-size:.9rem;">
+            </div>
+            <button type="submit"
+                    style="background:#27ae60;color:#fff;border:none;
+                           padding:.55rem 1.2rem;border-radius:5px;
+                           cursor:pointer;font-size:.9rem;font-weight:600;">
+                ✅ 核准追加
+            </button>
+        </form>
+
+        {% if overrides %}
+        <h3 style="font-size:.9rem;color:#1a5276;margin:1.2rem 0 .5rem 0;">本月已核准</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+            <thead>
+                <tr style="background:#f4f6f8;">
+                    <th style="padding:.4rem;text-align:left;">時間</th>
+                    <th style="padding:.4rem;text-align:right;">追加 tokens</th>
+                    <th style="padding:.4rem;text-align:left;">理由</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in overrides %}
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:.4rem;">{{ o.approved_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td style="padding:.4rem;text-align:right;font-weight:600;">+{{ '{:,}'.format(o.extra_tokens) }}</td>
+                    <td style="padding:.4rem;color:#555;">{{ o.reason }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    {# ── 近 30 筆呼叫紀錄 ── #}
+    <div style="background:#fff;border-radius:8px;padding:1.4rem 1.6rem;
+                box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <h2 style="font-size:1.0rem;color:#1a5276;margin-bottom:1rem;">近 30 筆呼叫紀錄</h2>
+        {% if recent_logs %}
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+            <thead>
+                <tr style="background:#f4f6f8;">
+                    <th style="padding:.4rem;text-align:left;">時間</th>
+                    <th style="padding:.4rem;text-align:left;">用途</th>
+                    <th style="padding:.4rem;text-align:left;">模型</th>
+                    <th style="padding:.4rem;text-align:right;">in</th>
+                    <th style="padding:.4rem;text-align:right;">out</th>
+                    <th style="padding:.4rem;text-align:center;">狀態</th>
+                    <th style="padding:.4rem;text-align:left;">錯誤</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_logs %}
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:.4rem;">{{ log.called_at.strftime('%m-%d %H:%M:%S') }}</td>
+                    <td style="padding:.4rem;">{{ log.purpose }}</td>
+                    <td style="padding:.4rem;">{{ log.model_used }}</td>
+                    <td style="padding:.4rem;text-align:right;">{{ log.input_tokens }}</td>
+                    <td style="padding:.4rem;text-align:right;">{{ log.output_tokens }}</td>
+                    <td style="padding:.4rem;text-align:center;
+                               color:{% if log.success %}#1e8449{% else %}#c0392b{% endif %};">
+                        {% if log.success %}✓{% else %}✗{% endif %}
+                    </td>
+                    <td style="padding:.4rem;color:#c0392b;font-size:.7rem;">
+                        {{ log.error_message[:80] if log.error_message else '' }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:#888;font-size:.85rem;">本期尚無呼叫紀錄。</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

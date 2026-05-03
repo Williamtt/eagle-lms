@@ -63,6 +63,22 @@ def get_client():
     return Anthropic(api_key=api_key)
 
 
+def _extract_usage(message, default_model: str = '') -> dict:
+    """從 Anthropic message response 取出 usage 資訊。
+    回傳 dict 給 ai_grading.record_call 用。失敗回 {}。"""
+    if not message:
+        return {}
+    try:
+        u = getattr(message, 'usage', None)
+        return {
+            'input_tokens':  int(getattr(u, 'input_tokens', 0)) if u else 0,
+            'output_tokens': int(getattr(u, 'output_tokens', 0)) if u else 0,
+            'model':         getattr(message, 'model', '') or default_model,
+        }
+    except Exception:
+        return {'input_tokens': 0, 'output_tokens': 0, 'model': default_model}
+
+
 def generate_instant_feedback(task_number, submission_type, content, student_name=""):
     """Generate immediate AI feedback for student submission."""
     client = get_client()
@@ -126,6 +142,7 @@ def generate_instant_feedback(task_number, submission_type, content, student_nam
             lines = [l for l in lines if not l.strip().startswith('```')]
             raw_text = '\n'.join(lines).strip()
         result = json.loads(raw_text)
+        result['_usage'] = _extract_usage(message, "claude-sonnet-4-5")
         return result
     except json.JSONDecodeError:
         # If response isn't valid JSON, return the raw text as feedback
@@ -133,10 +150,12 @@ def generate_instant_feedback(task_number, submission_type, content, student_nam
         # Try to extract feedback from partial JSON
         return {
             "feedback": raw,
-            "scores": {}
+            "scores": {},
+            "_usage": _extract_usage(message, "claude-sonnet-4-5") if message else {},
         }
     except Exception as e:
-        return {"feedback": f"AI 回饋生成時發生錯誤：{str(e)}", "scores": {}}
+        return {"feedback": f"AI 回饋生成時發生錯誤：{str(e)}", "scores": {},
+                "_error": str(e), "_usage": {}}
 
 
 def generate_teacher_analysis(submissions_data):
@@ -190,6 +209,7 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
   "rubric_notes": "依據評分標準的簡要說明"
 }}"""
 
+    message = None
     try:
         message = client.messages.create(
             model="claude-sonnet-4-5",
@@ -207,10 +227,14 @@ def generate_review_suggestion(submission_content, task_number, submission_type)
             if raw.startswith('json'):
                 raw = raw[4:]
             raw = raw.strip()
-        return json.loads(raw)
+        result = json.loads(raw)
+        result['_usage'] = _extract_usage(message, "claude-sonnet-4-5")
+        return result
     except Exception as e:
         print(f"[ai_service] generate_review_suggestion error: {e}")
-        return {"suggestion": f"AI 建議生成失敗：{e}", "suggested_score": None}
+        return {"suggestion": f"AI 建議生成失敗：{e}", "suggested_score": None,
+                "_error": str(e),
+                "_usage": _extract_usage(message, "claude-sonnet-4-5") if message else {}}
 
 
 def generate_self_study_rubric_suggestion(proposal_text: str, axes: list, axes_desc: dict) -> dict:
@@ -236,6 +260,7 @@ def generate_self_study_rubric_suggestion(proposal_text: str, axes: list, axes_d
   "comment": "給教師參考的整體評語（100字以內）"
 }}"""
 
+    message = None
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
@@ -255,7 +280,10 @@ def generate_self_study_rubric_suggestion(proposal_text: str, axes: list, axes_d
             v = result.get('rubric_scores', {}).get(ax)
             if v is not None:
                 result['rubric_scores'][ax] = max(1, min(5, int(v)))
+        result['_usage'] = _extract_usage(message, "claude-sonnet-4-6")
         return result
     except Exception as e:
         print(f"[ai_service] generate_self_study_rubric_suggestion error: {e}")
-        return {"error": str(e), "rubric_scores": {}, "comment": f"AI 建議生成失敗：{e}"}
+        return {"error": str(e), "rubric_scores": {}, "comment": f"AI 建議生成失敗：{e}",
+                "_error": str(e),
+                "_usage": _extract_usage(message, "claude-sonnet-4-6") if message else {}}

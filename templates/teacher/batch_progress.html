@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}AI 批次預生進度 - EAGLE LMS{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:2rem auto;background:#fff;
+            border-radius:8px;padding:1.6rem 2rem;
+            box-shadow:0 2px 10px rgba(0,0,0,.08);">
+    <h1 style="color:#1a5276;font-size:1.2rem;margin-bottom:1rem;
+               border-bottom:3px solid #27ae60;padding-bottom:.5rem;">
+        🤖 AI 批次預生進度
+    </h1>
+
+    <p style="color:#555;font-size:.9rem;margin-bottom:1rem;">
+        Job #{{ job.id }} 啟動於 {{ job.started_at.strftime('%Y-%m-%d %H:%M:%S') }}。
+        本頁每 2 秒自動更新；完成後可關閉。
+    </p>
+
+    <div style="background:#f4f6f8;border-radius:6px;padding:1rem 1.2rem;
+                margin-bottom:1.2rem;">
+        <div style="display:flex;justify-content:space-between;
+                    font-size:.95rem;font-weight:600;color:#2c3e50;
+                    margin-bottom:.5rem;">
+            <span>狀態：<span id="status">{{ job.status }}</span></span>
+            <span><span id="processed">{{ job.processed }}</span> / <span id="total">{{ job.total }}</span></span>
+        </div>
+        <div style="background:#e0e0e0;border-radius:4px;height:14px;overflow:hidden;">
+            <div id="progress-bar"
+                 style="background:#27ae60;height:100%;width:0%;
+                        transition:width .4s ease;"></div>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:.7rem;
+                    font-size:.82rem;color:#555;">
+            <span>處理：<strong id="processed-2">{{ job.processed }}</strong></span>
+            <span>跳過：<strong id="skipped">{{ job.skipped }}</strong></span>
+            <span style="color:#c0392b;">失敗：<strong id="failed">{{ job.failed }}</strong></span>
+        </div>
+        <div id="last-error"
+             style="color:#c0392b;font-size:.8rem;margin-top:.5rem;
+                    min-height:1em;">{{ job.last_error or '' }}</div>
+    </div>
+
+    <a href="{{ url_for('teacher_dashboard') }}"
+       style="background:#fff;border:1px solid #2980b9;color:#2980b9;
+              padding:.5rem 1rem;border-radius:5px;
+              text-decoration:none;font-size:.85rem;">
+        ← 回教師儀表板
+    </a>
+</div>
+
+<script>
+const STATUS_URL = {{ url_for('teacher_batch_status', job_id=job.id) | tojson }};
+let pollInterval = null;
+
+function poll() {
+    fetch(STATUS_URL)
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) return;
+            document.getElementById('status').textContent     = d.status;
+            document.getElementById('processed').textContent  = d.processed;
+            document.getElementById('processed-2').textContent= d.processed;
+            document.getElementById('skipped').textContent    = d.skipped;
+            document.getElementById('failed').textContent     = d.failed;
+            document.getElementById('total').textContent      = d.total;
+            const pct = d.total > 0 ? Math.round((d.processed + d.skipped + d.failed) * 100 / d.total) : 0;
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('last-error').textContent = d.last_error || '';
+            if (d.status === 'done' || d.status === 'cancelled' || d.status === 'failed') {
+                clearInterval(pollInterval);
+                if (d.status === 'done') {
+                    document.getElementById('progress-bar').style.background = '#1e8449';
+                }
+            }
+        })
+        .catch(e => { /* silent */ });
+}
+poll();
+pollInterval = setInterval(poll, 2000);
+</script>
+{% endblock %}

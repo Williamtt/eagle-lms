@@ -340,7 +340,17 @@
                 <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
 
                 <div class="form-group">
-                    <label for="feedback">評閱意見 *</label>
+                    <label for="feedback">
+                        評閱意見 *
+                        {% if prefill_feedback and not (existing_review and existing_review.feedback) %}
+                        <span style="background:#fff3cd;color:#8e6c00;
+                                     padding:.1rem .45rem;border-radius:4px;
+                                     font-size:.7rem;font-weight:normal;margin-left:.4rem;"
+                              id="feedback-ai-badge">
+                            🤖 AI 起草，請覆核
+                        </span>
+                        {% endif %}
+                    </label>
                     {# 一鍵填入 AI 建議（等 AJAX 載入完才啟用） #}
                     <button type="button" class="fill-btn" id="fill-from-ai-btn"
                             onclick="fillFromAI()" disabled
@@ -350,8 +360,12 @@
                     <textarea id="feedback" name="feedback"
                               class="review-textarea"
                               placeholder="請以建設性、鼓勵性的方式提供回饋…"
-                              required>{% if existing_review %}{{ existing_review.feedback }}{% endif %}</textarea>
+                              required>{% if existing_review and existing_review.feedback %}{{ existing_review.feedback }}{% elif prefill_feedback %}{{ prefill_feedback }}{% endif %}</textarea>
                     <div class="hint">建議 100–300 字</div>
+                    {# v2.8.0：anchoring 追蹤 #}
+                    <input type="hidden" name="opened_at_iso"   id="opened-at-iso"   value="">
+                    <input type="hidden" name="dwell_seconds"   id="dwell-seconds"   value="0">
+                    <input type="hidden" name="teacher_modified" id="teacher-modified-flag" value="0">
                 </div>
 
                 <div class="form-group">
@@ -447,7 +461,18 @@
                   id="rubric-form">
                 <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                 <input type="hidden" name="action"            value="rubric_save" id="rubric-action">
-                <input type="hidden" name="rubric_source_hint" value="{{ existing_review.rubric_source if existing_review and existing_review.rubric_source else 'teacher_manual' }}" id="rubric-source-hint">
+                <input type="hidden" name="rubric_source_hint" value="{% if existing_review and existing_review.rubric_source %}{{ existing_review.rubric_source }}{% elif prefill_from_ai and rubric_data %}ai_drafted{% else %}teacher_manual{% endif %}" id="rubric-source-hint">
+                {# v2.8.0：rubric form 也送 anchoring 欄位（Codex Q4） #}
+                <input type="hidden" name="opened_at_iso"   id="rubric-opened-at-iso"  value="">
+                <input type="hidden" name="dwell_seconds"   id="rubric-dwell-seconds"  value="0">
+                <input type="hidden" name="teacher_modified" id="rubric-teacher-modified" value="0">
+                {% if prefill_from_ai and rubric_data and not (existing_review and existing_review.rubric_json) %}
+                <div style="background:#fff3cd;color:#8e6c00;padding:.4rem .6rem;
+                            border-radius:4px;font-size:.78rem;margin-bottom:.7rem;"
+                     id="rubric-ai-badge">
+                    🤖 以下分數為 AI 起草，請覆核或調整後再「確認鎖定」
+                </div>
+                {% endif %}
 
                 {% for ax in rubric_axes %}
                 <div style="padding:.5rem 0;border-bottom:1px solid #f0f0f0;">
@@ -508,6 +533,11 @@ function fillFromAI() {
     const ta = document.getElementById('feedback');
     if (!ta.value.trim() || confirm('目前已有內容，確定以 AI 建議覆蓋？')) {
         ta.value = AI_SUGGESTION_TEXT;
+        // v2.8.0 (Codex Q7)：明確狀態轉換 — 按下「以 AI 建議為底稿」當作「教師接受 AI 預填」，
+        // 此時 teacher_modified=0；之後的 input 事件才會標 1。
+        const mEl = document.getElementById('teacher-modified-flag');
+        if (mEl) mEl.value = '0';
+        if (window.__resetTeacherModified) window.__resetTeacherModified();
         ta.focus();
     }
 }
@@ -604,7 +634,14 @@ function fillRubricFromAI() {
 }
 
 function finalizeRubric() {
-    if (!confirm('確認後 Rubric 分數將鎖定，無法修改。確定嗎？')) return;
+    // v2.8.0：防止「無腦下一步」。若停留 < 5 秒，彈窗提醒至少瀏覽一次
+    const openedAt = window.__reviewOpenedAt || Date.now();
+    const dwellSec = Math.round((Date.now() - openedAt) / 1000);
+    if (dwellSec < 5) {
+        if (!confirm('⚠️ 您只停留了 ' + dwellSec + ' 秒。\n\n請確認您已實際瀏覽 AI 草稿與 Rubric 內容後再 finalize。\n\n仍要鎖定嗎？')) return;
+    } else {
+        if (!confirm('確認後 Rubric 分數將鎖定，無法修改。確定嗎？')) return;
+    }
     document.getElementById('rubric-action').value = 'rubric_finalize';
     document.getElementById('rubric-form').submit();
 }
@@ -613,5 +650,65 @@ document.getElementById('review-form').addEventListener('submit', function() {
     const btn = document.getElementById('submit-btn');
     if (btn) { btn.disabled = true; btn.textContent = '儲存中…'; }
 });
+
+// ─── v2.8.0 anchoring 追蹤 ────────────────────────────────────────────────
+(function() {
+    const PREFILL_FROM_AI = {{ 'true' if prefill_from_ai else 'false' }};
+    const HAS_AI_CACHE    = {{ 'true' if ai_cache else 'false' }};   // 即使未預填也要 track（fillFromAI 後可能被改）
+    const openedAt = new Date();
+    window.__reviewOpenedAt = openedAt.getTime();
+
+    const openedIsoEl       = document.getElementById('opened-at-iso');
+    const dwellEl           = document.getElementById('dwell-seconds');
+    const modifiedEl        = document.getElementById('teacher-modified-flag');
+    const rubricOpenedEl    = document.getElementById('rubric-opened-at-iso');
+    const rubricDwellEl     = document.getElementById('rubric-dwell-seconds');
+    const rubricModifiedEl  = document.getElementById('rubric-teacher-modified');
+    const feedbackBadge     = document.getElementById('feedback-ai-badge');
+    const rubricBadge       = document.getElementById('rubric-ai-badge');
+    if (openedIsoEl)    openedIsoEl.value    = openedAt.toISOString();
+    if (rubricOpenedEl) rubricOpenedEl.value = openedAt.toISOString();
+
+    let teacherModified = false;
+    function markModified() {
+        // 預填或既有 cache 時都追蹤；無 cache 完全沒 anchoring 訊息
+        if (!PREFILL_FROM_AI && !HAS_AI_CACHE) return;
+        if (teacherModified) return;
+        teacherModified = true;
+        if (modifiedEl)       modifiedEl.value       = '1';
+        if (rubricModifiedEl) rubricModifiedEl.value = '1';
+        [feedbackBadge, rubricBadge].forEach(b => {
+            if (b) {
+                b.style.background = '#e0e0e0';
+                b.style.color = '#666';
+                b.textContent = b.textContent.replace('AI 起草', 'AI 起草・教師已修改')
+                                              .replace('以下分數為 AI 起草', '以下分數已被教師修改');
+            }
+        });
+    }
+    // v2.8.0 (Codex Q7)：fillFromAI 呼叫時清回 0、重置 badge（重新接受 AI 預填）
+    window.__resetTeacherModified = function() {
+        teacherModified = false;
+        if (modifiedEl)       modifiedEl.value       = '0';
+        if (rubricModifiedEl) rubricModifiedEl.value = '0';
+    };
+
+    const fbEl = document.getElementById('feedback');
+    if (fbEl) fbEl.addEventListener('input', markModified);
+    document.querySelectorAll('input[name^="rubric_"]').forEach(el => {
+        el.addEventListener('input', markModified);
+    });
+
+    function setDwell() {
+        const secs = Math.max(0, Math.round((Date.now() - openedAt.getTime()) / 1000));
+        const capped = String(Math.min(secs, 86400));
+        if (dwellEl)       dwellEl.value       = capped;
+        if (rubricDwellEl) rubricDwellEl.value = capped;
+    }
+    const reviewForm = document.getElementById('review-form');
+    if (reviewForm) reviewForm.addEventListener('submit', setDwell);
+    const rubricForm = document.getElementById('rubric-form');
+    if (rubricForm) rubricForm.addEventListener('submit', setDwell);
+})();
 </script>
 {% endblock %}

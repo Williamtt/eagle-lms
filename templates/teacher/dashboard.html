@@ -286,6 +286,70 @@
     {% endfor %}
 </div>
 
+{# ── v2.8.0 AI 預批 chip ── #}
+{% if ai_chip %}
+<div class="section-heading">🤖 AI 預批狀態</div>
+<div style="background:#fff;border-radius:8px;padding:1.1rem 1.4rem;
+            box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:1.6rem;
+            display:flex;flex-wrap:wrap;gap:1rem;align-items:center;">
+    <div style="flex:1;min-width:180px;">
+        <div style="font-size:.78rem;color:#666;">待批改（已提交未發布）</div>
+        <div style="font-size:1.4rem;font-weight:700;color:#2c3e50;">
+            {{ ai_chip.total_unreviewed }}
+            <span style="font-size:.85rem;color:#888;font-weight:400;">份</span>
+        </div>
+    </div>
+    <div style="flex:1;min-width:180px;">
+        <div style="font-size:.78rem;color:#666;">AI 草稿就緒</div>
+        <div style="font-size:1.4rem;font-weight:700;color:#1e8449;">
+            {{ ai_chip.ready_drafts }}
+            <span style="font-size:.85rem;color:#888;font-weight:400;">份</span>
+            {% if ai_chip.pending_drafts > 0 %}
+            <span style="font-size:.78rem;color:#e67e22;font-weight:400;margin-left:.4rem;">
+                （還有 {{ ai_chip.pending_drafts }} 份未生成）
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="flex:1;min-width:180px;">
+        <div style="font-size:.78rem;color:#666;">本月 AI Token 用量</div>
+        <div style="font-size:1.0rem;font-weight:600;
+                    color:{% if ai_chip.over_ceiling %}#c0392b{% elif ai_chip.token_ratio > 0.6 %}#e67e22{% else %}#2c3e50{% endif %};">
+            🪙 {{ '{:,}'.format(ai_chip.token_used) }} / {{ '{:,}'.format(ai_chip.token_cap) }}
+            <span style="font-size:.78rem;color:#888;font-weight:400;">
+                （{{ '%.1f'|format(ai_chip.token_ratio * 100) }}%）
+            </span>
+        </div>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        {% if ai_chip.pending_drafts > 0 and not ai_chip.over_ceiling %}
+        <form method="POST" action="{{ url_for('teacher_batch_pregenerate_drafts') }}"
+              style="margin:0;">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button type="submit"
+                    style="background:#27ae60;color:#fff;border:none;
+                           padding:.55rem 1rem;border-radius:5px;cursor:pointer;
+                           font-size:.85rem;font-weight:600;">
+                📦 預先生成 {{ ai_chip.pending_drafts }} 份 AI 草稿
+            </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('teacher_ai_quota') }}"
+           style="background:#fff;color:#2980b9;border:1px solid #2980b9;
+                  padding:.55rem 1rem;border-radius:5px;text-decoration:none;
+                  font-size:.85rem;">
+            🪙 用量明細 / 核准追加
+        </a>
+    </div>
+    {% if ai_chip.over_ceiling %}
+    <div style="width:100%;background:#fdebd0;color:#7e5109;
+                padding:.6rem .8rem;border-radius:4px;font-size:.82rem;">
+        ⚠️ 本月 AI 用量已達 80% soft ceiling，自動預生暫停。請至「用量明細」核准追加。
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {# ── 快速工具 ── #}
 <div class="section-heading">工具與資料匯出</div>
 <div class="tools-row">
@@ -306,6 +370,11 @@
        style="border-left-color:#8e44ad;">
         <h3 style="color:#6a1b9a;">📋 資料完整性檢查</h3>
         <p>查看每位學生 ARCSA / 任務 / 日誌 / 口頭報告 / 問卷的繳交狀態</p>
+    </a>
+    <a href="{{ url_for('teacher_batch_missing_rubric') }}" class="tool-card"
+       style="border-left-color:#8e44ad;">
+        <h3 style="color:#6a1b9a;">📝 批次評閱（缺 Rubric）</h3>
+        <p>列出 AI 已草擬未確認的提交，連續評閱模式</p>
     </a>
 </div>
 

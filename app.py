@@ -19,6 +19,7 @@ from models import (db, User,
                     TaskSubmission, QuestionResponse, ChecklistResponse,
                     ReflectionResponse, DeliverableUpload,
                     AIFeedback, TeacherReview, AIReviewSuggestion,
+                    AIUsageLog, AIQuotaOverride, AIBatchJob,
                     Questionnaire, QuestionnaireItem,
                     QuestionnaireSubmission, QuestionnaireAnswer,
                     LearningJournal,
@@ -78,6 +79,25 @@ def _run_migrations():
                     conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN rubric_finalized_at TIMESTAMP"))
                 if 'rubric_source' not in tr:
                     conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN rubric_source VARCHAR(40) DEFAULT ''"))
+                # v2.8.0：anchoring 研究欄位
+                if 'ai_initial_feedback_snapshot' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN ai_initial_feedback_snapshot TEXT DEFAULT ''"))
+                if 'ai_initial_rubric_snapshot' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN ai_initial_rubric_snapshot TEXT DEFAULT ''"))
+                if 'teacher_first_opened_at' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN teacher_first_opened_at TIMESTAMP"))
+                if 'teacher_modified' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN teacher_modified BOOLEAN DEFAULT 0"))
+                if 'dwell_seconds' not in tr:
+                    conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN dwell_seconds INTEGER DEFAULT 0"))
+
+            # ── ai_review_suggestions（v2.8.0 新增 rubric 欄位） ──
+            if 'ai_review_suggestions' in tables:
+                ars = cols('ai_review_suggestions')
+                if 'ai_rubric_scores_json' not in ars:
+                    conn.execute(text("ALTER TABLE ai_review_suggestions ADD COLUMN ai_rubric_scores_json TEXT DEFAULT ''"))
+                if 'ai_rubric_comment' not in ars:
+                    conn.execute(text("ALTER TABLE ai_review_suggestions ADD COLUMN ai_rubric_comment TEXT DEFAULT ''"))
 
             # ── learning_journals ──
             if 'learning_journals' in tables:
@@ -694,6 +714,15 @@ def submit_task(task_number):
     notify.notify_new_submission(
         current_user.name, current_user.student_id, task_number, app.config
     )
+
+    # v2.8.0：學生 submit 完成後，背景觸發 AI 教師端預批（best-effort，失敗無感）
+    if app.config.get('ANTHROPIC_API_KEY'):
+        try:
+            from services.ai_grading import schedule_background_draft
+            schedule_background_draft(sub.id)
+        except Exception:
+            pass  # 任何 thread spawn 例外都不能影響學生回應
+
     return redirect(url_for('view_task', task_number=task_number))
 
 
@@ -1162,6 +1191,30 @@ def teacher_dashboard():
         ).group_by(SelfStudyProposal.user_id).all()
     }
 
+    # v2.8.0：AI 預批 chip 統計
+    ai_chip = None
+    if app.config.get('ANTHROPIC_API_KEY'):
+        try:
+            from services import ai_quota
+            from services.ai_grading import list_pending_submissions
+            pending_subs = list_pending_submissions()
+            # 已 submitted 但未 finalized 的提交數（含 cache 已就緒 + 未就緒）
+            submitted_unreviewed = TaskSubmission.query.filter_by(status='submitted').count()
+            ai_ready = max(0, submitted_unreviewed - len(pending_subs))
+            quota = ai_quota.status_summary()
+            ai_chip = {
+                'pending_drafts':       len(pending_subs),
+                'ready_drafts':         ai_ready,
+                'total_unreviewed':     submitted_unreviewed,
+                'token_used':           quota['used'],
+                'token_cap':            quota['cap'],
+                'token_ratio':          quota['ratio'],
+                'over_ceiling':         quota['over_ceiling'],
+            }
+        except Exception as e:
+            print(f'[teacher_dashboard] ai_chip failed: {e}')
+            ai_chip = None
+
     return render_template('teacher/dashboard.html',
                            students=students,
                            pending_users=pending_users,
@@ -1173,7 +1226,8 @@ def teacher_dashboard():
                            tasks=TASKS,
                            proposal_counts=proposal_counts,
                            semester=SEMESTER,
-                           experimental_count=experimental_count)
+                           experimental_count=experimental_count,
+                           ai_chip=ai_chip)
 
 
 @app.route('/teacher/user/<int:uid>/approve', methods=['POST'])
@@ -1709,11 +1763,42 @@ def teacher_review(submission_id):
             existing_review.rubric_json   = json.dumps(rubric_scores, ensure_ascii=False)
             existing_review.rubric_source = request.form.get('rubric_source_hint', 'teacher_manual')
 
+            # v2.8.0：首次儲存 rubric 時，從 AI cache 寫入 anchoring snapshot
+            if not existing_review.ai_initial_rubric_snapshot:
+                _ai_cache = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+                if _ai_cache and _ai_cache.ai_rubric_scores_json:
+                    existing_review.ai_initial_rubric_snapshot = _ai_cache.ai_rubric_scores_json
+
+            # v2.8.0 (Codex Q4)：rubric form 也寫 anchoring 欄位（first_opened/dwell/modified）
+            _opened_iso = request.form.get('opened_at_iso', '').strip()
+            try:
+                _dwell = int(request.form.get('dwell_seconds', '0') or 0)
+            except ValueError:
+                _dwell = 0
+            if _dwell < 0 or _dwell > 86400:
+                _dwell = 0
+            _modified = request.form.get('teacher_modified') == '1'
+            if _opened_iso:
+                try:
+                    _od = datetime.fromisoformat(_opened_iso.replace('Z', '+00:00'))
+                    if _od.tzinfo is not None:
+                        from datetime import timezone as _tz
+                        _od = _od.astimezone(_tz.utc).replace(tzinfo=None)
+                    if not existing_review.teacher_first_opened_at:
+                        existing_review.teacher_first_opened_at = _od
+                except Exception:
+                    pass
+            existing_review.dwell_seconds = (existing_review.dwell_seconds or 0) + _dwell
+            if _modified:
+                existing_review.teacher_modified = True
+
             if action == 'rubric_finalize':
                 if len(rubric_scores) == len(rubric_axes) and rubric_axes:
                     existing_review.rubric_finalized_at = datetime.utcnow()
                     if existing_review.rubric_source == 'ai_adopted':
                         existing_review.rubric_source = 'ai_adopted_then_confirmed'
+                    elif existing_review.rubric_source == 'ai_drafted':
+                        existing_review.rubric_source = 'ai_drafted_then_confirmed'
                     db.session.commit()
                     flash('Rubric 已確認鎖定。', 'success')
                 else:
@@ -1739,19 +1824,61 @@ def teacher_review(submission_id):
                 flash('分數格式錯誤（需 0–100）。', 'error')
                 return redirect(url_for('teacher_review', submission_id=sub.id))
 
+        # v2.8.0：anchoring 追蹤欄位
+        opened_at_iso  = request.form.get('opened_at_iso', '').strip()
+        try:
+            dwell_secs = int(request.form.get('dwell_seconds', '0') or 0)
+        except ValueError:
+            dwell_secs = 0
+        if dwell_secs < 0 or dwell_secs > 86400:  # 防呆：> 24 小時的視為異常
+            dwell_secs = 0
+        teacher_modified_flag = request.form.get('teacher_modified') == '1'
+
+        opened_at_dt = None
+        if opened_at_iso:
+            try:
+                # 處理 'Z' 後綴
+                opened_at_dt = datetime.fromisoformat(opened_at_iso.replace('Z', '+00:00'))
+                # 轉成 naive UTC 以對齊既有 datetime.utcnow() 慣例
+                if opened_at_dt.tzinfo is not None:
+                    from datetime import timezone as _tz
+                    opened_at_dt = opened_at_dt.astimezone(_tz.utc).replace(tzinfo=None)
+            except Exception:
+                opened_at_dt = None
+
+        # 從 cache 取 AI 原始草稿（首次儲存才寫 snapshot）
+        ai_cache_for_snapshot = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+
         if existing_review:
             existing_review.feedback    = feedback
             existing_review.score       = score_val
             existing_review.published   = publish
             existing_review.reviewed_at = datetime.utcnow()
+            # anchoring：只在首次寫入 first_opened_at
+            if not existing_review.teacher_first_opened_at and opened_at_dt:
+                existing_review.teacher_first_opened_at = opened_at_dt
+            existing_review.dwell_seconds = (existing_review.dwell_seconds or 0) + dwell_secs
+            existing_review.teacher_modified = teacher_modified_flag
+            # 首次寫 snapshot
+            if not existing_review.ai_initial_feedback_snapshot and ai_cache_for_snapshot:
+                existing_review.ai_initial_feedback_snapshot = ai_cache_for_snapshot.suggestion or ''
+            if not existing_review.ai_initial_rubric_snapshot and ai_cache_for_snapshot:
+                existing_review.ai_initial_rubric_snapshot = ai_cache_for_snapshot.ai_rubric_scores_json or ''
         else:
-            db.session.add(TeacherReview(
+            new_review = TeacherReview(
                 task_submission_id = sub.id,
                 teacher_id         = current_user.id,
                 feedback           = feedback,
                 score              = score_val,
                 published          = publish,
-            ))
+                teacher_first_opened_at = opened_at_dt,
+                dwell_seconds      = dwell_secs,
+                teacher_modified   = teacher_modified_flag,
+            )
+            if ai_cache_for_snapshot:
+                new_review.ai_initial_feedback_snapshot = ai_cache_for_snapshot.suggestion or ''
+                new_review.ai_initial_rubric_snapshot   = ai_cache_for_snapshot.ai_rubric_scores_json or ''
+            db.session.add(new_review)
         if publish:
             sub.status = 'reviewed'
         db.session.commit()
@@ -1774,6 +1901,29 @@ def teacher_review(submission_id):
         except Exception:
             pass
 
+    # v2.8.0：GET 只讀 cache，**不**阻塞呼叫 AI（避免撞 gunicorn timeout）。
+    # 若 cache 仍空，前端 JS 會走 /teacher/review/<id>/ai_suggestion AJAX；
+    # 該 AJAX 路由內部走 ensure_ai_draft（統一治理：quota / log / finalized guard）。
+    ai_cache = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+    prefill_feedback = ''
+    prefill_rubric   = {}
+    prefill_from_ai  = False
+
+    if ai_cache:
+        # feedback 預填：existing_review.feedback 為空 → 用 cache.suggestion
+        if not (existing_review and existing_review.feedback) and ai_cache.suggestion:
+            prefill_feedback = ai_cache.suggestion
+            prefill_from_ai = True
+        # rubric 預填：rubric_data 為空 → 用 ai_rubric_scores_json
+        if not rubric_data and ai_cache.ai_rubric_scores_json:
+            try:
+                ai_rubric = json.loads(ai_cache.ai_rubric_scores_json)
+                if ai_rubric:
+                    rubric_data = ai_rubric
+                    prefill_from_ai = True
+            except Exception:
+                pass
+
     # AI 建議改由前端 AJAX 呼叫 /teacher/review/<id>/ai_suggestion 取得，
     # 避免每次打開頁面都阻塞等 Claude 回應。
     return render_template('teacher/review.html',
@@ -1787,12 +1937,18 @@ def teacher_review(submission_id):
                            existing_review=existing_review,
                            rubric_axes=rubric_axes,
                            rubric_data=rubric_data,
-                           axes_desc=AXES_DESCRIPTIONS)
+                           axes_desc=AXES_DESCRIPTIONS,
+                           ai_cache=ai_cache,
+                           prefill_feedback=prefill_feedback,
+                           prefill_from_ai=prefill_from_ai)
 
 
 @app.route('/teacher/review/<int:submission_id>/ai_rubric_scores')
 @login_required
 def teacher_review_ai_rubric_scores(submission_id):
+    """v2.8.0：改走 ensure_ai_draft 統一治理（quota / log / finalized guard）。
+    回傳 cache 中已存的 ai_rubric_scores_json + comment；若 cache 缺則觸發生成。
+    """
     if not current_user.is_teacher:
         return jsonify({'error': 'forbidden'}), 403
     sub = db.session.get(TaskSubmission, submission_id)
@@ -1805,20 +1961,35 @@ def teacher_review_ai_rubric_scores(submission_id):
     axes = task_def.get('axes', [])
     if not axes:
         return jsonify({'error': 'no_axes', 'message': '此任務無 Rubric 向度設定。'}), 200
-    text = _build_submission_text_for_ai(sub, task_def)
-    if not text.strip():
-        return jsonify({'error': 'empty', 'message': '提交內容為空。'}), 200
-    from ai_service import generate_self_study_rubric_suggestion
-    result = generate_self_study_rubric_suggestion(text, axes, AXES_DESCRIPTIONS)
-    return jsonify(result)
+
+    from services.ai_grading import ensure_ai_draft
+    force = request.args.get('force') == '1'
+    try:
+        cache = ensure_ai_draft(sub, force=force, triggered_by_user_id=current_user.id)
+    except Exception as e:
+        print(f'[ai_rubric_scores] ensure_ai_draft failed: {e}')
+        cache = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+
+    if not cache or not cache.ai_rubric_scores_json:
+        # quota 拒絕 / AI 失敗 / 提交為空 等情境
+        return jsonify({'error': 'unavailable',
+                        'message': 'AI rubric 建議目前不可用（額度已達上限或生成失敗）。'}), 200
+
+    try:
+        scores = json.loads(cache.ai_rubric_scores_json)
+    except Exception:
+        scores = {}
+    return jsonify({
+        'rubric_scores': scores,
+        'comment':       cache.ai_rubric_comment or '',
+    })
 
 
 @app.route('/teacher/review/<int:submission_id>/ai_suggestion')
 @login_required
 def teacher_review_ai_suggestion(submission_id):
-    """回傳該 submission 的 AI 評閱建議。
-    - 預設讀快取；若 submission 自上次產生後被更新，或 ?force=1，則重新向 Claude 索取並覆寫快取。
-    - 回傳 JSON：{ suggestion, suggested_score, rubric_notes, cached, generated_at }
+    """v2.8.0：改走 ensure_ai_draft 統一治理（quota / log / finalized guard）。
+    回傳 JSON：{ suggestion, suggested_score, rubric_notes, cached, generated_at }
     """
     if not current_user.is_teacher:
         return jsonify({'error': 'forbidden'}), 403
@@ -1831,65 +2002,31 @@ def teacher_review_ai_suggestion(submission_id):
         return jsonify({'error': 'ai_disabled',
                         'message': 'AI 建議功能尚未啟用（缺少 ANTHROPIC_API_KEY）。'}), 200
 
+    from services.ai_grading import ensure_ai_draft
     force = request.args.get('force') == '1'
-    cached = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+    cache_before = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+    cached_hit = bool(cache_before and not force
+                      and cache_before.suggestion
+                      and cache_before.source_updated_at
+                      and cache_before.source_updated_at >= sub.updated_at)
+    try:
+        cache = ensure_ai_draft(sub, force=force, triggered_by_user_id=current_user.id)
+    except Exception as e:
+        print(f'[ai_suggestion] ensure_ai_draft failed: {e}')
+        cache = cache_before
 
-    # 命中快取：submission 沒動過且非強制重算
-    if cached and not force and cached.source_updated_at >= sub.updated_at:
+    if not cache or not cache.suggestion:
         return jsonify({
-            'suggestion':      cached.suggestion,
-            'suggested_score': cached.suggested_score,
-            'rubric_notes':    cached.rubric_notes,
-            'cached':          True,
-            'generated_at':    cached.created_at.isoformat(),
-        })
-
-    # 快取失效或強制重算 → 呼叫 Claude
-    task_def = TASKS.get(sub.task_number, {})
-    submission_text = _build_submission_text_for_ai(sub, task_def)
-    if not submission_text.strip():
-        return jsonify({'error': 'empty_submission',
-                        'message': '學生提交內容為空，無法產生建議。'}), 200
-
-    result = ai_service.generate_review_suggestion(
-        submission_text, sub.task_number, 'structured'
-    )
-    if not isinstance(result, dict):
-        result = {'suggestion': str(result)}
-
-    suggestion_text = result.get('suggestion') or ''
-    # 若 ai_service 回傳錯誤佔位字串，不寫入快取（避免把錯誤當成結果長期保留）
-    is_error_payload = suggestion_text.startswith('AI 建議生成失敗')
-
-    if not is_error_payload:
-        if cached:
-            cached.raw_json          = json.dumps(result, ensure_ascii=False)
-            cached.suggestion        = suggestion_text
-            cached.suggested_score   = result.get('suggested_score')
-            cached.rubric_notes      = result.get('rubric_notes') or ''
-            cached.source_updated_at = sub.updated_at
-            cached.model_used        = 'claude-sonnet-4-5'
-            cached.created_at        = datetime.utcnow()
-        else:
-            cached = AIReviewSuggestion(
-                task_submission_id = sub.id,
-                raw_json           = json.dumps(result, ensure_ascii=False),
-                suggestion         = suggestion_text,
-                suggested_score    = result.get('suggested_score'),
-                rubric_notes       = result.get('rubric_notes') or '',
-                source_updated_at  = sub.updated_at,
-                model_used         = 'claude-sonnet-4-5',
-            )
-            db.session.add(cached)
-        db.session.commit()
+            'error':      'ai_call_failed',
+            'suggestion': 'AI 建議目前不可用（額度已達上限或生成失敗）。',
+        }), 200
 
     return jsonify({
-        'suggestion':      suggestion_text,
-        'suggested_score': result.get('suggested_score'),
-        'rubric_notes':    result.get('rubric_notes') or '',
-        'cached':          False,
-        'generated_at':    datetime.utcnow().isoformat(),
-        'error':           'ai_call_failed' if is_error_payload else None,
+        'suggestion':      cache.suggestion,
+        'suggested_score': cache.suggested_score,
+        'rubric_notes':    cache.rubric_notes,
+        'cached':          cached_hit,
+        'generated_at':    (cache.created_at.isoformat() if cache.created_at else ''),
     })
 
 
@@ -3681,6 +3818,247 @@ def teacher_oral_assessment_detail(user_id):
                            dp5_perception=dp5_perception)
 
 
+# ─── v2.8.0：AI 批次預生（L2 dashboard 預生按鈕） ─────────────────────────────
+
+@app.route('/teacher/batch/pregenerate-drafts', methods=['POST'])
+@login_required
+@csrf_required
+def teacher_batch_pregenerate_drafts():
+    """建立批次預生 job → 跳到 progress 頁。"""
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        flash('AI 功能尚未啟用（缺少 ANTHROPIC_API_KEY）。', 'error')
+        return redirect(url_for('teacher_dashboard'))
+    from services.ai_grading import batch_pregenerate_drafts
+    try:
+        job_id = batch_pregenerate_drafts(current_user.id)
+    except Exception as e:
+        flash(f'批次預生啟動失敗：{e}', 'error')
+        return redirect(url_for('teacher_dashboard'))
+    return redirect(url_for('teacher_batch_progress', job_id=job_id))
+
+
+@app.route('/teacher/batch/progress/<int:job_id>')
+@login_required
+def teacher_batch_progress(job_id):
+    """批次預生進度頁。前端 JS 輪詢 status 路由。"""
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    job = db.session.get(AIBatchJob, job_id)
+    if not job or job.teacher_id != current_user.id:
+        flash('找不到此批次任務。', 'error')
+        return redirect(url_for('teacher_dashboard'))
+    return render_template('teacher/batch_progress.html', job=job)
+
+
+@app.route('/teacher/batch/status/<int:job_id>')
+@login_required
+def teacher_batch_status(job_id):
+    """批次預生 JSON 進度（前端輪詢）。"""
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+    job = db.session.get(AIBatchJob, job_id)
+    if not job or job.teacher_id != current_user.id:
+        return jsonify({'error': 'not_found'}), 404
+    return jsonify({
+        'status':      job.status,
+        'total':       job.total,
+        'processed':   job.processed,
+        'skipped':     job.skipped,
+        'failed':      job.failed,
+        'last_error':  job.last_error or '',
+        'started_at':  job.started_at.isoformat() if job.started_at else '',
+        'finished_at': job.finished_at.isoformat() if job.finished_at else '',
+    })
+
+
+# ─── v2.8.0：批次 missing-rubric（v5 §3.6 A 並入此版本）────────────────────
+
+@app.route('/teacher/batch/missing-rubric')
+@login_required
+def teacher_batch_missing_rubric():
+    """列出『AI 已草擬但教師未確認』的提交，連續評分模式跳轉。
+
+    可選 ?next=1 進入「下一份」自動跳轉模式。
+    """
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    # 找所有 submitted 且未 finalize rubric 的提交
+    subs = TaskSubmission.query.filter_by(status='submitted', semester=SEMESTER).all()
+    rows = []
+    for s in subs:
+        er = s.teacher_reviews.order_by(TeacherReview.id.asc()).first()
+        if er and er.rubric_finalized_at:
+            continue
+        cache = AIReviewSuggestion.query.filter_by(task_submission_id=s.id).first()
+        ai_ready = bool(cache and cache.suggestion and cache.ai_rubric_scores_json)
+        student = db.session.get(User, s.user_id)
+        rows.append({
+            'sub_id':       s.id,
+            'task_number':  s.task_number,
+            'student_name': student.name if student else '',
+            'student_id':   student.student_id if student else '',
+            'class_group':  student.class_group if student else '',
+            'submitted_at': s.submitted_at,
+            'ai_ready':     ai_ready,
+            'has_draft':    bool(er and (er.feedback or er.rubric_json)),
+        })
+    rows.sort(key=lambda r: (not r['ai_ready'], r['task_number'], r['student_id']))
+
+    if request.args.get('next') == '1' and rows:
+        # 跳到第一份（優先 AI ready 的）
+        return redirect(url_for('teacher_review', submission_id=rows[0]['sub_id']))
+
+    return render_template('teacher/batch_missing_rubric.html',
+                           rows=rows,
+                           total=len(rows),
+                           ready_count=sum(1 for r in rows if r['ai_ready']))
+
+
+# ─── v2.8.0：AI 健康指標（Codex 建議的 6 個監控指標）──────────────────────
+
+@app.route('/teacher/health/ai-stats')
+@login_required
+def teacher_health_ai_stats():
+    """回傳 6 個監控指標 JSON。供未來 cron 監控用，目前僅給教師檢視。
+
+    指標：
+    1. AI failure rate（過去 24h）
+    2. Quota usage ratio
+    3. Batch jobs 卡住中
+    4. L3 fallback ratio（最近 7 天）— 暫以 instant_feedback 與 review_suggestion 比例近似
+    5. Draft latency p95 — 暫無資料記錄延遲，回傳 None
+    6. Worker restart 指標 — 無，回傳 None
+    """
+    if not current_user.is_teacher:
+        return jsonify({'error': 'forbidden'}), 403
+
+    from services import ai_quota
+    now = datetime.utcnow()
+
+    # 1) AI failure rate (last 24h)
+    cutoff_24h = now - timedelta(hours=24)
+    total_24h = AIUsageLog.query.filter(AIUsageLog.called_at >= cutoff_24h).count()
+    failed_24h = AIUsageLog.query.filter(
+        AIUsageLog.called_at >= cutoff_24h,
+        AIUsageLog.success == False  # noqa: E712
+    ).count()
+    failure_rate_24h = (failed_24h / total_24h) if total_24h else 0.0
+
+    # 2) Quota
+    summary = ai_quota.status_summary()
+
+    # 3) Stuck batches (running > 30 min)
+    stuck_cutoff = now - timedelta(minutes=30)
+    stuck_batches = AIBatchJob.query.filter(
+        AIBatchJob.status == 'running',
+        AIBatchJob.started_at < stuck_cutoff
+    ).count()
+
+    # 4) L3 fallback ratio (last 7 days)：以 review_suggestion call 中
+    # 「教師 user_id 觸發」/ 全部 review_suggestion 比例近似
+    cutoff_7d = now - timedelta(days=7)
+    sug_total = AIUsageLog.query.filter(
+        AIUsageLog.called_at >= cutoff_7d,
+        AIUsageLog.purpose == 'review_suggestion'
+    ).count()
+    teacher_ids_subq = db.session.query(User.id).filter(User.role == 'teacher').subquery()
+    sug_by_teacher = AIUsageLog.query.filter(
+        AIUsageLog.called_at >= cutoff_7d,
+        AIUsageLog.purpose == 'review_suggestion',
+        AIUsageLog.user_id.in_(db.session.query(teacher_ids_subq.c.id))
+    ).count()
+    l3_fallback_ratio = (sug_by_teacher / sug_total) if sug_total else 0.0
+
+    # 警示判斷
+    alerts = []
+    if failure_rate_24h > 0.10:
+        alerts.append(f'⚠️ AI failure rate 過去 24h = {failure_rate_24h:.1%} > 10%')
+    if summary['ratio'] >= 0.95:
+        alerts.append(f'🔴 Quota 使用率 {summary["ratio"]:.1%} ≥ 95%（紅燈）')
+    elif summary['ratio'] >= 0.80:
+        alerts.append(f'⚠️ Quota 使用率 {summary["ratio"]:.1%} ≥ 80%')
+    if stuck_batches > 0:
+        alerts.append(f'⚠️ {stuck_batches} 個 batch job 卡住（running > 30 分鐘）')
+    if sug_total > 20 and l3_fallback_ratio > 0.30:
+        alerts.append(f'⚠️ L3 fallback ratio = {l3_fallback_ratio:.1%}（L1/L2 失效徵兆）')
+
+    return jsonify({
+        'period':              summary['period'],
+        'failure_rate_24h':    round(failure_rate_24h, 4),
+        'total_calls_24h':     total_24h,
+        'failed_calls_24h':    failed_24h,
+        'quota_used':          summary['used'],
+        'quota_cap':           summary['cap'],
+        'quota_ratio':         summary['ratio'],
+        'quota_over_ceiling':  summary['over_ceiling'],
+        'stuck_batches':       stuck_batches,
+        'l3_fallback_ratio':   round(l3_fallback_ratio, 4),
+        'l3_fallback_sample':  sug_total,
+        'draft_latency_p95':   None,
+        'worker_restarts':     None,
+        'alerts':              alerts,
+        'generated_at':        now.isoformat(),
+    })
+
+
+# ─── v2.8.0：AI Token 額度管理 ─────────────────────────────────────────────
+
+@app.route('/teacher/settings/ai-quota')
+@login_required
+def teacher_ai_quota():
+    """AI Token 用量明細 + 核准追加按鈕。"""
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    from services import ai_quota
+    summary = ai_quota.status_summary()
+    recent_logs = AIUsageLog.query.order_by(AIUsageLog.called_at.desc()).limit(30).all()
+    overrides = AIQuotaOverride.query.filter_by(period=summary['period'])\
+        .order_by(AIQuotaOverride.approved_at.desc()).all()
+    return render_template('teacher/ai_quota.html',
+                           summary=summary,
+                           recent_logs=recent_logs,
+                           overrides=overrides,
+                           default_cap=ai_quota.DEFAULT_CAP)
+
+
+@app.route('/teacher/settings/ai-quota/approve', methods=['POST'])
+@login_required
+@csrf_required
+def teacher_ai_quota_approve():
+    """核准本月追加 N tokens。寫 AIQuotaOverride。"""
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+    from services import ai_quota
+
+    extra_raw = request.form.get('extra_tokens', '').strip()
+    reason = request.form.get('reason', '').strip()
+    try:
+        extra = int(extra_raw)
+    except ValueError:
+        flash('追加 token 數需為整數。', 'error')
+        return redirect(url_for('teacher_ai_quota'))
+    if extra <= 0 or extra > 50_000_000:
+        flash('追加 token 數需介於 1 與 50,000,000 之間。', 'error')
+        return redirect(url_for('teacher_ai_quota'))
+    if not reason:
+        flash('請填寫核准理由。', 'error')
+        return redirect(url_for('teacher_ai_quota'))
+
+    ovr = AIQuotaOverride(
+        period       = ai_quota.current_period(),
+        extra_tokens = extra,
+        approved_by  = current_user.id,
+        reason       = reason[:1000],
+    )
+    db.session.add(ovr)
+    db.session.commit()
+    flash(f'已核准追加 {extra:,} tokens。', 'success')
+    return redirect(url_for('teacher_ai_quota'))
+
+
 # ─── v2.7.0：研究資料完整性檢查 + 研究匯出 bundle ───────────────────────────
 
 @app.route('/teacher/data-check')
@@ -3890,9 +4268,13 @@ def teacher_research_bundle():
                 pass
 
     # ── 主表 2：teacher_reviews.csv ───────────────────────────────────────
+    # v2.8.0：補 anchoring 五欄供研究分析
     tr_fields = ['student_id', 'class_group', 'task_number', 'task_submission_id',
                  'rubric_json', 'rubric_finalized_at', 'rubric_source',
-                 'score', 'feedback', 'reviewed_at', 'research_eligible']
+                 'score', 'feedback', 'reviewed_at',
+                 'ai_initial_feedback_snapshot', 'ai_initial_rubric_snapshot',
+                 'teacher_first_opened_at', 'teacher_modified', 'dwell_seconds',
+                 'research_eligible']
     tr_rows = []
     for tr in (TeacherReview.query
                .join(TaskSubmission,
@@ -3916,6 +4298,12 @@ def teacher_research_bundle():
             'feedback':         tr.feedback or '',
             'reviewed_at':      tr.reviewed_at.strftime('%Y-%m-%d %H:%M:%S')
                                   if tr.reviewed_at else '',
+            'ai_initial_feedback_snapshot': getattr(tr, 'ai_initial_feedback_snapshot', '') or '',
+            'ai_initial_rubric_snapshot':   getattr(tr, 'ai_initial_rubric_snapshot', '') or '',
+            'teacher_first_opened_at':      tr.teacher_first_opened_at.strftime('%Y-%m-%d %H:%M:%S')
+                                              if getattr(tr, 'teacher_first_opened_at', None) else '',
+            'teacher_modified':             1 if getattr(tr, 'teacher_modified', False) else 0,
+            'dwell_seconds':                getattr(tr, 'dwell_seconds', 0) or 0,
             'research_eligible': 1,
         })
 
@@ -4136,10 +4524,90 @@ def teacher_research_bundle():
         f'- task_schedules.csv / task_date_change_logs.csv：任務日期權威表 + audit\n\n'
         f'## 補充表（教學參考用，非研究主分析）\n'
         f'- _supplementary/ai_feedbacks_raw.csv：所有 AI 初步回饋（research_eligible=false）\n'
-        f'- _supplementary/learning_events.csv：行為事件 log（research_eligible=false）\n\n'
+        f'- _supplementary/learning_events.csv：行為事件 log（research_eligible=false）\n'
+        f'- _supplementary/ai_review_suggestions.csv：v2.8.0 AI 教師端預批草稿（含 rubric）\n'
+        f'- _supplementary/ai_usage_log.csv：v2.8.0 全期 Claude API 用量與失敗率\n'
+        f'- _supplementary/ai_batch_jobs.csv：v2.8.0 教師批次預生 job 紀錄\n\n'
+        f'## v2.8.0 anchoring 研究欄位（teacher_reviews.csv 已含）\n'
+        f'- ai_initial_feedback_snapshot：AI 第一次起草的評語\n'
+        f'- ai_initial_rubric_snapshot：AI 第一次起草的 rubric\n'
+        f'- teacher_first_opened_at：教師首次開啟評閱頁時間\n'
+        f'- teacher_modified：教師是否修改過 AI 草稿（0/1）\n'
+        f'- dwell_seconds：累計停留秒數\n'
+        f'- rubric_source：teacher_manual / ai_adopted_then_confirmed / ai_drafted_then_confirmed\n\n'
         f'## 文件\n'
         f'- data_quality_report.txt：每生缺漏項目摘要\n'
     ).encode('utf-8')
+
+    # ── v2.8.0 補充表：ai_review_suggestions ───────────────────────────────
+    # 隱私：只匯出本學期 + 標 research_eligible（與其他主表口徑一致）
+    aisg_fields = ['task_submission_id', 'student_id', 'task_number',
+                   'suggestion', 'suggested_score', 'rubric_notes',
+                   'ai_rubric_scores_json', 'ai_rubric_comment',
+                   'model_used', 'created_at', 'research_eligible']
+    aisg_rows = []
+    sem_subs_subq = db.session.query(TaskSubmission.id).filter(
+        TaskSubmission.semester == SEMESTER
+    ).subquery()
+    sem_sub_ids = {row[0] for row in db.session.query(sem_subs_subq).all()}
+    for ars in AIReviewSuggestion.query.filter(
+            AIReviewSuggestion.task_submission_id.in_(sem_sub_ids)
+    ).all() if sem_sub_ids else []:
+        sub = db.session.get(TaskSubmission, ars.task_submission_id)
+        u = db.session.get(User, sub.user_id) if sub else None
+        aisg_rows.append({
+            'task_submission_id':    ars.task_submission_id,
+            'student_id':            u.student_id if u else '',
+            'task_number':           sub.task_number if sub else '',
+            'suggestion':            ars.suggestion or '',
+            'suggested_score':       ars.suggested_score if ars.suggested_score is not None else '',
+            'rubric_notes':          ars.rubric_notes or '',
+            'ai_rubric_scores_json': getattr(ars, 'ai_rubric_scores_json', '') or '',
+            'ai_rubric_comment':     getattr(ars, 'ai_rubric_comment', '') or '',
+            'model_used':            ars.model_used or '',
+            'created_at':            ars.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                                       if ars.created_at else '',
+            'research_eligible':     1 if (u and u.id in eligible_uids) else 0,
+        })
+
+    # ── v2.8.0 補充表：ai_usage_log ───────────────────────────────────────
+    aiul_fields = ['called_at', 'period', 'purpose', 'model_used',
+                   'input_tokens', 'output_tokens', 'task_submission_id',
+                   'user_id', 'success', 'error_message']
+    aiul_rows = []
+    for log in AIUsageLog.query.order_by(AIUsageLog.called_at.asc()).all():
+        aiul_rows.append({
+            'called_at':         log.called_at.strftime('%Y-%m-%d %H:%M:%S')
+                                   if log.called_at else '',
+            'period':            log.period,
+            'purpose':           log.purpose,
+            'model_used':        log.model_used or '',
+            'input_tokens':      log.input_tokens,
+            'output_tokens':     log.output_tokens,
+            'task_submission_id': log.task_submission_id or '',
+            'user_id':           log.user_id or '',
+            'success':           1 if log.success else 0,
+            'error_message':     log.error_message or '',
+        })
+
+    # ── v2.8.0 補充表：ai_batch_jobs ──────────────────────────────────────
+    aibj_fields = ['id', 'teacher_id', 'started_at', 'finished_at',
+                   'status', 'total', 'processed', 'skipped', 'failed',
+                   'last_error']
+    aibj_rows = []
+    for j in AIBatchJob.query.order_by(AIBatchJob.started_at.asc()).all():
+        aibj_rows.append({
+            'id':           j.id,
+            'teacher_id':   j.teacher_id,
+            'started_at':   j.started_at.strftime('%Y-%m-%d %H:%M:%S') if j.started_at else '',
+            'finished_at':  j.finished_at.strftime('%Y-%m-%d %H:%M:%S') if j.finished_at else '',
+            'status':       j.status,
+            'total':        j.total,
+            'processed':    j.processed,
+            'skipped':      j.skipped,
+            'failed':       j.failed,
+            'last_error':   j.last_error or '',
+        })
 
     # ── 打包 ZIP ──────────────────────────────────────────────────────────
     buf = io.BytesIO()
@@ -4156,6 +4624,13 @@ def teacher_research_bundle():
                     _csv_bytes(aifb_rows, aifb_fields))
         zf.writestr('_supplementary/learning_events.csv',
                     _csv_bytes(le_rows, le_fields))
+        # v2.8.0：AI 預批相關補充表
+        zf.writestr('_supplementary/ai_review_suggestions.csv',
+                    _csv_bytes(aisg_rows, aisg_fields))
+        zf.writestr('_supplementary/ai_usage_log.csv',
+                    _csv_bytes(aiul_rows, aiul_fields))
+        zf.writestr('_supplementary/ai_batch_jobs.csv',
+                    _csv_bytes(aibj_rows, aibj_fields))
         zf.writestr('data_quality_report.txt', report_text)
         zf.writestr('README.txt', readme_text)
     buf.seek(0)
