@@ -183,8 +183,30 @@
             {% endif %}
         </div>
     </div>
-    <a href="{{ url_for('teacher_task_submissions', task_number=sub.task_number) }}"
-       style="color:#fff;text-decoration:none;opacity:0.85;font-size:0.9rem;">← 返回列表</a>
+    <div style="display:flex;align-items:center;gap:0.9rem;flex-shrink:0;flex-wrap:wrap;">
+        <a href="{{ url_for('teacher_task_submissions', task_number=sub.task_number) }}"
+           style="color:#fff;text-decoration:none;opacity:0.85;font-size:0.9rem;">← 返回列表</a>
+        {% if nav_position[0] %}
+        <span style="opacity:0.45;font-size:0.85rem;">|</span>
+        {% if nav_prev_id %}
+            <a href="{{ url_for('teacher_review', submission_id=nav_prev_id) }}"
+               style="color:#fff;text-decoration:none;font-size:0.9rem;"
+               title="上一位學生">← 上一位</a>
+        {% else %}
+            <span style="color:#fff;opacity:0.35;font-size:0.9rem;cursor:default;">← 上一位</span>
+        {% endif %}
+        <span style="color:#fff;opacity:0.75;font-size:0.82rem;white-space:nowrap;">
+            {{ nav_position[0] }} / {{ nav_position[1] }}
+        </span>
+        {% if nav_next_id %}
+            <a href="{{ url_for('teacher_review', submission_id=nav_next_id) }}"
+               style="color:#fff;text-decoration:none;font-size:0.9rem;"
+               title="下一位學生">下一位 →</a>
+        {% else %}
+            <span style="color:#fff;opacity:0.35;font-size:0.9rem;cursor:default;">下一位 →</span>
+        {% endif %}
+        {% endif %}
+    </div>
 </div>
 
 <div class="review-layout">
@@ -363,8 +385,8 @@
                               required>{% if existing_review and existing_review.feedback %}{{ existing_review.feedback }}{% elif prefill_feedback %}{{ prefill_feedback }}{% endif %}</textarea>
                     <div class="hint">建議 100–300 字</div>
                     {# v2.8.0：anchoring 追蹤 #}
-                    <input type="hidden" name="opened_at_iso"   id="opened-at-iso"   value="">
-                    <input type="hidden" name="dwell_seconds"   id="dwell-seconds"   value="0">
+                    <input type="hidden" name="opened_at_iso"    id="opened-at-iso"        value="">
+                    <input type="hidden" name="dwell_seconds"    id="dwell-seconds"        value="0">
                     <input type="hidden" name="teacher_modified" id="teacher-modified-flag" value="0">
                 </div>
 
@@ -391,6 +413,13 @@
                             id="submit-btn">
                         {% if existing_review %}💾 更新評閱{% else %}📤 提交評閱{% endif %}
                     </button>
+                    {% if nav_next_id %}
+                    <button type="submit" name="next_submission_id"
+                            value="{{ nav_next_id }}"
+                            class="btn btn-outline">
+                        儲存並下一位 →
+                    </button>
+                    {% endif %}
                     <a href="{{ url_for('teacher_task_submissions', task_number=sub.task_number) }}"
                        class="btn btn-outline">取消</a>
                 </div>

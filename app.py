@@ -1707,17 +1707,22 @@ def change_password():
     return render_template('student/change_password.html')
 
 
+def _task_submission_list(task_number):
+    """Non-draft submissions for a task, stable-sorted (submitted_at desc, id desc)."""
+    return TaskSubmission.query.filter(
+        TaskSubmission.task_number == task_number,
+        TaskSubmission.semester == SEMESTER,
+        TaskSubmission.status != 'draft'
+    ).order_by(TaskSubmission.submitted_at.desc(), TaskSubmission.id.desc()).all()
+
+
 @app.route('/teacher/task/<int:task_number>')
 @login_required
 def teacher_task_submissions(task_number):
     if not current_user.is_teacher:
         return redirect(url_for('dashboard'))
     task_def = TASKS.get(task_number, {})
-    subs = TaskSubmission.query.filter(
-        TaskSubmission.task_number == task_number,
-        TaskSubmission.semester == SEMESTER,
-        TaskSubmission.status != 'draft'
-    ).order_by(TaskSubmission.submitted_at.desc()).all()
+    subs = _task_submission_list(task_number)
     return render_template('teacher/submissions.html',
                            task_number=task_number,
                            task_def=task_def,
@@ -1740,7 +1745,19 @@ def teacher_review(submission_id):
         flash('找不到此提交。', 'error')
         return redirect(url_for('teacher_dashboard'))
 
+    if sub.status == 'draft':
+        flash('草稿提交不可評閱。', 'error')
+        return redirect(url_for('teacher_task_submissions', task_number=sub.task_number))
+
     task_def = TASKS.get(sub.task_number, {})
+
+    # Prev/next navigation (same stable order as the submissions list page)
+    subs_ordered = _task_submission_list(sub.task_number)
+    _ids = [s.id for s in subs_ordered]
+    _idx = _ids.index(sub.id) if sub.id in _ids else None
+    nav_prev_id  = _ids[_idx - 1] if _idx is not None and _idx > 0 else None
+    nav_next_id  = _ids[_idx + 1] if _idx is not None and _idx < len(_ids) - 1 else None
+    nav_position = (_idx + 1, len(_ids)) if _idx is not None else (None, len(_ids))
 
     existing_review = sub.teacher_reviews.order_by(TeacherReview.id.asc()).first()
 
@@ -1898,6 +1915,9 @@ def teacher_review(submission_id):
             sub.status = 'reviewed'
         db.session.commit()
         flash('評閱已儲存。' + (' 已發布給學生。' if publish else ''), 'success')
+        next_sub_raw = request.form.get('next_submission_id', '').strip()
+        if next_sub_raw.isdigit() and int(next_sub_raw) == nav_next_id:
+            return redirect(url_for('teacher_review', submission_id=nav_next_id))
         return redirect(url_for('teacher_review', submission_id=sub.id))
 
     # 整理回答供顯示
@@ -1955,7 +1975,10 @@ def teacher_review(submission_id):
                            axes_desc=AXES_DESCRIPTIONS,
                            ai_cache=ai_cache,
                            prefill_feedback=prefill_feedback,
-                           prefill_from_ai=prefill_from_ai)
+                           prefill_from_ai=prefill_from_ai,
+                           nav_prev_id=nav_prev_id,
+                           nav_next_id=nav_next_id,
+                           nav_position=nav_position)
 
 
 @app.route('/teacher/review/<int:submission_id>/ai_rubric_scores')
