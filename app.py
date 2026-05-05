@@ -92,6 +92,19 @@ def _run_migrations():
                 if 'dwell_seconds' not in tr:
                     conn.execute(text("ALTER TABLE teacher_reviews ADD COLUMN dwell_seconds INTEGER DEFAULT 0"))
 
+            # ── task_submissions（v2.9.0：content_updated_at）──
+            if 'task_submissions' in tables:
+                ts = cols('task_submissions')
+                if 'content_updated_at' not in ts:
+                    conn.execute(text(
+                        "ALTER TABLE task_submissions ADD COLUMN content_updated_at TIMESTAMP"
+                    ))
+                    # 既有資料：以 updated_at 保守初始化，避免既有重交內容沿用舊 cache
+                    conn.execute(text(
+                        "UPDATE task_submissions SET content_updated_at = updated_at"
+                        " WHERE content_updated_at IS NULL"
+                    ))
+
             # ── ai_review_suggestions（v2.8.0 新增 rubric 欄位） ──
             if 'ai_review_suggestions' in tables:
                 ars = cols('ai_review_suggestions')
@@ -563,8 +576,9 @@ def submit_task(task_number):
         QuestionResponse.query.filter_by(submission_id=sub.id).delete()
         ChecklistResponse.query.filter_by(submission_id=sub.id).delete()
         ReflectionResponse.query.filter_by(submission_id=sub.id).delete()
-        sub.task_version = task_def['version']
-        sub.updated_at   = datetime.utcnow()
+        sub.task_version       = task_def['version']
+        sub.updated_at         = datetime.utcnow()
+        sub.content_updated_at = datetime.utcnow()
     else:
         sub = TaskSubmission(
             user_id      = current_user.id,
@@ -2006,10 +2020,12 @@ def teacher_review_ai_suggestion(submission_id):
     from services.ai_grading import ensure_ai_draft
     force = request.args.get('force') == '1'
     cache_before = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
+    _content_ts = sub.content_updated_at or sub.updated_at
     cached_hit = bool(cache_before and not force
                       and cache_before.suggestion
+                      and cache_before.ai_rubric_scores_json
                       and cache_before.source_updated_at
-                      and cache_before.source_updated_at >= sub.updated_at)
+                      and cache_before.source_updated_at >= _content_ts)
     try:
         cache = ensure_ai_draft(sub, force=force, triggered_by_user_id=current_user.id)
     except Exception as e:

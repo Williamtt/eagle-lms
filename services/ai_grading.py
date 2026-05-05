@@ -40,12 +40,15 @@ def _build_text(sub: TaskSubmission, task_def: dict) -> str:
 
 
 def _is_cache_fresh(cache: AIReviewSuggestion, sub: TaskSubmission) -> bool:
-    """cache 是否仍可用：suggestion 與 rubric 都有 + source_updated_at 不舊。"""
+    """cache 是否仍可用：suggestion 與 rubric 都有 + source_updated_at 不舊於學生內容版本。
+    使用 content_updated_at 而非 updated_at，避免教師發布/rubric 動作誤觸失效。
+    """
     if not cache:
         return False
     if not cache.suggestion or not cache.ai_rubric_scores_json:
         return False
-    if cache.source_updated_at is None or cache.source_updated_at < sub.updated_at:
+    content_ts = sub.content_updated_at or sub.updated_at  # 向後相容舊資料
+    if cache.source_updated_at is None or cache.source_updated_at < content_ts:
         return False
     return True
 
@@ -205,14 +208,16 @@ def ensure_ai_draft(sub: TaskSubmission,
             cache.ai_rubric_comment     = rubric_comment
         # 只有「兩個都成功」才前進 source_updated_at；否則維持舊值，
         # 下次仍會被 _is_cache_fresh() 視為失效而重算缺的部分。
+        content_ts = sub.content_updated_at or sub.updated_at
         if all_succeeded:
-            cache.source_updated_at = sub.updated_at
+            cache.source_updated_at = content_ts
         cache.created_at = datetime.utcnow()
     else:
         # 新建 cache：source_updated_at 只在 all_succeeded 時設成新值；
         # 否則設成 epoch（明確表達「未完成」），下次必然重算
         from datetime import datetime as _dt
         epoch = _dt(1970, 1, 1)
+        content_ts = sub.content_updated_at or sub.updated_at
         cache = AIReviewSuggestion(
             task_submission_id    = sub.id,
             raw_json              = json.dumps(sug_result, ensure_ascii=False, default=str)
@@ -220,7 +225,7 @@ def ensure_ai_draft(sub: TaskSubmission,
             suggestion            = sug_text if not is_sug_error else '',
             suggested_score       = sug_result.get('suggested_score') if not is_sug_error else None,
             rubric_notes          = sug_result.get('rubric_notes') or '' if not is_sug_error else '',
-            source_updated_at     = sub.updated_at if all_succeeded else epoch,
+            source_updated_at     = content_ts if all_succeeded else epoch,
             model_used            = sug_usage.get('model', 'claude-sonnet-4-5'),
             ai_rubric_scores_json = json.dumps(rubric_scores, ensure_ascii=False) if has_valid_rubric else '',
             ai_rubric_comment     = rubric_comment if has_valid_rubric else '',

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""v2.8.0 smoke test：8 條驗收 AI 預批 + 教師覆核 + 額度管理 + ZIP 匯出。
+"""v2.9.0 smoke test：AI 預批 + 教師覆核 + 額度管理 + ZIP 匯出 + cache freshness 語意。
 
 執行：
     cd /Users/william/Documents/myCodes/MyEAGLE/eagle-lms
     SECRET_KEY=t TEACHER_CODE=t python3 tests/smoke_test_v280.py
 
 前置：
-    - 本地 SQLite 已 migrate 過 v2.8.0 schema（自動 _run_migrations）
+    - 本地 SQLite 已 migrate 過 v2.9.0 schema（自動 _run_migrations，含 content_updated_at）
     - 不需 ANTHROPIC_API_KEY；測試用 monkeypatch 替換 ai_service
 """
 import os
@@ -133,14 +133,41 @@ def main():
             check('2) 第二次呼叫命中 cache（未呼叫 AI）',
                   calls['n'] == 0 and cache2.id == cache.id)
 
-            # ── 測試 3：sub.updated_at 變更 → cache 失效重算 ─────────────
+            # ── 測試 3a：sub.updated_at 後移（content_updated_at 不變）→ 不觸發 AI ──
+            # v2.9.0：cache freshness 以 content_updated_at 判斷；教師動作只改 updated_at，
+            # 不應讓 cache 失效（這是修 bug 前舊行為的 regression test）
             sub.updated_at = datetime.utcnow() + timedelta(seconds=1)
             db.session.commit()
             calls['n'] = 0
             with patch('ai_service.generate_review_suggestion', fake_review_count), \
                  patch('ai_service.generate_self_study_rubric_suggestion', fake_rubric):
                 ai_grading.ensure_ai_draft(sub, triggered_by_user_id=teacher.id)
-            check('3) sub.updated_at 後移 → 觸發 AI 重算', calls['n'] == 1)
+            check('3a) sub.updated_at 後移（content_updated_at 不變）→ 不觸發 AI 重算',
+                  calls['n'] == 0)
+
+            # ── 測試 3b：sub.content_updated_at 後移 → cache 失效重算 ────────
+            sub.content_updated_at = datetime.utcnow() + timedelta(seconds=2)
+            db.session.commit()
+            calls['n'] = 0
+            with patch('ai_service.generate_review_suggestion', fake_review_count), \
+                 patch('ai_service.generate_self_study_rubric_suggestion', fake_rubric):
+                ai_grading.ensure_ai_draft(sub, triggered_by_user_id=teacher.id)
+            check('3b) sub.content_updated_at 後移（學生重交）→ 觸發 AI 重算',
+                  calls['n'] == 1)
+
+            # ── 測試 3c：模擬教師發布評閱（status→reviewed 更新 updated_at）→ 不觸發 AI ─
+            # regression：此為 bug 修前舊行為；現在 updated_at 不影響 cache
+            sub.status = 'reviewed'
+            db.session.commit()   # onupdate 會更新 updated_at；content_updated_at 不變
+            db.session.refresh(sub)
+            calls['n'] = 0
+            with patch('ai_service.generate_review_suggestion', fake_review_count), \
+                 patch('ai_service.generate_self_study_rubric_suggestion', fake_rubric):
+                ai_grading.ensure_ai_draft(sub, triggered_by_user_id=teacher.id)
+            check('3c) 教師發布評閱（updated_at 更新）→ AI cache 仍有效，不重跑',
+                  calls['n'] == 0)
+            sub.status = 'submitted'
+            db.session.commit()
 
             # ── 測試 4：AI 失敗 fallback（兩個都失敗 → 不寫 cache）───────
             reset_state(sub.id)
@@ -178,7 +205,8 @@ def main():
 
             old_cache = AIReviewSuggestion.query.filter_by(task_submission_id=sub.id).first()
             old_sug = old_cache.suggestion if old_cache else None
-            sub.updated_at = datetime.utcnow() + timedelta(seconds=2)
+            # 模擬學生重交（content_updated_at 後移）；教師已 finalize 仍不應重算
+            sub.content_updated_at = datetime.utcnow() + timedelta(seconds=2)
             db.session.commit()
             with patch('ai_service.generate_review_suggestion', fake_review), \
                  patch('ai_service.generate_self_study_rubric_suggestion', fake_rubric):
@@ -259,9 +287,9 @@ def main():
             if er:
                 er.rubric_finalized_at = None
                 db.session.commit()
-            sub.updated_at = datetime.utcnow()
+            sub.content_updated_at = datetime.utcnow()
             db.session.commit()
-            updated_at_before = sub.updated_at
+            content_updated_at_before = sub.content_updated_at
 
             def fail_rubric_only(*a, **kw):
                 return {'error': 'fake-fail', 'rubric_scores': {}, 'comment': 'x',
@@ -274,11 +302,11 @@ def main():
             from task_definitions import TASKS as _TASKS
             has_axes = bool(_TASKS.get(sub.task_number, {}).get('axes', []))
             if has_axes:
-                # 有 axes：rubric 失敗 → source_updated_at 不應前進到 updated_at_before
+                # 有 axes：rubric 失敗 → source_updated_at 不應前進到 content_updated_at_before
                 # （新 cache 會被設成 epoch；舊 cache 會保留舊 source_updated_at）
                 ok10 = (cache_partial is not None
                         and cache_partial.suggestion
-                        and cache_partial.source_updated_at < updated_at_before)
+                        and cache_partial.source_updated_at < content_updated_at_before)
                 check('10) rubric 失敗 → source_updated_at 不前進（保留 stale 標記以便重算）', ok10)
             else:
                 # 沒 axes：sug 成功就算 all_succeeded

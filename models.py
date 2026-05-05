@@ -61,6 +61,9 @@ class TaskSubmission(db.Model):
     status       = db.Column(db.String(20), default='submitted') # draft / submitted / reviewed
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # 只在學生提交/重交內容時更新；教師動作（發布、rubric）不更新此欄
+    # AI cache freshness 以此欄判斷，而非 updated_at
+    content_updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'task_number', 'semester',
                                           name='uq_task_submission_per_semester'),)
