@@ -58,6 +58,38 @@ def notify_forgot_password(student_name: str, student_id: str,
     _send(subject, body, cfg)
 
 
+def notify_password_reset_complete(student_name: str, student_id: str,
+                                   new_password: str, contact_email: str,
+                                   cfg: dict) -> None:
+    if not contact_email:
+        return
+    smtp_host = cfg.get('SMTP_HOST', '')
+    smtp_user = cfg.get('SMTP_USER', '')
+    smtp_pass = cfg.get('SMTP_PASS', '')
+    smtp_port = int(cfg.get('SMTP_PORT', 587))
+    if not all([smtp_host, smtp_user, smtp_pass]):
+        return
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['From']    = smtp_user
+        msg['To']      = contact_email
+        msg['Subject'] = '[EAGLE LMS] 密碼重設完成'
+        body = (
+            f'{student_name} 您好，\n\n'
+            f'您的 EAGLE LMS 帳號密碼已由教師重設。\n\n'
+            f'學號：{student_id}\n'
+            f'臨時密碼：{new_password}\n\n'
+            f'請盡快登入後至「修改密碼」頁面更改為您自己的密碼。'
+        )
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+    except Exception:
+        pass
+
+
 def notify_new_submission(student_name: str, student_id: str,
                            task_number: int, cfg: dict) -> None:
     subject = f'新任務提交待評閱：任務 {task_number}（{student_name}）'

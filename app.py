@@ -1161,7 +1161,7 @@ def teacher_dashboard():
         User.role == 'student',
         User.status == 'active',
         User.experimental_group == 'experimental'
-    ).subquery()
+    ).scalar_subquery()
     experimental_count = db.session.query(db.func.count()).select_from(
         User
     ).filter(
@@ -1176,23 +1176,38 @@ def teacher_dashboard():
     ).count()
     reviewed_count = TeacherReview.query.filter_by(published=True).count()
 
-    task_stats = {}
-    for t_num, t_def in TASKS.items():
-        subs = TaskSubmission.query.filter(
-            TaskSubmission.task_number == t_num,
-            TaskSubmission.semester == SEMESTER,
-            TaskSubmission.status != 'draft',
-            TaskSubmission.user_id.in_(experimental_user_ids)
-        ).all()
-        task_stats[t_num] = {
+    # 兩個 GROUP BY 查詢取代 N+1 loop
+    _sub_rows = db.session.query(
+        TaskSubmission.task_number,
+        db.func.count(TaskSubmission.id).label('total'),
+        db.func.count(db.distinct(TaskSubmission.user_id)).label('unique'),
+    ).filter(
+        TaskSubmission.semester == SEMESTER,
+        TaskSubmission.status != 'draft',
+        TaskSubmission.user_id.in_(experimental_user_ids)
+    ).group_by(TaskSubmission.task_number).all()
+    _reviewed_rows = db.session.query(
+        TaskSubmission.task_number,
+        db.func.count(db.distinct(TaskSubmission.id)).label('reviewed'),
+    ).join(
+        TeacherReview, TeacherReview.task_submission_id == TaskSubmission.id
+    ).filter(
+        TaskSubmission.semester == SEMESTER,
+        TaskSubmission.status != 'draft',
+        TaskSubmission.user_id.in_(experimental_user_ids),
+        TeacherReview.published == True
+    ).group_by(TaskSubmission.task_number).all()
+    _sub_map      = {r.task_number: (r.total, r.unique) for r in _sub_rows}
+    _reviewed_map = {r.task_number: r.reviewed for r in _reviewed_rows}
+    task_stats = {
+        t_num: {
             'name':              t_def['name'],
-            'total_submissions': len(subs),
-            'unique_students':   len(set(s.user_id for s in subs)),
-            'reviewed':          sum(
-                1 for s in subs
-                if s.teacher_reviews.filter_by(published=True).first()
-            ),
+            'total_submissions': _sub_map.get(t_num, (0, 0))[0],
+            'unique_students':   _sub_map.get(t_num, (0, 0))[1],
+            'reviewed':          _reviewed_map.get(t_num, 0),
         }
+        for t_num, t_def in TASKS.items()
+    }
 
     # 各學生提案數（對照組用）
     proposal_counts = {
@@ -1457,6 +1472,7 @@ def teacher_reset_password(uid):
     if len(new_password) < 6:
         flash('新密碼至少需要 6 個字元。', 'error')
         return redirect(url_for('teacher_dashboard'))
+    contact_email = user.reset_contact_email  # 清除前先取出，用於寄信
     user.set_password(new_password)
     user.reset_requested_at  = None
     user.reset_contact_email = None
@@ -1469,6 +1485,9 @@ def teacher_reset_password(uid):
     )
     db.session.add(msg)
     db.session.commit()
+    notify.notify_password_reset_complete(
+        user.name, user.student_id, new_password, contact_email or '', app.config
+    )
     flash(f'已重設 {user.name} 的密碼，並已傳送私訊通知。', 'success')
     return redirect(url_for('teacher_dashboard'))
 
