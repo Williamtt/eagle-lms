@@ -586,12 +586,25 @@ class SelfStudyProposal(db.Model):
     reflection          = db.Column(db.Text, default='')
     result_submitted_at = db.Column(db.DateTime, nullable=True)
 
-    # 評閱
+    # 評閱（教師為最終權威，等同實驗組的 Teacher Review）
     final_score    = db.Column(db.Float, nullable=True)
     final_feedback = db.Column(db.Text, default='')
-    rubric_json    = db.Column(db.Text, default='')
+    rubric_json    = db.Column(db.Text, default='')        # 教師確認後的各軸 1–5
     reviewer_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     finalized_at   = db.Column(db.DateTime, nullable=True)
+
+    # AI 預批草稿（建議性質，非最終分數；與實驗組 AIReviewSuggestion 同義）
+    ai_rubric_scores_json = db.Column(db.Text, default='')        # AI 草稿各軸 {"DP1": 4, ...}
+    ai_rubric_comment     = db.Column(db.Text, default='')        # AI 草稿評語
+    ai_rubric_generated_at = db.Column(db.DateTime, nullable=True)
+
+    # anchoring 研究欄位（與 TeacherReview 對稱，供兩組對比分析）
+    ai_initial_rubric_snapshot   = db.Column(db.Text, default='')        # 首次 finalize 凍結的 AI rubric 草稿
+    ai_initial_feedback_snapshot = db.Column(db.Text, default='')        # 首次 finalize 凍結的 AI 評語草稿
+    teacher_first_opened_at      = db.Column(db.DateTime, nullable=True) # 教師首次開啟評閱頁
+    teacher_modified             = db.Column(db.Boolean, default=False)  # 教師是否動過 AI 草稿
+    dwell_seconds                = db.Column(db.Integer, default=0)      # 累計停留秒數
+    rubric_source                = db.Column(db.String(40), default='')  # 'teacher_manual'|'ai_drafted'|'ai_drafted_then_confirmed'
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

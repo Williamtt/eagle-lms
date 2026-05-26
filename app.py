@@ -113,6 +113,29 @@ def _run_migrations():
                 if 'ai_rubric_comment' not in ars:
                     conn.execute(text("ALTER TABLE ai_review_suggestions ADD COLUMN ai_rubric_comment TEXT DEFAULT ''"))
 
+            # ── self_study_proposals（對照組 AI 預批 + anchoring 研究欄位）──
+            if 'self_study_proposals' in tables:
+                ssp = cols('self_study_proposals')
+                if 'ai_rubric_scores_json' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN ai_rubric_scores_json TEXT DEFAULT ''"))
+                if 'ai_rubric_comment' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN ai_rubric_comment TEXT DEFAULT ''"))
+                if 'ai_rubric_generated_at' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN ai_rubric_generated_at TIMESTAMP"))
+                if 'ai_initial_rubric_snapshot' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN ai_initial_rubric_snapshot TEXT DEFAULT ''"))
+                if 'ai_initial_feedback_snapshot' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN ai_initial_feedback_snapshot TEXT DEFAULT ''"))
+                if 'teacher_first_opened_at' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN teacher_first_opened_at TIMESTAMP"))
+                if 'teacher_modified' not in ssp:
+                    # PostgreSQL 不接受 BOOLEAN DEFAULT 0；用 FALSE 兼容 SQLite/PG
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN teacher_modified BOOLEAN DEFAULT FALSE"))
+                if 'dwell_seconds' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN dwell_seconds INTEGER DEFAULT 0"))
+                if 'rubric_source' not in ssp:
+                    conn.execute(text("ALTER TABLE self_study_proposals ADD COLUMN rubric_source VARCHAR(40) DEFAULT ''"))
+
             # ── learning_journals ──
             if 'learning_journals' in tables:
                 lj = cols('learning_journals')
@@ -834,6 +857,136 @@ def _proposal_axes(proposal_number):
     return CONTROL_GROUP_TASKS.get(proposal_number, {}).get('axes', ['DP1', 'DP2', 'DP3', 'DP4'])
 
 
+def _self_study_plan_text(proposal):
+    """學生最初的自學計畫文字（供 AI 判斷『計畫 vs 成果相符度』）。"""
+    parts = []
+    if proposal.topic:
+        parts.append(f'【學習主題】{proposal.topic}')
+    if proposal.motivation:
+        parts.append(f'【學習動機與目標】{proposal.motivation}')
+    if proposal.expected_output:
+        parts.append(f'【預期成果】{proposal.expected_output}')
+    if proposal.schedule:
+        parts.append(f'【執行時程】{proposal.schedule}')
+    return '\n\n'.join(parts)
+
+
+def _self_study_result_text(proposal):
+    """學生提交的成果文字（不含附件；AI 僅讀文字，與實驗組現況一致）。"""
+    parts = []
+    if proposal.result_content:
+        parts.append(f'【成果報告】{proposal.result_content}')
+    if proposal.reflection:
+        parts.append(f'【學習反思】{proposal.reflection}')
+    return '\n\n'.join(parts)
+
+
+def _ensure_self_study_ai_draft(proposal, *, force=False, triggered_by_user_id=None):
+    """確保對照組成果有 AI 預批草稿（建議性質，教師為最終權威）。冪等。
+
+    流程比照實驗組 ai_grading.ensure_ai_draft：
+      - 已 finalize → 不覆寫（保留已凍結的 anchoring snapshot）
+      - 已有草稿且非 force → 直接回
+      - quota 拒絕 → 寫失敗 log → 回 None
+      - 呼叫 AI → 寫草稿到 proposal → 寫 usage log
+    回傳 proposal（成功）或 None。
+    """
+    from services import ai_quota
+
+    if not proposal:
+        return None
+    if proposal.finalized_at:               # 已鎖定：保留草稿原貌
+        return proposal
+    if proposal.ai_rubric_scores_json and not force:
+        return proposal
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        return None
+
+    result_text = _self_study_result_text(proposal)
+    if not result_text.strip():             # 成果為空，不評
+        return None
+
+    allowed, reason = ai_quota.can_call()
+    if not allowed:
+        ai_quota.record_call(
+            purpose='self_study_rubric', model_used='',
+            input_tokens=0, output_tokens=0,
+            task_submission_id=None, user_id=triggered_by_user_id,
+            success=False, error_message=f'quota_blocked: {reason[:200]}',
+            commit=True,
+        )
+        return None
+
+    axes = _proposal_axes(proposal.proposal_number)
+    plan_text = _self_study_plan_text(proposal)
+
+    res, err = {}, None
+    try:
+        res = ai_service.generate_self_study_grading(
+            plan_text, result_text, axes, AXES_DESCRIPTIONS)
+        if not isinstance(res, dict):
+            res = {'rubric_scores': {}, 'comment': str(res)}
+        err = res.get('error') or res.get('_error')
+    except Exception as e:  # noqa: BLE001
+        err = str(e)
+
+    usage = (res.get('_usage') or {}) if isinstance(res, dict) else {}
+    scores = res.get('rubric_scores') or {}
+    has_valid = bool(not err and scores)
+
+    ai_quota.record_call(
+        purpose='self_study_rubric',
+        model_used=usage.get('model', ''),
+        input_tokens=usage.get('input_tokens', 0),
+        output_tokens=usage.get('output_tokens', 0),
+        task_submission_id=None, user_id=triggered_by_user_id,
+        success=has_valid,
+        error_message=str(err or '')[:500] if not has_valid else '',
+        commit=False,
+    )
+
+    if has_valid:
+        proposal.ai_rubric_scores_json  = json.dumps(scores, ensure_ascii=False)
+        proposal.ai_rubric_comment      = res.get('comment') or ''
+        proposal.ai_rubric_generated_at = datetime.utcnow()
+        # anchoring：第一次產生的草稿即凍結為 initial snapshot。
+        # 之後 force 重生只更新 live 草稿（ai_rubric_*），不覆蓋 initial snapshot，
+        # 確保保留「教師最初看到的 AI 草稿」。guard `if not ...` 防止覆寫。
+        if not proposal.ai_initial_rubric_snapshot:
+            proposal.ai_initial_rubric_snapshot = proposal.ai_rubric_scores_json
+        if not proposal.ai_initial_feedback_snapshot and proposal.ai_rubric_comment:
+            proposal.ai_initial_feedback_snapshot = proposal.ai_rubric_comment
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return None
+    return proposal if has_valid else None
+
+
+def _schedule_self_study_ai_draft(proposal_id):
+    """spawn daemon thread → _ensure_self_study_ai_draft。Best-effort；失敗無聲。"""
+    import threading
+
+    def runner():
+        try:
+            with app.app_context():
+                p = db.session.get(SelfStudyProposal, proposal_id)
+                if p and p.approval_status == 'result_submitted':
+                    _ensure_self_study_ai_draft(p)
+        except Exception:
+            pass
+        finally:
+            try:
+                db.session.remove()
+            except Exception:
+                pass
+
+    threading.Thread(target=runner, daemon=True,
+                     name=f'ss-ai-draft-{proposal_id}').start()
+
+
 @app.route('/self-study')
 @login_required
 def self_study_list():
@@ -938,6 +1091,8 @@ def self_study_detail(n):
             proposal.approval_status    = 'result_submitted'
             proposal.result_submitted_at = datetime.utcnow()
             db.session.commit()
+            # 背景產生 AI 預批草稿（教師打開評閱頁時草稿已就緒＝立即錨定）
+            _schedule_self_study_ai_draft(proposal.id)
             flash(f'提案 {n} 成果已送出，等待教師評閱。', 'success')
             return redirect(url_for('self_study_detail', n=n))
 
@@ -1572,12 +1727,51 @@ def teacher_self_study_review(proposal_id):
     student  = db.session.get(User, proposal.user_id)
     task_def = CONTROL_GROUP_TASKS.get(proposal.proposal_number, {})
     score_axes = task_def.get('axes', ['DP1', 'DP2', 'DP3', 'DP4'])
+
+    # lazy fallback：成果待評但尚無 AI 草稿 → 補生（背景產生失敗時的後備；
+    # 低量、同步，失敗則 graceful degrade 為「無預填，可手動或按鈕重試」）
+    if (proposal.approval_status == 'result_submitted'
+            and not proposal.ai_rubric_scores_json):
+        try:
+            _ensure_self_study_ai_draft(proposal,
+                                        triggered_by_user_id=current_user.id)
+        except Exception:
+            pass
+
+    # 預填 rubric：教師已確認的 rubric 優先；否則用 AI 草稿（建議性質）
+    rubric_data, prefill_from_ai = {}, False
+    if proposal.rubric_json:
+        try:
+            rubric_data = json.loads(proposal.rubric_json) or {}
+        except Exception:
+            rubric_data = {}
+    ai_rubric = {}
+    if proposal.ai_rubric_scores_json:
+        try:
+            ai_rubric = json.loads(proposal.ai_rubric_scores_json) or {}
+        except Exception:
+            ai_rubric = {}
+    if not rubric_data and ai_rubric:
+        rubric_data = ai_rubric
+        prefill_from_ai = True
+
+    # 預填教師評語：未填且有 AI 評語草稿 → 帶入 AI 評語
+    prefill_feedback = ''
+    if not proposal.final_feedback and proposal.ai_rubric_comment:
+        prefill_feedback = proposal.ai_rubric_comment
+        prefill_from_ai = True
+
     return render_template('teacher/self_study_review.html',
                            proposal=proposal,
                            student=student,
                            task_def=task_def,
                            score_axes=score_axes,
-                           axes_desc=AXES_DESCRIPTIONS)
+                           axes_desc=AXES_DESCRIPTIONS,
+                           rubric_data=rubric_data,
+                           prefill_feedback=prefill_feedback,
+                           prefill_from_ai=prefill_from_ai,
+                           has_ai_draft=bool(ai_rubric or proposal.ai_rubric_comment),
+                           ai_rubric_comment=proposal.ai_rubric_comment or '')
 
 
 @app.route('/teacher/self-study/<int:proposal_id>/review', methods=['POST'])
@@ -1658,10 +1852,45 @@ def teacher_self_study_finalize(proposal_id):
             except ValueError:
                 pass
 
-    import json as _json
-    proposal.rubric_json     = _json.dumps(rubric_scores, ensure_ascii=False)
+    proposal.rubric_json     = json.dumps(rubric_scores, ensure_ascii=False)
     proposal.final_feedback  = request.form.get('final_feedback', '').strip()
     proposal.reviewer_id     = current_user.id
+
+    # ── anchoring 採集（與實驗組 teacher_review 對稱）──
+    # initial snapshot 正常已在「首次產生草稿」時凍結（見 _ensure_self_study_ai_draft）。
+    # 此處為 fallback：僅當 snapshot 仍為空（如此前未經 AI 預批）時才補凍結。
+    if not proposal.ai_initial_rubric_snapshot and proposal.ai_rubric_scores_json:
+        proposal.ai_initial_rubric_snapshot = proposal.ai_rubric_scores_json
+    if not proposal.ai_initial_feedback_snapshot and proposal.ai_rubric_comment:
+        proposal.ai_initial_feedback_snapshot = proposal.ai_rubric_comment
+
+    opened_iso = request.form.get('opened_at_iso', '').strip()
+    if opened_iso and not proposal.teacher_first_opened_at:
+        try:
+            from datetime import timezone as _tz
+            od = datetime.fromisoformat(opened_iso.replace('Z', '+00:00'))
+            if od.tzinfo is not None:
+                od = od.astimezone(_tz.utc).replace(tzinfo=None)
+            proposal.teacher_first_opened_at = od
+        except Exception:
+            pass
+
+    try:
+        dwell = int(request.form.get('dwell_seconds', '0') or 0)
+    except ValueError:
+        dwell = 0
+    if dwell < 0 or dwell > 86400:
+        dwell = 0
+    proposal.dwell_seconds = (proposal.dwell_seconds or 0) + dwell
+
+    if request.form.get('teacher_modified') == '1':
+        proposal.teacher_modified = True
+
+    source = request.form.get('rubric_source_hint', 'teacher_manual')
+    if source == 'ai_drafted':
+        source = 'ai_drafted_then_confirmed'
+    proposal.rubric_source = source
+
     proposal.finalized_at    = datetime.utcnow()
     proposal.approval_status = 'finalized'
     db.session.commit()
@@ -1680,27 +1909,23 @@ def teacher_self_study_ai_rubric(proposal_id):
     if not app.config.get('ANTHROPIC_API_KEY'):
         return jsonify({'error': 'ai_disabled',
                         'message': 'AI 建議功能尚未啟用（缺少 ANTHROPIC_API_KEY）。'}), 200
+    if not _self_study_result_text(proposal).strip():
+        return jsonify({'error': 'empty', 'message': '成果內容為空，無法產生建議。'}), 200
 
-    axes     = _proposal_axes(proposal.proposal_number)
-    text_parts = []
-    if proposal.topic:
-        text_parts.append(f'【學習主題】{proposal.topic}')
-    if proposal.motivation:
-        text_parts.append(f'【學習動機與目標】{proposal.motivation}')
-    if proposal.expected_output:
-        text_parts.append(f'【預期成果】{proposal.expected_output}')
-    if proposal.result_content:
-        text_parts.append(f'【成果報告】{proposal.result_content}')
-    if proposal.reflection:
-        text_parts.append(f'【學習反思】{proposal.reflection}')
-    proposal_text = '\n\n'.join(text_parts)
-
-    if not proposal_text.strip():
-        return jsonify({'error': 'empty', 'message': '提案內容為空，無法產生建議。'}), 200
-
-    from ai_service import generate_self_study_rubric_suggestion
-    result = generate_self_study_rubric_suggestion(proposal_text, axes, AXES_DESCRIPTIONS)
-    return jsonify(result)
+    # 透過共用 helper 產生並『持久化』草稿（與背景/lazy fallback 同源），
+    # 以便教師 finalize 時能凍結 ai_initial_rubric_snapshot。
+    force = request.args.get('force') == '1'
+    _ensure_self_study_ai_draft(proposal, force=force,
+                                triggered_by_user_id=current_user.id)
+    if not proposal.ai_rubric_scores_json:
+        return jsonify({'error': 'ai_failed',
+                        'message': 'AI 建議生成失敗或額度不足，請稍後再試或改為手動評分。'}), 200
+    try:
+        scores = json.loads(proposal.ai_rubric_scores_json) or {}
+    except Exception:
+        scores = {}
+    return jsonify({'rubric_scores': scores,
+                    'comment': proposal.ai_rubric_comment or ''})
 
 
 @app.route('/profile/change-password', methods=['GET', 'POST'])
@@ -2529,6 +2754,27 @@ def download_deliverable_file(submission_id, deliverable_id):
     filename  = os.path.basename(du.file_path)
     return send_from_directory(directory, filename,
                                download_name=du.file_name or filename)
+
+
+@app.route('/download/self-study-file/<int:proposal_id>')
+@login_required
+def download_self_study_file(proposal_id):
+    """對照組自主學習成果附件下載（教師或本人）。"""
+    proposal = db.session.get(SelfStudyProposal, proposal_id)
+    if not proposal:
+        flash('找不到此提案。', 'error')
+        return redirect(url_for('dashboard'))
+    if not current_user.is_teacher and proposal.user_id != current_user.id:
+        flash('無權限。', 'error')
+        return redirect(url_for('dashboard'))
+    if not proposal.result_file_path:
+        flash('此成果沒有上傳附件。', 'error')
+        return redirect(url_for('dashboard'))
+
+    directory = os.path.dirname(proposal.result_file_path)
+    filename  = os.path.basename(proposal.result_file_path)
+    return send_from_directory(directory, filename,
+                               download_name=proposal.result_file_name or filename)
 
 
 # ─── Teacher Questionnaire Management ────────────────────────────────────────
@@ -4367,9 +4613,13 @@ def teacher_research_bundle():
         })
 
     # ── 主表 3：self_study_proposals.csv ──────────────────────────────────
+    # anchoring 五欄與 teacher_reviews.csv 對稱，供兩組對比 AI 預批錨定效應分析
     ssp_fields = ['student_id', 'class_group', 'proposal_number',
                   'topic', 'approval_status', 'final_score',
-                  'rubric_json', 'finalized_at', 'research_eligible']
+                  'rubric_json', 'finalized_at', 'rubric_source',
+                  'ai_initial_rubric_snapshot', 'ai_initial_feedback_snapshot',
+                  'teacher_first_opened_at', 'teacher_modified', 'dwell_seconds',
+                  'research_eligible']
     ssp_rows = []
     for p in (SelfStudyProposal.query
               .filter(SelfStudyProposal.user_id.in_(eligible_uids),
@@ -4387,6 +4637,13 @@ def teacher_research_bundle():
             'rubric_json':      p.rubric_json or '',
             'finalized_at':     p.finalized_at.strftime('%Y-%m-%d %H:%M:%S')
                                   if p.finalized_at else '',
+            'rubric_source':    getattr(p, 'rubric_source', '') or '',
+            'ai_initial_rubric_snapshot':   getattr(p, 'ai_initial_rubric_snapshot', '') or '',
+            'ai_initial_feedback_snapshot': getattr(p, 'ai_initial_feedback_snapshot', '') or '',
+            'teacher_first_opened_at':      p.teacher_first_opened_at.strftime('%Y-%m-%d %H:%M:%S')
+                                              if getattr(p, 'teacher_first_opened_at', None) else '',
+            'teacher_modified':             1 if getattr(p, 'teacher_modified', False) else 0,
+            'dwell_seconds':                getattr(p, 'dwell_seconds', 0) or 0,
             'research_eligible': 1,
         })
 

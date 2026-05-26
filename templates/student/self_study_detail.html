@@ -187,6 +187,11 @@
     {% if proposal.reflection %}
         <label>反思</label><div class="readonly-box">{{ proposal.reflection }}</div>
     {% endif %}
+    {% if proposal.result_file_name %}
+        <p style="font-size:.88rem;margin-top:.5rem;">
+            附件：<a href="{{ url_for('download_self_study_file', proposal_id=proposal.id) }}">{{ proposal.result_file_name }}</a>
+        </p>
+    {% endif %}
 
     {% if proposal.approval_status == 'finalized' and proposal.final_feedback %}
         <div class="teacher-comment" style="margin-top:1rem;">

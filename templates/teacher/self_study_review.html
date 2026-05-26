@@ -141,35 +141,49 @@
     {% endif %}
     {% if proposal.result_file_name %}
         <p style="font-size:.88rem;margin-top:.5rem;">
-            附件：{{ proposal.result_file_name }}
+            附件：<a href="{{ url_for('download_self_study_file', proposal_id=proposal.id) }}">{{ proposal.result_file_name }}</a>
         </p>
     {% endif %}
 </div>
 <div class="section-card">
     <div class="section-title">Rubric 評分（1–5 分）</div>
 
+    {% if prefill_from_ai %}
+    <div id="aiPrefillBadge" style="background:#f5eefb;border-left:3px solid #8e44ad;padding:.6rem .9rem;margin-bottom:1rem;font-size:.86rem;color:#5b2c6f;border-radius:4px;">
+        🤖 以下為 AI 起草的建議分數與評語，請覆核或調整後再確認。AI 僅供參考，教師評閱為最終認證。
+    </div>
+    {% endif %}
+
     <div style="margin-bottom:1rem;">
         <button type="button" id="aiRubricBtn" onclick="fetchAiRubric()"
                 style="background:#8e44ad;color:#fff;border:none;padding:.5rem 1.2rem;border-radius:5px;cursor:pointer;font-size:.9rem;">
-            🤖 AI 建議 Rubric
+            🤖 重新產生 AI 建議
         </button>
         <span id="aiRubricStatus" style="margin-left:.75rem;font-size:.85rem;color:#666;"></span>
     </div>
-    <div id="aiRubricComment" style="display:none;background:#f5eefb;border-left:3px solid #8e44ad;padding:.75rem 1rem;margin-bottom:1rem;font-size:.88rem;color:#444;border-radius:4px;"></div>
+    <div id="aiRubricComment"
+         style="{% if not ai_rubric_comment %}display:none;{% endif %}background:#f5eefb;border-left:3px solid #8e44ad;padding:.75rem 1rem;margin-bottom:1rem;font-size:.88rem;color:#444;border-radius:4px;">{% if ai_rubric_comment %}📝 AI 評語：{{ ai_rubric_comment }}{% endif %}</div>
 
-    <form method="post" action="{{ url_for('teacher_self_study_finalize', proposal_id=proposal.id) }}">
+    <form method="post" id="finalizeForm" action="{{ url_for('teacher_self_study_finalize', proposal_id=proposal.id) }}">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        {# anchoring 採集欄位（與實驗組 review.html 對稱） #}
+        <input type="hidden" name="opened_at_iso"      id="ss-opened-at-iso"    value="">
+        <input type="hidden" name="dwell_seconds"      id="ss-dwell-seconds"    value="0">
+        <input type="hidden" name="teacher_modified"   id="ss-teacher-modified" value="0">
+        <input type="hidden" name="rubric_source_hint" id="ss-rubric-source"
+               value="{% if prefill_from_ai %}ai_drafted{% else %}teacher_manual{% endif %}">
         {% for ax in score_axes %}
         <div class="score-row">
             <span class="score-ax">{{ ax }}</span>
             <span style="font-size:.8rem;color:#666;margin-right:.5rem;">{{ axes_desc.get(ax, '') | truncate(18, true, '…') }}</span>
-            <input type="number" id="score_input_{{ ax }}" name="score_{{ ax }}" min="1" max="5" placeholder="1–5">
+            <input type="number" id="score_input_{{ ax }}" name="score_{{ ax }}" min="1" max="5" placeholder="1–5"
+                   value="{{ rubric_data.get(ax, '') }}">
             <span class="score-hint">1=不足 / 3=達標 / 5=優秀</span>
         </div>
         {% endfor %}
 
         <label style="margin-top:1rem;">教師評語</label>
-        <textarea id="finalFeedback" name="final_feedback" placeholder="給學生的整體回饋...">{{ proposal.final_feedback }}</textarea>
+        <textarea id="finalFeedback" name="final_feedback" placeholder="給學生的整體回饋...">{{ proposal.final_feedback or prefill_feedback }}</textarea>
 
         <div style="margin-top:1.2rem;">
             <button type="submit" class="btn-finalize">確認評閱並完成認證</button>
@@ -178,22 +192,65 @@
 </div>
 
 <script>
+const SS_PREFILL_FROM_AI = {{ 'true' if prefill_from_ai else 'false' }};
+const SS_HAS_AI_DRAFT    = {{ 'true' if has_ai_draft else 'false' }};
+const ssOpenedAt = new Date();
+
+(function initAnchoring() {
+    const openedEl   = document.getElementById('ss-opened-at-iso');
+    const dwellEl    = document.getElementById('ss-dwell-seconds');
+    const modifiedEl = document.getElementById('ss-teacher-modified');
+    const badge      = document.getElementById('aiPrefillBadge');
+    if (openedEl) openedEl.value = ssOpenedAt.toISOString();
+
+    window.__ssHasDraft = SS_PREFILL_FROM_AI || SS_HAS_AI_DRAFT;
+    let modified = false;
+
+    window.__ssMarkModified = function() {
+        if (!window.__ssHasDraft) return;          // 無 AI 草稿則無 anchoring 意義
+        if (modified) return;
+        modified = true;
+        if (modifiedEl) modifiedEl.value = '1';
+        if (badge) {
+            badge.style.background = '#e0e0e0';
+            badge.style.color = '#555';
+            badge.textContent = '🤖 AI 起草・教師已修改';
+        }
+    };
+    window.__ssResetModified = function() {
+        modified = false;
+        if (modifiedEl) modifiedEl.value = '0';
+    };
+
+    document.querySelectorAll('input[name^="score_"]').forEach(el =>
+        el.addEventListener('input', window.__ssMarkModified));
+    const fb = document.getElementById('finalFeedback');
+    if (fb) fb.addEventListener('input', window.__ssMarkModified);
+
+    const form = document.getElementById('finalizeForm');
+    if (form) form.addEventListener('submit', function(e) {
+        const dwell = Math.max(0, Math.round((Date.now() - ssOpenedAt.getTime()) / 1000));
+        if (dwellEl) dwellEl.value = String(Math.min(dwell, 86400));
+        if (window.__ssHasDraft && dwell < 5) {
+            if (!confirm('⚠️ 您只停留了 ' + dwell + ' 秒。\n\n請確認已實際瀏覽 AI 草稿與成果內容後再確認認證。\n\n仍要送出嗎？')) {
+                e.preventDefault();
+            }
+        }
+    });
+})();
+
 function fetchAiRubric() {
     const btn = document.getElementById('aiRubricBtn');
     const status = document.getElementById('aiRubricStatus');
     const commentBox = document.getElementById('aiRubricComment');
     btn.disabled = true;
     status.textContent = '產生中…';
-    commentBox.style.display = 'none';
 
-    fetch('{{ url_for("teacher_self_study_ai_rubric", proposal_id=proposal.id) }}')
+    fetch('{{ url_for("teacher_self_study_ai_rubric", proposal_id=proposal.id) }}?force=1')
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
-            if (data.error) {
-                status.textContent = data.message || data.error;
-                return;
-            }
+            if (data.error) { status.textContent = data.message || data.error; return; }
             const scores = data.rubric_scores || {};
             let filled = 0;
             Object.entries(scores).forEach(([ax, score]) => {
@@ -204,12 +261,14 @@ function fetchAiRubric() {
                 commentBox.textContent = '📝 AI 評語：' + data.comment;
                 commentBox.style.display = 'block';
             }
+            // 重新採用 AI 草稿：標記來源為 ai_drafted、啟用 anchoring、視為未被修改
+            const srcEl = document.getElementById('ss-rubric-source');
+            if (srcEl) srcEl.value = 'ai_drafted';
+            window.__ssHasDraft = true;
+            if (window.__ssResetModified) window.__ssResetModified();
             status.textContent = `已填入 ${filled} 個向度，請確認後送出。`;
         })
-        .catch(e => {
-            btn.disabled = false;
-            status.textContent = '連線失敗：' + e;
-        });
+        .catch(e => { btn.disabled = false; status.textContent = '連線失敗：' + e; });
 }
 </script>
 

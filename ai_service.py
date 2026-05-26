@@ -287,3 +287,78 @@ def generate_self_study_rubric_suggestion(proposal_text: str, axes: list, axes_d
         return {"error": str(e), "rubric_scores": {}, "comment": f"AI 建議生成失敗：{e}",
                 "_error": str(e),
                 "_usage": _extract_usage(message, "claude-sonnet-4-6") if message else {}}
+
+
+def generate_self_study_grading(plan_text: str, result_text: str,
+                                axes: list, axes_desc: dict) -> dict:
+    """為對照組自主學習成果產生 AI 預批草稿（建議性質，教師為最終權威）。
+
+    評分依據明確分兩面：
+      1. 計畫 vs 成果相符度：學生最後成果是否落實了當初提出的自學計畫。
+      2. 內容品質：成果本身的專業正確性、完整性與深度。
+
+    參數：
+      plan_text   學生最初的自學計畫（主題/動機目標/預期成果/時程）
+      result_text 學生提交的成果（成果說明＋反思）
+    回傳 {'rubric_scores': {軸:1-5}, 'comment': str, '_usage': {...}}；
+    失敗回 {'error': str, 'rubric_scores': {}, 'comment': str, ...}。
+    """
+    client = get_client()
+    if not client:
+        return {"error": "ai_disabled", "rubric_scores": {}, "comment": ""}
+
+    axes_block = '\n'.join(f'- {ax}：{axes_desc.get(ax, ax)}' for ax in axes)
+    system_prompt = f"""你是協助教師評閱學生自主學習成果的 AI 助手。你的評分為「建議草稿」，最終評分由教師覆核決定。
+
+請依兩個面向評分：
+（一）計畫 vs 成果相符度：學生最後提交的成果，是否確實落實了他最初提出的自學計畫（主題、動機目標、預期成果）。若成果偏離計畫或明顯縮水，相符度低。
+（二）內容品質：成果本身的專業正確性、完整性與反思深度。
+
+評分向度：
+{axes_block}
+
+評分標準：1=明顯不足 / 2=有待加強 / 3=基本達標 / 4=良好 / 5=優秀
+
+請以 JSON 格式回覆，僅回傳 JSON，不要其他文字：
+{{
+  "rubric_scores": {{{', '.join(f'"{ax}": 整數1到5' for ax in axes)}}},
+  "comment": "給教師參考的整體評語（100字以內，需同時點出『計畫達成度』與『內容品質』）"
+}}"""
+
+    user_content = (
+        f"【原始自學計畫】\n{plan_text or '（學生未填寫計畫）'}\n\n"
+        f"【提交成果】\n{result_text or '（學生未填寫成果）'}"
+    )
+
+    message = None
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=700,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_content}]
+        )
+        raw = message.content[0].text.strip()
+        if raw.startswith('```'):
+            raw = raw.split('```')[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+            raw = raw.strip()
+        result = json.loads(raw)
+        # 夾限分數在 1–5
+        scores = result.get('rubric_scores', {}) or {}
+        for ax in axes:
+            v = scores.get(ax)
+            if v is not None:
+                try:
+                    scores[ax] = max(1, min(5, int(v)))
+                except (ValueError, TypeError):
+                    scores.pop(ax, None)
+        result['rubric_scores'] = {ax: scores[ax] for ax in axes if ax in scores}
+        result['_usage'] = _extract_usage(message, "claude-sonnet-4-6")
+        return result
+    except Exception as e:
+        print(f"[ai_service] generate_self_study_grading error: {e}")
+        return {"error": str(e), "rubric_scores": {}, "comment": f"AI 建議生成失敗：{e}",
+                "_error": str(e),
+                "_usage": _extract_usage(message, "claude-sonnet-4-6") if message else {}}
