@@ -1856,6 +1856,17 @@ def teacher_self_study_finalize(proposal_id):
     proposal.final_feedback  = request.form.get('final_feedback', '').strip()
     proposal.reviewer_id     = current_user.id
 
+    # 總分（0–100，純課程成績給學生看；留空＝不評分）。與 rubric / anchoring 無關。
+    score_raw = request.form.get('final_score', '').strip()
+    if score_raw:
+        try:
+            sv = float(score_raw)
+            proposal.final_score = sv if 0 <= sv <= 100 else proposal.final_score
+        except ValueError:
+            pass
+    else:
+        proposal.final_score = None
+
     # ── anchoring 採集（與實驗組 teacher_review 對稱）──
     # initial snapshot 正常已在「首次產生草稿」時凍結（見 _ensure_self_study_ai_draft）。
     # 此處為 fallback：僅當 snapshot 仍為空（如此前未經 AI 預批）時才補凍結。

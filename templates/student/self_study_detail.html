@@ -193,6 +193,11 @@
         </p>
     {% endif %}
 
+    {% if proposal.approval_status == 'finalized' and proposal.final_score is not none %}
+        <div class="teacher-comment" style="margin-top:1rem;">
+            <strong>總分：</strong>{{ proposal.final_score }} / 100
+        </div>
+    {% endif %}
     {% if proposal.approval_status == 'finalized' and proposal.final_feedback %}
         <div class="teacher-comment" style="margin-top:1rem;">
             <strong>教師評語：</strong>{{ proposal.final_feedback }}
