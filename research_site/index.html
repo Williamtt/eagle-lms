@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>當責，教得出來嗎？— 114 營建管理教學實踐研究成果</title>
+<meta name="description" content="112 位大二學生、一條真實的溪、四個任務、九個資料集——當責行為 13%→96% 的成長全紀錄。教育部教學實踐研究計畫成果。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="當責，教得出來嗎？— 114 營建管理教學實踐研究成果">
+<meta property="og:description" content="112 位大二學生、一條真實的溪、四個任務、九個資料集——當責行為 13%→96% 的成長全紀錄。">
+<meta property="og:image" content="https://eagle-lms-production.up.railway.app/research/assets/hero_bridge.jpg">
+<meta property="og:url" content="https://eagle-lms-production.up.railway.app/research/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦅</text></svg>">
+<style>
+:root{
+  --navy:#1F4E79; --navy-d:#16385a; --blue:#3E7CB1; --sky:#9BB7D4; --paper:#F7F9FB;
+  --ink:#2b3440; --gold:#C9A227; --red:#C62828; --green:#2E7D32; --gray:#6b7683;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:var(--ink);background:var(--paper);line-height:1.95;font-size:17.5px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid #e3e9ef;z-index:50}
+nav .wrap{display:flex;gap:2px;overflow-x:auto;padding:10px 24px}
+nav a{white-space:nowrap;font-size:14px;color:var(--gray);text-decoration:none;padding:6px 11px;border-radius:999px}
+nav a:hover{background:#eef3f8;color:var(--navy)}
+header{background:linear-gradient(160deg,rgba(16,40,66,.93) 0%,rgba(31,78,121,.88) 55%,rgba(43,99,150,.84) 100%),url("assets/hero_bridge.jpg") center 38%/cover no-repeat;color:#fff;padding:88px 0 60px;position:relative;overflow:hidden}
+header::after{content:"";position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;background:rgba(255,255,255,.05)}
+#pgbar{position:fixed;top:0;left:0;height:3px;background:var(--gold);width:0;z-index:99;transition:width .15s linear}
+nav a.on{background:var(--navy);color:#fff}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:20px 0}
+.gallery figure{margin:0;padding:0;border:none;background:none;box-shadow:none;border-radius:12px;overflow:hidden;position:relative;cursor:zoom-in}
+.gallery img{width:100%;height:190px;object-fit:cover;display:block;border-radius:12px;transition:transform .45s ease}
+.gallery figure:hover img{transform:scale(1.05)}
+.gallery figcaption{position:absolute;left:0;right:0;bottom:0;margin:0;padding:26px 12px 8px;text-align:left;font-size:13.5px;color:#fff;background:linear-gradient(transparent,rgba(10,25,42,.82))}
+.gallery figure.wide{grid-column:span 2}
+@media(max-width:560px){.gallery figure.wide{grid-column:span 1}}
+#lightbox{position:fixed;inset:0;background:rgba(8,18,30,.94);display:none;align-items:center;justify-content:center;z-index:200;cursor:zoom-out;flex-direction:column;padding:24px}
+#lightbox.show{display:flex}
+#lightbox img{max-width:94vw;max-height:86vh;border-radius:10px;box-shadow:0 12px 60px rgba(0,0,0,.6)}
+#lightbox p{color:#cfe0ef;font-size:14px;margin-top:12px}
+.photo-band{margin:26px 0;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 2px 12px rgba(31,78,121,.15)}
+.photo-band img{width:100%;display:block}
+.photo-band .cap{position:absolute;left:0;right:0;bottom:0;padding:34px 20px 12px;color:#fff;font-size:14.5px;background:linear-gradient(transparent,rgba(10,25,42,.85))}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:16px 0;border-radius:10px}
+.tblwrap table{margin:0;min-width:620px}
+#keyhint{position:fixed;right:16px;bottom:16px;background:rgba(22,56,90,.9);color:#cfe0ef;font-size:12px;padding:6px 12px;border-radius:999px;z-index:60;opacity:0;transition:opacity .5s}
+#keyhint.show{opacity:1}
+@media(max-width:900px),(pointer:coarse){#keyhint{display:none}}
+@media print{nav,#pgbar,#keyhint{display:none}section{padding:24px 0;break-inside:avoid-page}header{padding:40px 0}}
+.kicker{letter-spacing:.35em;font-size:13px;color:#bcd3e8;margin-bottom:18px}
+h1{font-size:clamp(30px,5.2vw,48px);font-weight:800;line-height:1.35;margin-bottom:16px}
+.sub{font-size:clamp(15px,2.2vw,18.5px);color:#cfe0ef;max-width:760px}
+.creed{margin:30px 0 0;padding:20px 26px;background:rgba(255,255,255,.08);border-left:4px solid var(--gold);border-radius:0 12px 12px 0;max-width:640px}
+.creed p{font-size:clamp(16px,2.4vw,20px);color:#fff;font-weight:700;margin:0;line-height:1.7}
+.creed span{display:block;font-size:14px;color:#a7c4dd;margin-top:8px;font-weight:400}
+.hero-meta{margin-top:24px;font-size:15px;color:#a7c4dd}
+.statbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:13px;margin-top:38px}
+.stat{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px 16px}
+.stat b{display:block;font-size:29px;font-weight:800;color:#fff}
+.stat span{font-size:13.5px;color:#bcd3e8}
+section{padding:76px 0;border-top:1px solid #dfe6ee}
+section:nth-of-type(even){background:#fff}
+.no{font-size:14px;letter-spacing:.25em;color:var(--gold);font-weight:700}
+h2{font-size:clamp(24px,3.4vw,32px);color:var(--navy);font-weight:800;margin:6px 0 22px}
+h2::after{content:"";display:block;width:58px;height:4px;background:var(--gold);border-radius:2px;margin-top:12px}
+h3{font-size:21px;color:var(--navy);margin:34px 0 12px;font-weight:700}
+h4.subt{font-size:18px;color:var(--blue);margin:22px 0 8px;font-weight:700}
+p{margin-bottom:14px;max-width:82ch}
+.lead{font-size:19.5px;color:#3d4a58}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:20px 0}
+.card{background:#fff;border:1px solid #e3e9ef;border-radius:14px;padding:20px 22px;box-shadow:0 1px 3px rgba(31,78,121,.06)}
+section:nth-of-type(even) .card{background:var(--paper)}
+.card h4{color:var(--navy);font-size:17px;margin-bottom:8px}
+.card p{font-size:15.5px;color:#4a5561;margin:0}
+.card .tag{display:inline-block;font-size:12.5px;background:#e8f0f8;color:var(--navy);border-radius:999px;padding:2px 10px;margin-bottom:10px;font-weight:700}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:15.5px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(31,78,121,.07)}
+th{background:var(--navy);color:#fff;padding:9px 12px;text-align:left;font-weight:600;font-size:14.5px}
+td{padding:8px 12px;border-bottom:1px solid #edf1f5;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td.hit{color:var(--red);font-weight:700}
+td.ok{color:var(--green);font-weight:700}
+td.num{font-variant-numeric:tabular-nums}
+.tbl-note{font-size:13.5px;color:var(--gray);margin-top:-8px}
+.quote{background:#fff;border-left:4px solid var(--gold);border-radius:0 12px 12px 0;padding:14px 18px;margin:12px 0;box-shadow:0 1px 3px rgba(31,78,121,.06)}
+.quote p{font-size:16.5px;color:#37414d;margin:0}
+.quote cite{display:block;font-size:13px;color:var(--gray);margin-top:6px;font-style:normal}
+.quotewall{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:13px;margin:18px 0}
+.callout{border-radius:14px;padding:20px 24px;margin:22px 0}
+.callout.key{background:linear-gradient(135deg,#eaf1f9,#f4f8fc);border:1px solid #d3e2f0}
+.callout.warn{background:#fdf6ec;border:1px solid #f0e0c0}
+.callout.good{background:#eef7ef;border:1px solid #cfe6d2}
+.callout b.t{display:block;color:var(--navy);margin-bottom:6px;font-size:17.5px}
+figure{background:#fff;border:1px solid #e3e9ef;border-radius:14px;padding:20px;margin:22px 0;box-shadow:0 1px 3px rgba(31,78,121,.06)}
+figcaption{font-size:14px;color:var(--gray);margin-top:10px;text-align:center}
+svg text{font-family:inherit}
+.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0}
+.flow .step{background:var(--navy);color:#fff;border-radius:10px;padding:9px 15px;font-size:14.5px;font-weight:600}
+.flow .arr{color:var(--sky);font-size:20px;font-weight:800}
+.tl{border-left:3px solid var(--sky);margin:20px 0 20px 8px;padding-left:24px}
+.tl .ev{position:relative;margin-bottom:16px}
+.tl .ev::before{content:"";position:absolute;left:-31px;top:7px;width:11px;height:11px;border-radius:50%;background:var(--navy);border:2px solid #fff;box-shadow:0 0 0 2px var(--sky)}
+.tl .ev b{color:var(--navy)}
+.tl .ev span{display:block;font-size:14.5px;color:var(--gray)}
+footer{background:var(--navy-d);color:#a7c4dd;padding:44px 0;font-size:14.5px}
+footer b{color:#fff}
+.fade{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.fade.vis{opacity:1;transform:none}
+.smallnote{font-size:13.5px;color:var(--gray)}
+a.file{display:inline-block;font-size:14px;color:var(--navy);background:#eef4fa;border:1px solid #d3e2f0;border-radius:8px;padding:3px 10px;margin:2px 3px 2px 0;text-decoration:none;font-weight:600}
+a.file:hover{background:#dce9f6}
+a.file::before{content:"📄 ";font-size:12px}
+a.file.xls::before{content:"📊 "}
+a.file.zip::before{content:"📦 "}
+a.file.img::before{content:"🖼️ "}
+.filoff{display:inline-block;font-size:14px;color:#7a8794;background:#eef1f5;border:1px solid #dde3ea;border-radius:8px;padding:3px 10px;margin:2px 3px 2px 0;font-weight:600}
+.filoff::before{content:"📄 ";font-size:12.5px}
+a.doc{display:inline-block;font-size:14px;color:var(--navy);background:#eef4fa;border:1px solid #d3e2f0;border-radius:8px;padding:3px 10px;margin-top:6px;text-decoration:none;font-weight:600}
+a.doc:hover{background:#dce9f6}
+/* AI 助教演練 */
+.tutor-demo{background:#fff;border:1px solid #d3e2f0;border-radius:16px;margin:24px 0;overflow:hidden;box-shadow:0 2px 10px rgba(31,78,121,.10)}
+.td-head{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--navy);padding:10px 14px;flex-wrap:wrap}
+.td-tabs{display:flex;gap:6px}
+.td-tab{border:1px solid rgba(255,255,255,.35);background:transparent;color:#cfe0ef;font-size:14.5px;padding:6px 13px;border-radius:999px;cursor:pointer;font-weight:600}
+.td-tab.on{background:#fff;color:var(--navy);border-color:#fff}
+.td-badge{font-size:11.5px;color:#0e2438;background:var(--gold);border-radius:999px;padding:2px 10px;font-weight:700}
+.td-chat{height:340px;overflow-y:auto;padding:16px;background:#f4f7fa;display:flex;flex-direction:column;gap:10px}
+.td-msg{max-width:82%;padding:10px 14px;border-radius:14px;font-size:15.5px;line-height:1.75;white-space:pre-wrap}
+.td-msg.user{align-self:flex-end;background:var(--navy);color:#fff;border-bottom-right-radius:4px}
+.td-msg.bot{align-self:flex-start;background:#fff;border:1px solid #e3e9ef;color:#2b3440;border-bottom-left-radius:4px}
+.td-msg.bot .src{display:block;margin-top:8px;font-size:12.5px;color:#8a97a5}
+.td-typing{align-self:flex-start;color:#8a97a5;font-size:13px;padding:4px 8px}
+.td-chips{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-top:1px solid #eef1f5}
+.td-chip{border:1px solid #c9d9e8;background:#f2f7fb;color:var(--navy);font-size:13.5px;padding:5px 12px;border-radius:999px;cursor:pointer;font-weight:600}
+.td-chip:hover{background:var(--navy);color:#fff}
+.td-inputrow{display:flex;gap:8px;padding:10px 14px 14px;background:#fff}
+.td-inputrow input{flex:1;border:1.5px solid #c9d9e8;border-radius:10px;padding:9px 13px;font-size:15px;font-family:inherit;outline:none}
+.td-inputrow input:focus{border-color:var(--blue)}
+.td-inputrow button{background:var(--navy);color:#fff;border:none;border-radius:10px;padding:9px 18px;font-size:15px;font-weight:700;cursor:pointer}
+.td-inputrow button:hover{background:var(--blue)}
+.td-note{font-size:13.5px;color:var(--gray);padding:0 14px 14px;margin:0;background:#fff}
+.evi{display:inline-block;font-size:11.5px;background:#fff7e0;color:#8a6d1a;border:1px solid #ecd98a;border-radius:6px;padding:1px 8px;margin-left:6px;font-weight:700;vertical-align:middle}
+/* 白話解讀框 */
+.plain{background:#fff;border:1px solid #e3e9ef;border-radius:14px;margin:20px 0;overflow:hidden;box-shadow:0 1px 3px rgba(31,78,121,.06)}
+section:nth-of-type(even) .plain{background:var(--paper)}
+.plain .row{display:grid;grid-template-columns:130px 1fr;border-bottom:1px solid #edf1f5}
+.plain .row:last-child{border-bottom:none}
+.plain .lab{background:#f2f6fa;padding:12px 14px;font-size:14.5px;font-weight:700;color:var(--navy);display:flex;align-items:flex-start;gap:6px}
+.plain .val{padding:12px 16px;font-size:16px;color:#37414d}
+.plain .row.talk .lab{background:#fdf8ea;color:#8a6d1a}
+.plain .row.talk .val{background:#fffdf5;font-size:16.5px;font-weight:600;color:#3d3520}
+@media(max-width:640px){.plain .row{grid-template-columns:1fr}.plain .lab{padding:8px 14px 2px}}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+@media(max-width:760px){.compare{grid-template-columns:1fr}}
+.compare .box{border-radius:12px;padding:16px 18px;font-size:15.5px}
+.compare .before{background:#f0f2f5;border:1px solid #d9dee5}
+.compare .after{background:#fdf8ea;border:1px solid #ecd98a}
+.compare b.hd{display:block;margin-bottom:8px;color:var(--navy)}
+code.f{background:#eef2f7;border-radius:6px;padding:2px 8px;font-size:13.5px;color:#1F4E79;font-family:ui-monospace,Consolas,monospace}
+.bigq{font-size:clamp(20px,3.4vw,28px);font-weight:800;color:var(--navy);line-height:1.6;margin:20px 0}
+</style>
+</head>
+<body>
+<div id="pgbar"></div>
+<div id="keyhint">← → 鍵切換章節</div>
+<div id="lightbox"><img src="" alt=""><p></p></div>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">教育部教學實踐研究計畫・114 學年度・工程學門</div>
+    <h1>當責，教得出來嗎？</h1>
+    <p class="sub">「當責」——對自己負責的工作扛起完全責任——是工程師最重要、也最教不動的素養。課堂上講一百次「你們要負責」，學生點頭，然後繼續交差了事。這個研究用一整個學期、112 位大二學生、九個資料集，去回答這個問題。</p>
+    <div class="creed">
+      <p>「老師的責任，是打造合適的情境，<br>讓學生對自己的學習負責。」</p>
+      <span>— 本研究的教育信念。當責無法用「講的」教會，只能在有真實後果感的情境中，讓它自己長出來。</span>
+    </div>
+    <div class="hero-meta">結合專案管理資訊系統（EAGLE）與生成式 AI 的營建管理情境式學習教學法：專業當責核心素養的建構與實踐<br>計畫主持人：蔡明修｜淡江大學土木工程學系｜營建管理（大二必修・兩班）</div>
+    <div class="statbar">
+      <div class="stat"><b>1</b><span>條真實工程做為情境</span></div>
+      <div class="stat"><b>112</b><span>位學生走進情境</span></div>
+      <div class="stat"><b>187</b><span>份任務提交</span></div>
+      <div class="stat"><b>244</b><span>篇日誌逐篇分析</span></div>
+      <div class="stat"><b>13%→96%</b><span>當責行為的成長</span></div>
+    </div>
+  </div>
+</header>
+
+<nav><div class="wrap">
+  <a href="#question">核心提問</a><a href="#context">老師做了什麼</a><a href="#tasks">學生做了什麼</a><a href="#method">怎麼檢驗</a><a href="#e1">證據①學得更好？</a><a href="#e2">證據②更想學？</a><a href="#e3">證據③當責長出來了？</a><a href="#honest">還沒接住的學生</a><a href="#answer">回答提問</a><a href="#hope">有希望的未來</a><a href="#data">資料下載</a>
+</div></nav>
+
+<!-- ═══════════ 核心提問 ═══════════ -->
+<section id="question">
+  <div class="wrap fade">
+    <span class="no">PROLOGUE</span>
+    <h2>核心提問：當責到底能不能被教出來？</h2>
+    <p class="lead">先說清楚「當責」和「負責」差在哪。<b>負責（Responsibility）是把分內的事做完；當責（Accountability）是對最後的結果扛起來</b>——包括主動檢查自己做得對不對、發現錯了承認並修正、在沒有人盯著的時候依然不放水。</p>
+    <p>工程這一行，當責就是人命。施工日誌上的每個數字都有法律效力，查核表上的每個簽名都是專業背書。但翻開任何一本教科書，「當責」都只是一個名詞解釋——因為它不是知識，是素養。<b>素養沒辦法用聽講學會，就像沒辦法用看影片學會游泳。</b></p>
+    <p class="bigq">如果講不會，那就讓學生「進去」——進到一個做的每件事都有後果感的情境裡。</p>
+    <p>這就是本研究的賭注：與其在教室裡「講」當責，不如打造一個足夠真實的工程情境——真實的工程案例、真實上線的管理系統、有法律重量的任務——然後退後一步，看當責會不會自己長出來。而且，全程用資料記錄它長出來（或沒長出來）的樣子。</p>
+    <table>
+      <tr><th>研究問題</th><th>白話版</th></tr>
+      <tr><td><b>P1</b> 真實工程情境＋當責任務設計，能否建立責任意識與應用能力？</td><td>把學生放進真實情境、給他有重量的任務，他會不會「當一回事」？</td></tr>
+      <tr><td><b>P2</b> 整合當責提醒的 AI 學習助理，能否提升自主管理與任務完成度？</td><td>24 小時待命的 AI 助教，能不能幫學生自己把學習扛起來？</td></tr>
+      <tr><td><b>P3</b> 整合教學模式對知識、能力、當責行為與專業認同的影響？</td><td>這一整套下來，學生的腦（知識）、手（能力）、心（態度認同）有沒有變？</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════ 老師做了什麼 ═══════════ -->
+<section id="context">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 01・老師的責任</span>
+    <h2>打造情境：把一條真實的溪搬進課堂</h2>
+    <p class="lead">「老師的責任，是打造合適的情境。」這一章就是老師做的全部工作——四層情境，一層一層搭起來。理論根據是情境式學習（Situated Learning; Brown et al., 1989; Lave &amp; Wenger, 1991）：知識只活在它的應用情境裡，脫離情境的知識是「抽象符號的遊戲」。</p>
+
+    <h4 class="subt">第一層：真實的案例——磺港溪再造步道整建工程</h4>
+    <p>情境的真實感來自資料的真實性。學生拿到的不是課本習題，而是一條真實工程的完整檔案：真實的<b>契約工項與標單</b>（數量、單價、總價）、真實的 <b>WBS 與公司內部甘特圖</b>、真實的<b>歷史施工日誌與監造報表</b>。這些資料帶著真實世界的「不完美」——營造廠甘特圖的工項名稱跟契約對不起來、監造報表是簡略過的二手資訊——<b>而這些不完美正是教材</b>：學生必須自己把它們對起來，就像真的工程師每天在做的事。</p>
+    <h4 class="subt">第二層：真實的系統——EAGLE 工程智慧管理系統</h4>
+    <p>EAGLE 是計畫主持人與工程顧問公司產學合作開發、<b>實際上線用於真實工程</b>的專案管理資訊系統。學生用瀏覽器登入為課程建置的 EAGLE-LMS，扮演承包商現場工程師：填日誌、算進度、做查核。每一筆輸入、每一次提交、每一次檢核都留下時間戳——這既是工作場景，也是研究的攝影機。</p>
+    <div class="gallery">
+      <figure><img src="assets/eagle_arch.jpg" alt="EAGLE 系統功能架構圖" loading="lazy"><figcaption>EAGLE 系統功能架構——與真實工程使用的是同一套系統</figcaption></figure>
+      <figure><img src="assets/eagle_diary.jpg" alt="EAGLE 施工日誌填報操作畫面" loading="lazy"><figcaption>施工日誌填報：對照契約工項逐日填入完成數量</figcaption></figure>
+      <figure><img src="assets/eagle_inspect.jpg" alt="EAGLE 自主檢查新增查驗畫面" loading="lazy"><figcaption>自主檢查：新增查驗、在查核人欄位簽名</figcaption></figure>
+      <figure class="wide"><img src="assets/lms_dashboard.jpg" alt="EAGLE-LMS 學生儀表板" loading="lazy"><figcaption>EAGLE 2.0 LMS 學生儀表板：四個任務、五篇日誌、學期完成度一目了然（示範帳號畫面）</figcaption></figure>
+      <figure class="wide"><img src="assets/lms_task2.jpg" alt="任務 2 施工日誌與監造報表任務頁" loading="lazy"><figcaption>任務 2 頁面：學習目標、角色情境、「當責焦點」與逐步操作指引——當責寫進每一個任務的設計裡</figcaption></figure>
+    </div>
+    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      <div class="card" style="display:flex;gap:14px;align-items:center">
+        <img src="assets/manual_cover.jpg" alt="任務手冊封面" loading="lazy" style="width:120px;border-radius:8px;border:1px solid #e3e9ef">
+        <div><span class="tag">情境的劇本</span><h4>磺港溪工程案例・任務手冊</h4><p>每位學生拿到的完整任務手冊：案例背景、監造工程師角色、什麼是當責、四個任務的逐步指引。<br><a class="doc" href="任務手冊.html" target="_blank">📖 開啟任務手冊（完整版）</a></p></div>
+      </div>
+    </div>
+    <h4 class="subt">第三層：隨時待命的支援——AI 學習助教</h4>
+    <p>每個任務配有客製化 AI 助教（以課程知識庫約束），提供 24/7 提問管道與當責提醒；每份提交由 AI 先預批、教師再確認——教師評閱行為全程留痕（這後來變成一個意外的研究發現，見「有希望的未來」）。</p>
+    <div class="photo-band" style="cursor:zoom-in"><img src="assets/lms_ai_chat.jpg" alt="AI 學習助教問答介面" loading="lazy"><div class="cap">任務頁右下角隨時可喚出 AI 助教。注意回答的結尾——每一則都帶著「當責提醒」，AI 不只解題，還在提醒你為什麼要把它做對（示意畫面）</div></div>
+    <h4 class="subt">動手試試：叫出 AI 助教</h4>
+    <p>下面是可以操作的演練面板——切換兩個助教、點範例問題或自己輸入，體驗學生在系統裡得到的回答風格（含每則末尾的當責提醒）。</p>
+    <div class="tutor-demo" id="tutorDemo">
+      <div class="td-head">
+        <div class="td-tabs">
+          <button class="td-tab on" data-bot="lms" type="button">🎓 EAGLE-LMS 任務助教</button>
+          <button class="td-tab" data-bot="sys" type="button">🦅 EAGLE 系統操作助教</button>
+        </div>
+        <span class="td-badge">線上 RAG 助教</span>
+      </div>
+      <div class="td-chat" id="tdChat"></div>
+      <div class="td-chips" id="tdChips"></div>
+      <div class="td-inputrow">
+        <input id="tdInput" type="text" placeholder="輸入問題，或點上方的範例問題…" maxlength="200">
+        <button id="tdSend" type="button">送出</button>
+      </div>
+      <p class="td-note">面板直連課程的 ai-tutor 服務——回答由<b>真實課程知識庫（RAG）</b>即時生成，與學生使用的是同一顆大腦（公開演示為單輪問答，每小時 10 題；離線或超量時自動切換預錄演練）。完整多輪對話請登入：
+        <a class="doc" href="https://eagle-lms-production.up.railway.app" target="_blank" rel="noopener">🦅 EAGLE 2.0 LMS（課程平台）</a>
+        <a class="doc" href="https://construction-dashboard-frontend-production.up.railway.app/login" target="_blank" rel="noopener">📊 EAGLE 工地儀表板</a></p>
+    </div>
+    <h4 class="subt">第四層：讓責任有重量——六個當責機制</h4>
+    <table>
+      <tr><th>機制</th><th>學生實際經歷的事</th></tr>
+      <tr><td>① 責任聲明</td><td>動工前先簽「工程日誌填報責任聲明」——先知道這張表在契約裡的法律地位，再開始填</td></tr>
+      <tr><td>② 自我檢核</td><td>交出去之前，用檢核表逐項確認欄位完整、進度算對——「檢查自己」是任務的一部分</td></tr>
+      <tr><td>③ 交叉審查</td><td>各組互審對方的日誌，模擬真實的監造審查——要負責任地提出審查意見</td></tr>
+      <tr><td>④ 時限交付</td><td>規定時間內交付——工地不等人</td></tr>
+      <tr><td>⑤ 反思日誌</td><td>五篇日誌記錄困難、突破與當責反思，期末含口頭報告自評</td></tr>
+      <tr><td>⑥ 直面後果的提問</td><td>任務手冊直接問：「施工日誌有什麼法律效力？」「不實填報會造成什麼後果？」</td></tr>
+    </table>
+    <h4 class="subt">十八週的節奏</h4>
+    <div class="tl">
+      <div class="ev"><b>第 1–3 週｜走進情境</b><span>業師（該工程的設計監造顧問）演講與共授 → 工程資料集介紹 → 案例工地參觀。課本上的名詞第一次有了畫面。</span></div>
+      <div class="ev"><b>第 4–9 週｜進度管理實戰</b><span>任務 1 專案建立 → 任務 2 施工日誌 → 任務 3 進度計算，配合前測筆試與期中考。</span></div>
+      <div class="ev"><b>第 10–13 週｜品質與職安</b><span>任務 4 自主查核表 → 職安缺失自主學習（AI 法規機器人）。</span></div>
+      <div class="ev"><b>第 15–18 週｜收斂驗收</b><span>監造報告與口頭簡報 → ORID 座談＋問卷後測 → 期末考 → 總結工作坊兩場。</span></div>
+    </div>
+    <h4 class="subt">走進情境的那一天：磺港溪工地參觀（第 3 週）</h4>
+    <p>課本上的名詞第一次有了畫面——他們日後在系統裡填的每一筆日誌、算的每一段進度，都對應著腳下這條真實的溪。</p>
+    <div class="gallery">
+      <figure class="wide"><img src="assets/visit_stream.jpg" alt="學生列隊走在磺港溪完工步道曲橋上" loading="lazy"><figcaption>整建完成的磺港溪步道——學生腳下踩的，就是他們要管理的工程</figcaption></figure>
+      <figure><img src="assets/visit_start.jpg" alt="營造廠工程師向學生簡報" loading="lazy"><figcaption>營造廠工程師開場簡報：這條溪怎麼施工</figcaption></figure>
+      <figure><img src="assets/visit_overlook.jpg" alt="監造顧問對照圖說講解現場" loading="lazy"><figcaption>設計監造顧問（業師）對照圖說講解</figcaption></figure>
+      <figure><img src="assets/visit_brief.jpg" alt="工程師在步道上向學生講解" loading="lazy"><figcaption>現場工程師講解：圖上的線，就是眼前的結構</figcaption></figure>
+      <figure><img src="assets/visit_map.jpg" alt="老師以工程圖版向學生解說" loading="lazy"><figcaption>對著平面圖，把「工項」和「現場」對起來</figcaption></figure>
+      <figure><img src="assets/visit_tree.jpg" alt="全景相機記錄老樹保護區前的講解" loading="lazy"><figcaption>老樹保留區——工程裡「圖紙以外」的判斷</figcaption></figure>
+    </div>
+    <div class="callout key"><b class="t">重要的設計決定：自主參加</b>
+    EAGLE 任務採<b>課後自願參加</b>，只佔學期成績 20%。這是刻意的：當責的第一步是「自己選擇承擔」。結果：112 位註冊平台的學生中，<b>90 位（80%）自願投入</b>，30 位走完全部四個任務。這個「自己選」的設計讓研究背負自我選擇偏誤（後面會誠實處理），但它本身就是教育信念的一部分——讓學生對自己的學習負責，從報名那一刻開始。</div>
+  </div>
+</section>
+
+<!-- ═══════════ 學生做了什麼 ═══════════ -->
+<section id="tasks">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 02・學生的足跡</span>
+    <h2>學生做了什麼：四個任務、九個資料集</h2>
+    <table>
+      <tr><th>任務</th><th>學生實際在做的事</th><th>當責考驗</th><th>提交</th></tr>
+      <tr><td><b>1 專案建立</b></td><td>把契約工項匯入系統、建 S 曲線——第一次發現「原來一條步道有幾百個工項」</td><td>資料建置的完整性</td><td class="num ok">68 份</td></tr>
+      <tr><td><b>2 施工日誌</b></td><td>對著簡略的歷史監造報表，一天一天反推：今天做了哪些工項？進度幾 %？然後填進系統，讓實際進度曲線長出來</td><td>每個數字都要有依據</td><td class="num ok">52 份</td></tr>
+      <tr><td><b>3 進度分析</b></td><td>甘特圖×契約對應、CPM 前推後推、EVM 實獲值——全課程最硬的一關</td><td>算不出來，放棄還是堅持？</td><td class="num hit">31 份</td></tr>
+      <tr><td><b>4 自主查核</b></td><td>依三級品管制度填自主查核表——在「查核人」欄位簽下自己的名字</td><td>簽名 = 專業背書</td><td class="num ok">36 份</td></tr>
+    </table>
+    <p>他們留下的足跡，構成本研究的九個資料集——本頁每個數字都可回溯至原始檔（原始資料含學生個資，已去識別化管理，於內部審查版提供）：</p>
+    <table>
+      <tr><th style="width:32%">資料集</th><th>規模</th><th>它記錄了學生的什麼</th><th>原始檔</th></tr>
+      <tr><td>任務提交與評分明細</td><td class="num">187 份</td><td>做了什麼、做得怎麼樣（含逐題回答與教師評分）</td><td><span class="filoff">task1</span><span class="filoff">task2</span><span class="filoff">task3</span><span class="filoff">task4</span></td></tr>
+      <tr><td>ARCSA 動機量表前後測</td><td class="num">90 人配對</td><td>學期頭尾，學習的心態變了多少</td><td><span class="filoff">arcsa_paired.csv</span></td></tr>
+      <tr><td>活動重要性×滿意度問卷</td><td class="num">61 人</td><td>覺得哪些活動值得、哪些活動卡</td><td><span class="filoff">satisfaction.csv</span></td></tr>
+      <tr><td>學習日誌全文</td><td class="num">244 篇</td><td>五個時間點的真心話</td><td><span class="filoff">journals.csv</span></td></tr>
+      <tr><td>日誌質化編碼</td><td class="num">244 筆</td><td>當責行為在文字中出現的軌跡</td><td><span class="filoff">日誌編碼結果.csv</span></td></tr>
+      <tr><td>正式成績（整備後主表）</td><td class="num">145 人×47 欄</td><td>筆試學得如何（九源合併・含資料字典）</td><td><span class="filoff">主分析資料表.xlsx</span><span class="filoff">.csv</span></td></tr>
+      <tr><td>總結工作坊 ORID 逐字稿</td><td class="num">2 場 4 小時・77 人</td><td>整學期的集體證詞</td><td><span class="filoff">A 場分析</span><span class="filoff">B 場分析</span></td></tr>
+      <tr><td>素養 rubric・口頭評分・AI 紀錄</td><td class="num">13 人完整＋187 筆</td><td>素養軸的直接測量＋教師評閱行為</td><td><span class="filoff">research_bundle.zip</span></td></tr>
+      <tr><td>名冊與資料完整性</td><td class="num">112 人</td><td>樣本流向與分組</td><td><span class="filoff">data_check.csv</span></td></tr>
+    </table>
+    <div class="callout warn"><b class="t">資料有多乾淨，結論就有多可信</b>
+    九個資料源以學號合併（班上有兩對同名同姓）；清出 2 個重複帳號、18 位成績全零的實質棄修者；「未繳」與「0 分」嚴格區辨。最關鍵的一刀：<b>算學習成效時，剔除「自主學習成績 20%」</b>——因為參加任務本身就有這 20%，不剔除等於「用參加證明參加有用」，是循環論證。</div>
+  </div>
+</section>
+
+<!-- ═══════════ 怎麼檢驗 ═══════════ -->
+<section id="method">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 03・檢驗的方法</span>
+    <h2>我們怎麼檢驗「情境有沒有用」</h2>
+    <p class="lead">一句話說完研究設計：<b>比較「走進情境的學生」和「沒走進去的學生」，從三個角度看差異——成績（腦）、動機（心）、行為（手）——而且三個角度要互相對得起來才算數（三角驗證）。</b></p>
+    <figure>
+      <svg viewBox="0 0 940 400" role="img" aria-label="研究架構圖">
+        <defs><marker id="ah" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#1F4E79"/></marker>
+        <marker id="ahg" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#C9A227"/></marker></defs>
+        <rect x="20" y="60" width="250" height="250" rx="14" fill="#eef4fa" stroke="#1F4E79" stroke-width="1.5"/>
+        <text x="145" y="88" text-anchor="middle" font-size="15" font-weight="800" fill="#1F4E79">介入：情境式學習</text>
+        <text x="145" y="108" text-anchor="middle" font-size="11.5" fill="#6b7683">EAGLE × AI 助教 × 當責任務</text>
+        <rect x="40" y="124" width="210" height="44" rx="8" fill="#fff" stroke="#9BB7D4"/>
+        <text x="145" y="142" text-anchor="middle" font-size="12.5" fill="#2b3440" font-weight="700">x1 EAGLE 任務參與/評分</text>
+        <text x="145" y="159" text-anchor="middle" font-size="11" fill="#6b7683">完成數 0–4・評分 0–100</text>
+        <rect x="40" y="176" width="210" height="44" rx="8" fill="#fff" stroke="#9BB7D4"/>
+        <text x="145" y="194" text-anchor="middle" font-size="12.5" fill="#2b3440" font-weight="700">x2 職安缺失自主學習</text>
+        <text x="145" y="211" text-anchor="middle" font-size="11" fill="#6b7683">AI 法規機器人輔助</text>
+        <rect x="40" y="228" width="210" height="44" rx="8" fill="#fff" stroke="#9BB7D4"/>
+        <text x="145" y="246" text-anchor="middle" font-size="12.5" fill="#2b3440" font-weight="700">x3 學習日誌</text>
+        <text x="145" y="263" text-anchor="middle" font-size="11" fill="#6b7683">5 期反思・EP 編碼</text>
+        <text x="145" y="296" text-anchor="middle" font-size="11" fill="#8a97a5">共變量：iClass 線上投入度</text>
+        <rect x="380" y="40" width="240" height="130" rx="14" fill="#fdf8ea" stroke="#C9A227" stroke-width="1.5"/>
+        <text x="500" y="66" text-anchor="middle" font-size="15" font-weight="800" fill="#8a6d1a">心：學習動機（ARCSA）</text>
+        <text x="500" y="90" text-anchor="middle" font-size="12" fill="#4a5561">注意・相關・信心・滿足</text>
+        <text x="500" y="110" text-anchor="middle" font-size="12.5" font-weight="700" fill="#8a6d1a">＋ 必須當責</text>
+        <text x="500" y="134" text-anchor="middle" font-size="11" fill="#6b7683">前測（第2週）／後測（第16週）</text>
+        <text x="500" y="152" text-anchor="middle" font-size="11" fill="#6b7683">90 人配對</text>
+        <rect x="380" y="220" width="240" height="150" rx="14" fill="#eef7ef" stroke="#2E7D32" stroke-width="1.5"/>
+        <text x="500" y="246" text-anchor="middle" font-size="15" font-weight="800" fill="#2E7D32">腦與手：學習成效</text>
+        <text x="500" y="270" text-anchor="middle" font-size="12" fill="#4a5561">知識掌握（筆試三次）</text>
+        <text x="500" y="290" text-anchor="middle" font-size="12" fill="#4a5561">實務技能（任務 rubric）</text>
+        <text x="500" y="310" text-anchor="middle" font-size="12" fill="#4a5561">綜合能力（監造報告・口頭）</text>
+        <text x="500" y="330" text-anchor="middle" font-size="12" fill="#4a5561">當責行為（EP1–EP4 編碼）</text>
+        <text x="500" y="352" text-anchor="middle" font-size="11" fill="#6b7683">DP1–DP6・EP1–EP4</text>
+        <rect x="710" y="130" width="210" height="150" rx="14" fill="#f4f0fa" stroke="#6A4C93" stroke-width="1.5"/>
+        <text x="815" y="158" text-anchor="middle" font-size="14.5" font-weight="800" fill="#6A4C93">三角驗證</text>
+        <text x="815" y="184" text-anchor="middle" font-size="12" fill="#4a5561">行為紀錄（系統留痕）</text>
+        <text x="815" y="206" text-anchor="middle" font-size="12" fill="#4a5561">量表與成績（量化）</text>
+        <text x="815" y="228" text-anchor="middle" font-size="12" fill="#4a5561">反思文本（日誌・工作坊）</text>
+        <text x="815" y="258" text-anchor="middle" font-size="11" fill="#8a97a5">三者要互相對得起來</text>
+        <line x1="270" y1="120" x2="376" y2="95" stroke="#C9A227" stroke-width="2.5" marker-end="url(#ahg)"/>
+        <text x="316" y="92" font-size="13" font-weight="800" fill="#C9A227">H2</text>
+        <line x1="270" y1="260" x2="376" y2="290" stroke="#1F4E79" stroke-width="2.5" marker-end="url(#ah)"/>
+        <text x="316" y="292" font-size="13" font-weight="800" fill="#1F4E79">H1</text>
+        <line x1="500" y1="174" x2="500" y2="216" stroke="#6b7683" stroke-width="2" marker-end="url(#ah)"/>
+        <line x1="512" y1="216" x2="512" y2="174" stroke="#6b7683" stroke-width="2" marker-end="url(#ah)"/>
+        <text x="524" y="200" font-size="13" font-weight="800" fill="#6b7683">H3</text>
+        <line x1="624" y1="205" x2="706" y2="205" stroke="#6A4C93" stroke-width="2" stroke-dasharray="6 4"/>
+      </svg>
+      <figcaption>研究架構：情境介入（左）→ 動機 H2、成效 H1、交互 H3（中）→ 三種證據互相檢核（右）。</figcaption>
+    </figure>
+    <h3>每種分析方法，一句白話</h3>
+    <table>
+      <tr><th style="width:26%">方法</th><th>它在回答什麼（白話）</th><th>技術設定</th></tr>
+      <tr><td>獨立樣本 t 檢定</td><td>「參加的學生，成績真的比較好嗎？還是只是運氣？」</td><td>Welch t；效果量 Cohen's d</td></tr>
+      <tr><td>ANCOVA 共變數分析</td><td>「會不會只是因為參加的人本來就比較認真？——把『認真程度』扣掉再比一次」</td><td><code class="f">成績 = β₀+β₁組別+β₂投入度+ε</code></td></tr>
+      <tr><td>劑量反應分析</td><td>「像藥一樣：劑量越高效果越好，才更像真的有效。做 1 個任務、2 個、3 個、4 個的人，成績有沒有跟著階梯上升？」</td><td><code class="f">成績 = β₀+β₁任務數+β₂投入度+ε</code></td></tr>
+      <tr><td>敏感度分析</td><td>「把 18 個早就放棄修課的零分學生拿掉，結果還站得住嗎？」</td><td>排除最終成績=0 者重跑全部檢定</td></tr>
+      <tr><td>成對樣本 t 檢定</td><td>「同一個學生，學期頭尾的學習心態變了多少？」</td><td>前後測配對；效果量 dz</td></tr>
+      <tr><td>IPA 四象限分析</td><td>「哪些活動學生覺得『重要但體驗不好』？那就是最該優先修的地方」</td><td>Martilla &amp; James (1977)</td></tr>
+      <tr><td>日誌質化編碼</td><td>「當責如果真的長出來，會出現在學生自己寫的文字裡——我們逐篇去數」</td><td>EP1–EP4 二元編碼・從嚴準則（空話不算）</td></tr>
+      <tr><td>ORID 焦點討論分析</td><td>「期末面對面問：你實際做了什麼？卡在哪？怎麼突破？以後會怎麼做？」</td><td>2 場逐字稿主題分析・77 人發言</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════ 證據① ═══════════ -->
+<section id="e1">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 04・證據①</span>
+    <h2>走進情境的學生，學得更好嗎？</h2>
+    <div class="plain">
+      <div class="row"><div class="lab">🎯 想知道</div><div class="val">參加 EAGLE 任務的 90 位學生，筆試成績（已剔除任務本身的 20% 分數）是否真的比沒參加的學生好？</div></div>
+      <div class="row"><div class="lab">📊 數字說</div><div class="val">實驗組平均 <b>69.7 分</b>，對照組 <b>60.1 分</b>，差 9.6 分（p = .012, d = 0.73）。扣掉「本來就比較認真」的因素（ANCOVA 控制線上投入度）後仍高 <b>8.6 分</b>（p = .006）。把 18 位早已棄修的零分學生排除重算，三次筆試的差異全部仍然顯著。</div></div>
+      <div class="row"><div class="lab">💊 劑量檢驗</div><div class="val">最關鍵的一條：<b>每多完成一個任務，學期成績平均多 1.7 分</b>（p = .025）。做 0、1、2、3、4 個任務的學生，成績呈階梯狀上升。</div></div>
+      <div class="row talk"><div class="lab">🗣️ 白話說</div><div class="val">一個原本考 60 分的學生，如果走完四個任務，平均會考到接近 67 分——不是因為任務送分（任務分數已剔除），而是因為在系統裡親手算過進度的人，考卷上的 CPM 和 EVM 對他來說不再是公式，是他熬夜做過的事。</div></div>
+    </div>
+    <table>
+      <tr><th>檢驗</th><th>結果</th><th>p 值</th><th>通過？</th></tr>
+      <tr><td>組間比較（86 vs 20 人）</td><td class="num">69.7 vs 60.1，d = 0.73</td><td class="num">.012</td><td class="ok">✓</td></tr>
+      <tr><td>排除棄修者後：一期中／二期中／期末</td><td class="num">d = 0.66 / 0.50 / 0.70</td><td class="num">.002 / .038 / .006</td><td class="ok">✓✓✓</td></tr>
+      <tr><td>ANCOVA 控制投入度</td><td class="num">實驗組 +8.56 分</td><td class="num">.006</td><td class="ok">✓</td></tr>
+      <tr><td>劑量反應（n=107）</td><td class="num">每任務 +1.70 分；r = .296</td><td class="num">.025 / .002</td><td class="ok">✓</td></tr>
+    </table>
+    <p class="tbl-note">四道檢驗、方向一致、全部顯著。底表：<span class="filoff">主分析資料表.xlsx</span>・詳細：<span class="filoff">統計分析結果報告</span></p>
+    <div class="quote"><p>「之前其他課程可能就是草草帶過，但這堂課在做的時候，我會自發地去找答案。」</p><cite>總結工作坊 A 場——成績差異背後的行為差異，學生自己說出來了</cite></div>
+  </div>
+</section>
+
+<!-- ═══════════ 證據② ═══════════ -->
+<section id="e2">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 05・證據②</span>
+    <h2>他們更想學了嗎？哪些活動值得？</h2>
+    <div class="plain">
+      <div class="row"><div class="lab">🎯 想知道</div><div class="val">同一批學生，學期第 2 週和第 16 週各填一次 ARCSA 動機量表（52 人前後都填）——五種學習心態有沒有變化？</div></div>
+      <div class="row"><div class="lab">📊 數字說</div><div class="val">總分 4.17 → 4.40（滿分 5，p = .002，dz = 0.46，中等效果）。漲最多的是「<b>注意</b>」（上課的事引得起我的興趣，dz = 0.47）和「<b>相關</b>」（學的東西跟我的未來有關，dz = 0.61）。「當責」構面 4.33 → 4.48，只有邊緣顯著（p = .076）。</div></div>
+      <div class="row talk"><div class="lab">🗣️ 白話說</div><div class="val">學期初的學生說「這門課還行」；學期末的學生說「這門課的東西跟我以後的工作有關，做任務的時候我是有興趣的」。「注意」和「相關」正是情境式學習理論說它最能改變的兩件事——理論預測跟數據對上了。至於當責在量表上只有微幅上升？別急，下一章的行為證據會說出完全不同的故事。</div></div>
+    </div>
+    <div class="plain">
+      <div class="row"><div class="lab">🎯 想知道</div><div class="val">61 位學生幫六項課程活動打兩種分數：「這對學習重不重要」和「體驗好不好」。兩個分數放在一起看，就知道該先修哪裡。</div></div>
+      <div class="row"><div class="lab">📊 數字說</div><div class="val">EAGLE 任務的重要性<b>全場最高</b>（4.56），滿意度卻<b>全場最低</b>（4.23）——落在「高重要・低滿意」的優先改善象限。業師演講、工地參觀、任務手冊三項是「高重要・高滿意」。AI 助教重要性墊底（4.33）。</div></div>
+      <div class="row talk"><div class="lab">🗣️ 白話說</div><div class="val">學生的意思是：「任務是這門課最有價值的部分，但做起來真的卡。」——注意，他們沒有說任務不值得，他們說的是「值得，可是讓它好做一點」。這是學生給課程最誠實也最有建設性的一票。</div></div>
+    </div>
+    <figure>
+      <svg viewBox="0 0 640 330" role="img" aria-label="IPA四象限圖">
+        <text x="320" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="#1F4E79">六項活動：重要性 × 滿意度（n = 61）</text>
+        <rect x="80" y="40" width="520" height="240" fill="#fbfcfe" stroke="#e3e9ef"/>
+        <line x1="378" y1="40" x2="378" y2="280" stroke="#b9c6d4" stroke-dasharray="5 4"/>
+        <line x1="80" y1="138" x2="600" y2="138" stroke="#b9c6d4" stroke-dasharray="5 4"/>
+        <text x="92" y="58" font-size="11" fill="#8a97a5">Ⅰ 低重要・高滿意</text>
+        <text x="588" y="58" font-size="11" fill="#2E7D32" text-anchor="end">Ⅱ 高重要・高滿意（保持）</text>
+        <text x="92" y="272" font-size="11" fill="#8a97a5">Ⅲ 低重要・低滿意</text>
+        <text x="588" y="272" font-size="11" fill="#C62828" text-anchor="end">Ⅳ 高重要・低滿意（優先改善）</text>
+        <circle cx="383" cy="69" r="7" fill="#1F4E79"/><text x="374" y="60" font-size="11.5" fill="#2b3440" text-anchor="end">業師專家演講</text>
+        <circle cx="470" cy="69" r="7" fill="#1F4E79"/><text x="466" y="92" font-size="11.5" fill="#2b3440" text-anchor="middle">案例工地參觀</text>
+        <circle cx="525" cy="87" r="7" fill="#1F4E79"/><text x="537" y="92" font-size="11.5" fill="#2b3440">任務手冊</text>
+        <circle cx="241" cy="159" r="7" fill="#7d93a8"/><text x="253" y="164" font-size="11.5" fill="#2b3440">學習日誌</text>
+        <circle cx="129" cy="194" r="7" fill="#7d93a8"/><text x="141" y="199" font-size="11.5" fill="#2b3440">AI 學習助教</text>
+        <circle cx="525" cy="247" r="8" fill="#C62828"/><text x="525" y="230" font-size="12" fill="#C62828" font-weight="700" text-anchor="middle">EAGLE 任務</text>
+        <text x="340" y="305" text-anchor="middle" font-size="11.5" fill="#6b7683">「最有價值、但最卡」——資料：satisfaction.csv</text>
+      </svg>
+      <figcaption>學生用兩個分數投票：EAGLE 任務「難但值得」。</figcaption>
+    </figure>
+    <h4 class="subt">順帶一提：H3（動機和成績會互相帶動嗎？）——沒驗出來，而且我們知道為什麼</h4>
+    <p>動機增益與成績呈微弱負相關（r = −.27, p = .058）。原因幾乎可以確定是<b>天花板效應</b>：會填問卷的學生前測就已經 4.17／5——本來就想學的人，量表上沒有空間再漲了。白話說：<b>量表問不出來的，不代表沒發生</b>；這正是為什麼本研究同時收行為與文字證據。</p>
+  </div>
+</section>
+
+<!-- ═══════════ 證據③ 當責 ═══════════ -->
+<section id="e3">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 06・證據③・本研究的核心</span>
+    <h2>當責，真的長出來了嗎？</h2>
+    <p class="lead">這是整個研究最重要的一章。我們把 54 位學生的 244 篇學習日誌逐篇分析：每一篇有沒有出現「當責行為」——不是喊口號的「責任很重要」（那不算分），而是<b>具體的行為描述</b>：我檢查了自己的數據、我發現錯了回去改、我對我簽的名字負責。</p>
+
+    <div class="plain">
+      <div class="row"><div class="lab">🎯 想知道</div><div class="val">如果當責真的被「教出來」，它應該會隨時間越來越常出現在學生自己寫的文字裡。會嗎？</div></div>
+      <div class="row"><div class="lab">📊 數字說</div><div class="val">當責行為的出現率：第 3 週 <b>13%</b> → 第 6 週 35% → 第 11 週 80% → 第 13 週 79% → 第 16 週 <b>96%</b>。一路向上，期末幾乎人人都在寫。</div></div>
+      <div class="row talk"><div class="lab">🗣️ 白話說</div><div class="val">學期初，寫日誌的學生 100 個裡只有 13 個提到自己做了負責任的行為；到學期末，100 個裡有 96 個。當責從「少數人的習慣」變成「幾乎所有人的常態」——而且是他們自己寫出來的，不是勾選量表。</div></div>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 640 300" role="img" aria-label="EP指標趨勢圖">
+        <text x="320" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="#1F4E79">當責行為在日誌中的出現率（N = 244 篇）</text>
+        <g stroke="#eef1f5"><line x1="80" y1="250" x2="600" y2="250"/><line x1="80" y1="200" x2="600" y2="200"/><line x1="80" y1="150" x2="600" y2="150"/><line x1="80" y1="100" x2="600" y2="100"/><line x1="80" y1="50" x2="600" y2="50"/></g>
+        <g font-size="10.5" fill="#8a97a5"><text x="72" y="254" text-anchor="end">0%</text><text x="72" y="204" text-anchor="end">25%</text><text x="72" y="154" text-anchor="end">50%</text><text x="72" y="104" text-anchor="end">75%</text><text x="72" y="54" text-anchor="end">100%</text></g>
+        <polyline id="eptrend" points="110,224 230,180 350,90 470,92 590,58" fill="none" stroke="#C9A227" stroke-width="4.5" stroke-linejoin="round"/>
+        <g fill="#C9A227"><circle cx="110" cy="224" r="6"/><circle cx="230" cy="180" r="6"/><circle cx="350" cy="90" r="6"/><circle cx="470" cy="92" r="6"/><circle cx="590" cy="58" r="8"/></g>
+        <text x="110" y="243" font-size="12" fill="#a5851c" text-anchor="middle" font-weight="800">13%</text>
+        <text x="230" y="168" font-size="11" fill="#a5851c" text-anchor="middle">35%</text>
+        <text x="350" y="78" font-size="11" fill="#a5851c" text-anchor="middle">80%</text>
+        <text x="470" y="112" font-size="11" fill="#a5851c" text-anchor="middle">79%</text>
+        <text x="590" y="40" font-size="14" fill="#a5851c" text-anchor="middle" font-weight="800">96%</text>
+        <g font-size="11.5" fill="#4a5561" text-anchor="middle">
+          <text x="110" y="272">第3週・剛進情境</text><text x="230" y="272">第6週・填日誌</text><text x="350" y="272">第11週・算進度</text><text x="470" y="272">第13週・做查核</text><text x="590" y="272">第16週・期末反思</text>
+        </g>
+        <text x="320" y="294" text-anchor="middle" font-size="11" fill="#6b7683">逐篇編碼明細：日誌編碼結果.csv｜空泛口號不計，需有具體行為描述</text>
+      </svg>
+      <figcaption>ARCSA 量表上只有微幅上升的「當責」，在行為層次畫出了一條清楚的成長曲線。<b>素養的成長，行為先於態度</b>——先改變做事的方式，才改變填量表的方式。</figcaption>
+    </figure>
+
+    <h3>更有力的證據：學生「人稱」的轉變</h3>
+    <p>把第 3 週和第 16 週的日誌並排讀，會發現一件編碼表格看不到的事——<b>主詞變了</b>。學期初，學生用「他們」談責任（監造工程師是守門員）；學期末，主詞變成「我」（我一定會強迫自己二次檢查）。當責從一個「別人的職業描述」，內化成「自己的行為準則」：</p>
+    <div class="compare">
+      <div class="box before"><b class="hd">第 3 週・觀察者的口吻（「他們」）</b>
+        <p style="margin-bottom:8px">「監造工程師更像是工程<b>質量的守門員</b>。」</p>
+        <p style="margin-bottom:8px">「監造就是不能放水，必須<b>頂住廠商</b>想趕工的壓力和人情。」</p>
+        <p style="margin-bottom:8px">「是一個承載高度專業與<b>法律責任的職業</b>。」</p>
+        <p style="margin-bottom:0">「監造工程師就像穿著工程鞋的<b>法官兼拆彈專家</b>。」</p>
+        <span class="smallnote">當責是別人的事——一種職業的描述</span>
+      </div>
+      <div class="box after"><b class="hd">第 16 週・當事人的口吻（「我」）</b>
+        <p style="margin-bottom:8px">「寫完一份資料後，<b>我一定會強迫自己</b>進行二次檢查。」</p>
+        <p style="margin-bottom:8px">「可能有其他的作業也要做，那<b>我也必須自動自發地完成</b>。」</p>
+        <p style="margin-bottom:8px">「<b>我做的怎麼樣、我有沒有確實做到</b>——這類的反思。」</p>
+        <p style="margin-bottom:0">「<b>自己筆下的每個數據</b>、每天簽認的報表背後，都背負著極高的專業和法律責任。」</p>
+        <span class="smallnote">當責是我的事——一種自己的行為準則</span>
+      </div>
+    </div>
+
+    <h3>期末日誌裡，他們自己定義了當責</h3>
+    <p>沒有人要求學生背定義。但期末日誌裡，他們寫出了教科書寫不出來的版本：</p>
+    <div class="quotewall">
+      <div class="quote"><p>「『當責』是明知有灰色地帶，仍選擇堅守專業底線並對最終結果負責。」</p><cite>期末日誌</cite></div>
+      <div class="quote"><p>「真正的當責是要確保資料是正確、合理的，不能只是完成填報。」</p><cite>期末日誌——「做完」與「做對」的區別，他自己說出來了</cite></div>
+      <div class="quote"><p>「虛報或盲目套用公式只會讓決策失真，誠實面對數據才是對專案負責。」</p><cite>期末日誌</cite></div>
+      <div class="quote"><p>「簽的每個名、算的每個進度趴數，背後都是沉甸甸的公共安全。」</p><cite>期末日誌</cite></div>
+      <div class="quote"><p>「當責是對工程現況與數據負起零容忍的專業判斷責任。」</p><cite>期末日誌</cite></div>
+      <div class="quote"><p>「監造工程師的當責，刻進了我們整個工程的骨子裡。」</p><cite>期末日誌</cite></div>
+    </div>
+
+    <h3>過程中的真實聲音：掙扎、突破、成就感</h3>
+    <p>成長曲線不是一路順風。工作坊逐字稿記錄了完整的過程——先卡住，再突破，然後長出東西：</p>
+    <h4 class="subt">卡住的時候</h4>
+    <div class="quotewall">
+      <div class="quote"><p>「你給的工項和上面要輸的工項就是很不一樣，所以要一個一個找。」</p><cite>工作坊 B 場——真實資料的「不完美」正是最大卡點</cite></div>
+      <div class="quote"><p>「要看每一天的監造報表……一開始就要先猜那個工項。」</p><cite>工作坊 B 場</cite></div>
+      <div class="quote"><p>「一直去找資料，左邊對資料，然後填上去，很花時間。」</p><cite>工作坊 A 場</cite></div>
+      <div class="quote"><p>「我會一直質疑自己到底做得有沒有完整？做起來感覺就怪怪的，可是好像又沒什麼問題。」</p><cite>工作坊 A 場——自我懷疑本身就是自我檢核的開始</cite></div>
+      <div class="quote"><p>「就會開始很緊張，然後就很焦慮，然後不知道怎麼辦。」</p><cite>工作坊 B 場——誠實的挫折，也是資料的一部分</cite></div>
+      <div class="quote"><p>「雖然這樣直接實作的方式很讓人感到挫折，不然就是做到想放棄。」</p><cite>學習日誌 J2</cite></div>
+    </div>
+    <h4 class="subt">突破的方式</h4>
+    <div class="quotewall">
+      <div class="quote"><p>「有很多名詞不知道是做什麼的，我就要先一個一個去查……總共用了一個禮拜。」</p><cite>工作坊 A 場——完成全部任務的學生</cite></div>
+      <div class="quote"><p>「我才會熬夜通宵去把它完成……就是不甘心去放棄啊。」</p><cite>工作坊 A 場——「不甘心放棄」，這就是動機內化的聲音</cite></div>
+      <div class="quote"><p>「直接把老師貼的解釋丟給 AI……一邊看 AI 教我怎麼去做。」</p><cite>工作坊 B 場——AI 當家教</cite></div>
+      <div class="quote"><p>「跟很多的 AI 對比……看哪個講的一直都是一樣的。」</p><cite>工作坊 B 場——自發的多模型交叉驗證</cite></div>
+      <div class="quote"><p>「我會再點進去那個資料來源去看……再上網查是不是真的有這個東西。」</p><cite>工作坊 B 場——自發的來源查證</cite></div>
+      <div class="quote"><p>「問了應該有十來次的 AI，可是每一次工期都沒辦法閉合（最後自己手算）。」</p><cite>工作坊 B 場——AI 失靈時，人把責任接回來</cite></div>
+    </div>
+    <h4 class="subt">長出來的東西</h4>
+    <div class="quotewall">
+      <div class="quote"><p>「一步一步算出來，用 Excel 算出來……這一整個是比較有成就感的。」</p><cite>工作坊 B 場——最卡的地方＝最有成就感的地方</cite></div>
+      <div class="quote"><p>「翻蠻多檔案……覺得很不耐煩」→「一步一步把它們全部找出來，其實有成就感。」</p><cite>工作坊 B 場——同一個學生，前後兩句話</cite></div>
+      <div class="quote"><p>「只有親自動手除錯，才能真正掌握工程管理的精髓。」</p><cite>學習日誌 J2</cite></div>
+      <div class="quote"><p>「才會發現自己知識的盲點，並在修正中建立真正的專業實務感。」</p><cite>學習日誌 J2</cite></div>
+      <div class="quote"><p>「下意識當作業做；真實工地要負責，就要把每個東西做到好。」</p><cite>工作坊 B 場</cite></div>
+      <div class="quote"><p>（學生主動問）「如果填錯資料，要負什麼法律責任？」</p><cite>工作坊 B 場——教師當場點名：這個問題本身，就是當責</cite></div>
+    </div>
+    <p class="tbl-note">所有引文均為學生原話（去識別化）。完整逐字稿分析：<span class="filoff">A 場</span><span class="filoff">B 場</span>・全部 244 筆日誌編碼：<span class="filoff">日誌編碼結果.csv</span></p>
+  </div>
+</section>
+
+<!-- ═══════════ 誠實面 ═══════════ -->
+<section id="honest">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 07・誠實的部分</span>
+    <h2>還沒被接住的學生</h2>
+    <p class="lead">「打造合適的情境」是老師的責任——所以情境沒接住的學生，是老師要修的功課，不是學生的錯。資料誠實記錄了他們。</p>
+    <div class="cards">
+      <div class="card"><span class="tag">卡在門口</span><h4>帳號審核斷點</h4><p>有一整組學生因帳號申請流程未通過而完全沒進到情境——參與漏斗最前端的損耗發生在行政流程，不在學習動機。「我那個帳號，你還沒幫我審核通過。」（工作坊 A 場）</p></div>
+      <div class="card"><span class="tag">卡在半路</span><h4>任務 3 的斷崖</h4><p>提交數 68 → 52 → <b>31</b> → 36，草稿放棄率 22.5%（其他任務僅 7–12%）。任務 3 要學生從專案文件反推 WBS、自行排程、再對回實際進度——是四個任務中唯一<b>幾乎脫離 EAGLE 系統操作</b>、只剩文字資料的任務。「進度計算是我第一次接觸，不知道要怎麼下手。」（工作坊 A 場）</p></div>
+      <div class="card"><span class="tag">卡在心裡</span><h4>低效能感個案</h4><p>一位重修生自述不敢求助、「反正只有 20 分」；一位學生五篇日誌皆簡短空泛。情境對高動機者是舞台，對低效能感者可能是另一種壓力——需要不同的鷹架。</p></div>
+      <div class="card"><span class="tag">卡在設備</span><h4>數位落差</h4><p>有學生家中沒有電腦，只能用手機做系統任務。情境的入場券，不是每個人都拿得到。</p></div>
+    </div>
+    <div class="callout key"><b class="t">任務 3 的斷崖，反過來說出了「情境」的關鍵要素</b>
+    任務 1、2、4 都在 EAGLE 系統裡動手：每填一筆，畫面立刻有回饋——曲線長出來、查核表成形，<b>做的每件事都看得見後果</b>。任務 3 抽掉了系統這個載體，只剩專案文件的紙上情境，真實感瞬間斷裂，投入跟著崩落。這等於一次意外的「反面實驗」：<b>情境的力量不只來自資料是真的，更來自「操作得到、看得到後果」</b>——情境是承重牆，不是背景板。<br><br>
+    沒有放棄的學生走了兩條路：硬著頭皮手算，或拉 AI 進來協作。但兩條路卡在同一個地方——工程經驗還太少，<b>即使有 AI，也問不出合適的問題</b>：「問了應該有十來次的 AI，可是每一次工期都沒辦法閉合（最後自己手算）。」（工作坊 B 場）代價很高，收穫也真實：這批學生學到了最深的排程知識，也第一次摸到 AI 協作的邊界——AI 放大的是你既有的專業判斷，不能替你長出經驗。</div>
+    <h3>這些聲音直接變成了下學期的修課清單</h3>
+    <div class="cards">
+      <div class="card"><span class="tag" style="background:#fdecea;color:var(--red)">優先 1</span><h4>把任務 3 接回情境</h4><p>拆成階段、加 CPM 示例鷹架、排程工作坊對準第 7 週；同步修帳號審核流程與儲存 bug。</p><p class="smallnote" style="margin-top:8px">證據：漏斗斷點・IPA 第Ⅳ象限・工作坊回饋</p></div>
+      <div class="card"><span class="tag">優先 2</span><h4>AI 助教長進任務裡</h4><p>學生大量用自帶 AI、很少用內建助教（日誌僅 3% 提及）。重新設計入口與任務整合，把「怎麼驗證 AI」納入正式教學。</p><p class="smallnote" style="margin-top:8px">證據：日誌主題統計・工作坊 AI 光譜</p></div>
+      <div class="card"><span class="tag">優先 3</span><h4>教學生「認識自己」</h4><p>口頭報告加「結構」鷹架（四向度最弱：2.38/4）；設計「自評 vs 師評」對照反思——自評比師評高 0.4，看準自己正是當責的前提。</p><p class="smallnote" style="margin-top:8px">證據：DP5 評分・日誌自評比較</p></div>
+    </div>
+    <p class="smallnote">研究限制（完整版見<span class="filoff">統計報告</span>）：自願參與的自我選擇偏誤（以 ANCOVA＋劑量反應緩解）；對照組動機量表配對僅 4 人；量表天花板效應；各期日誌題引不同；質化編碼採 AI 輔助＋統一編碼簿（建議抽樣人工複核）；模擬情境的當責上限——「模擬時卡住會先放著；真實工地要負責，就會傾盡一切找到答案。」（工作坊 A 場）這句學生的話，就是模擬情境的邊界線。</p>
+  </div>
+</section>
+
+<!-- ═══════════ 回答提問 ═══════════ -->
+<section id="answer">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 08・回到核心提問</span>
+    <h2>所以——當責教得出來嗎？</h2>
+    <p class="bigq">可以。但不是用「教」的，是用「長」的。<br>條件是：一個夠真實的情境。</p>
+    <table>
+      <tr><th>如果當責真的長出來了，我們應該看到……</th><th>看到了嗎</th><th>證據</th></tr>
+      <tr><td>學生在沒人強迫下選擇承擔（任務自願、只佔 20%）</td><td class="ok">✓</td><td>80% 自願投入，30 人走完全程；日誌篇幅逆勢成長 +23%</td></tr>
+      <tr><td>學到的東西留在腦子裡（不是交差）</td><td class="ok">✓</td><td>筆試四道檢驗全過；每多做一個任務 +1.7 分</td></tr>
+      <tr><td>心態改變：覺得學習跟自己的未來有關</td><td class="ok">✓</td><td>ARCSA「相關」構面 dz = 0.61，五構面中最大</td></tr>
+      <tr><td>行為改變：自我檢核、承認錯誤、對數據負責</td><td class="ok">✓</td><td>日誌當責行為 13% → 96%；「人稱」從他們變成我</td></tr>
+      <tr><td>內化成自己的語言與準則</td><td class="ok">✓</td><td>期末日誌自發寫出當責定義：「明知有灰色地帶，仍堅守專業底線」</td></tr>
+      <tr><td>延伸到未來的行動意圖</td><td class="ok">✓</td><td>「以後當監造，每天到現場考察」「不確定不能擱著」</td></tr>
+      <tr><td>所有人都被接住</td><td class="hit">✗</td><td>帳號斷點、任務 3 斷崖、低效能感個案——情境還要再修（第七章）</td></tr>
+    </table>
+    <div class="callout key"><b class="t">回到教育精神</b>
+    「老師的責任，是打造合適的情境，讓學生對自己的學習負責。」——這學期的資料證明這句話的前半段是可行的（情境打造得出來，效果測得到），也誠實標出後半段的邊界（還有學生沒被接住，情境要繼續修）。<b>老師管情境，學生管學習</b>；當責不是被教會的，是在情境裡自己選擇長出來的——而數據記錄了它長出來的完整過程。</div>
+  </div>
+</section>
+
+<!-- ═══════════ 有希望的未來 ═══════════ -->
+<section id="hope">
+  <div class="wrap fade">
+    <span class="no">CHAPTER 09</span>
+    <h2>有希望的未來：這些學生是可以被培養的</h2>
+    <p class="lead">「有希望」不是客套話。這學期的資料裡，藏著幾個關於「這一代學生可培養性」的具體證據——他們不是不想學，是在等一個值得投入的情境。</p>
+    <div class="cards">
+      <div class="card"><span class="tag">希望 1</span><h4>給他們真實，他們就投入</h4><p>只佔 20% 的自願任務，80% 的人報名，有人熬夜通宵「不甘心放棄」，日誌越寫越長。<b>投入的開關不是分數，是真實感。</b></p></div>
+      <div class="card"><span class="tag">希望 2</span><h4>給他們重量，他們就承擔</h4><p>當任務有法律重量（責任聲明、簽名背書），當責行為在 14 週內從 13% 長到 96%，還自發寫出「明知有灰色地帶仍堅守底線」的定義。<b>承擔的能力一直都在，缺的是值得承擔的東西。</b></p></div>
+      <div class="card"><span class="tag">希望 3</span><h4>給他們 AI，他們自己學會不盲信</h4><p>沒有人教「AI 素養」課，但學生自發長出多模型比對、追溯來源、回一手資料查證的習慣，AI 失靈時把責任接回自己手上。<b>這一代人與 AI 協作的素養，是可以在專業情境中自然生成的。</b></p></div>
+    </div>
+    <h3>下一步：兩條已經鋪好的路</h3>
+    <p><b>（一）把沒接住的學生接住。</b>第七章的修課清單（任務 3 鷹架、帳號流程、AI 助教整合、低效能感學生的差異化支持）直接進入下一輪課程——本研究的迴圈是：情境 → 資料 → 修情境。</p>
+    <p><b>（二）人機協作評量的正式研究。</b>本學期系統記錄了 187 對「AI 預批分 vs 教師最終分」：教師只有 3.7% 照單全收、平均下修 5.7 分（保有專業判準），但兩者相關高達 r = .70、AI 起草時教師平均只停留 19 秒——AI 讓 187 份提交全數完成評閱（人力不可能做到），也留下「錨定效應」的問號。下學期將以隨機化設計（先評再看 AI vs 先看 AI 再評）正式檢驗。<b>當 AI 進入教育，「教師的當責」也需要重新設計——這是本研究孵出的第二個研究題。</b></p>
+  </div>
+</section>
+
+<!-- ═══════════ 給學生 ═══════════ -->
+<section id="students" style="background:linear-gradient(160deg,var(--navy-d),var(--navy));color:#dbe8f4">
+  <div class="wrap fade">
+    <span class="no" style="color:var(--gold)">EPILOGUE</span>
+    <h2 style="color:#fff">給未來修這門課的你</h2>
+    <p style="max-width:76ch">這門課會給你一個帳號、一條真實的溪、四個不太好做的任務。沒有人逼你做——這是設計，不是漏洞。因為當責的第一步，是自己選擇承擔。</p>
+    <p style="max-width:76ch">會卡住。學長姐卡過的地方：工項對不起來、進度不知道怎麼算、「做起來感覺怪怪的可是又說不出哪裡有問題」。他們的求生順序是：看手冊 → 問 AI（然後驗證它：多問幾個 AI、追它的來源、回原始資料對）→ 問同學 → 問老師。這也會是你以後在工地的求生順序。</p>
+    <p style="max-width:76ch">資料說，每多完成一個任務，學期成績平均多 1.7 分。但學長姐留下的話比數字誠實：</p>
+    <div class="quote" style="background:rgba(255,255,255,.08);border-left-color:var(--gold)"><p style="color:#eaf2f9">「我才會熬夜通宵去把它完成……就是不甘心去放棄啊。」</p><cite style="color:#9fbdd8">— 工作坊 A 場</cite></div>
+    <div class="quote" style="background:rgba(255,255,255,.08);border-left-color:var(--gold)"><p style="color:#eaf2f9">「花比較多時間在這邊，所以做完的時候有比較大的成就感。」</p><cite style="color:#9fbdd8">— 工作坊 B 場</cite></div>
+    <div class="quote" style="background:rgba(255,255,255,.08);border-left-color:var(--gold)"><p style="color:#eaf2f9">「『當責』是明知有灰色地帶，仍選擇堅守專業底線，並對最終結果負責。」</p><cite style="color:#9fbdd8">— 一位走完全程的學長姐，期末日誌</cite></div>
+    <p style="max-width:76ch;margin-top:16px">工地不會等你準備好。這門課讓你在還來得及犯錯的地方，先把那些錯犯完。</p>
+    <div class="photo-band" style="cursor:zoom-in"><img src="assets/group_photo.jpg" alt="淡江大學土木系學生於磺港溪工地合影" loading="lazy"><div class="cap">114 學年度・磺港溪再造工程工地參觀——走進情境的第一天</div></div>
+  </div>
+</section>
+
+<!-- ═══════════ 資料下載 ═══════════ -->
+<section id="data">
+  <div class="wrap fade">
+    <span class="no">APPENDIX</span>
+    <h2>研究資料與分析檔案</h2>
+    <p>本頁每個數字均可回溯至下列原始資料檔。原始檔含學生學號等個人資料，不隨本頁公開；研究者如需資料合作，請聯繫計畫主持人（淡江大學土木工程學系・蔡明修）。頁面引文均經去識別化。</p>
+    <h4 class="subt">課程教材（公開）</h4>
+    <p><a class="doc" href="任務手冊.html" target="_blank">📖 磺港溪工程案例・EAGLE 系統任務手冊（v2）</a></p>
+    <h4 class="subt">原始資料集</h4>
+    <p>
+      <span class="filoff">task1 提交明細</span>
+      <span class="filoff">task2 提交明細</span>
+      <span class="filoff">task3 提交明細</span>
+      <span class="filoff">task4 提交明細</span>
+      <span class="filoff">ARCSA 前後測配對</span>
+      <span class="filoff">滿意度問卷</span>
+      <span class="filoff">學習日誌全文</span>
+      <span class="filoff">資料完整性檢查</span>
+      <span class="filoff">研究資料完整包</span>
+    </p>
+    <h4 class="subt">整備與分析檔</h4>
+    <p>
+      <span class="filoff">主分析資料表（145×47・含資料字典）</span>
+      <span class="filoff">主分析資料表 CSV</span>
+      <span class="filoff">日誌質化編碼明細（244 筆）</span>
+      <span class="filoff">工作坊 A 場 ORID 分析</span>
+      <span class="filoff">工作坊 B 場 ORID 分析</span>
+    </p>
+    <h4 class="subt">分析報告與圖表</h4>
+    <p>
+      <span class="filoff">統計分析結果報告（H1–H3・IPA）</span>
+      <span class="filoff">質化分析報告（日誌編碼・ORID）</span>
+      <span class="filoff">AI 錨定與素養軸分析</span>
+      <span class="filoff">資料使用規劃</span>
+      <span class="filoff">IPA 四象限圖</span>
+      <span class="filoff">AI 錨定與任務漏斗圖</span>
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>結合專案管理資訊系統與生成式 AI 的營建管理情境式學習教學法：專業當責核心素養的建構與實踐</b></p>
+    <p>教育部教學實踐研究計畫（114 年度・工程學門）｜計畫主持人：蔡明修｜淡江大學土木工程學系</p>
+    <p style="margin-top:10px">理論根據：Brown, Collins &amp; Duguid (1989)・Lave &amp; Wenger (1991)・Green et al. (2018)・Keller (1983) ARCS・Martilla &amp; James (1977) IPA</p>
+    <p style="margin-top:10px;color:#7f9cb8">本頁引文均經去識別化處理。© 2026 EAGLE 2.0 LMS — 磺港溪工程案例自主學習平台</p>
+  </div>
+</footer>
+
+<script>
+// 進場淡入
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('vis');io.unobserve(e.target)}}),{threshold:.06});
+document.querySelectorAll('.fade').forEach(el=>io.observe(el));
+
+// 表格手機橫向捲動
+document.querySelectorAll('section table, header table').forEach(t=>{
+  const d=document.createElement('div');d.className='tblwrap';
+  t.parentNode.insertBefore(d,t);d.appendChild(t);
+});
+
+// 頂部閱讀進度條
+const pgbar=document.getElementById('pgbar');
+addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  pgbar.style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';
+},{passive:true});
+
+// 導覽列目前章節高亮
+const navLinks=[...document.querySelectorAll('nav a')];
+const secs=navLinks.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const secIO=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      navLinks.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id));
+      const on=document.querySelector('nav a.on');
+      if(on)on.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+    }
+  });
+},{rootMargin:'-40% 0px -55% 0px'});
+secs.forEach(s=>secIO.observe(s));
+
+// Hero 數字滾動
+function countUp(el,target,suffix){
+  const dur=1400,t0=performance.now();
+  (function tick(t){
+    const p=Math.min((t-t0)/dur,1),ease=1-Math.pow(1-p,3);
+    el.textContent=Math.round(target*ease)+suffix;
+    if(p<1)requestAnimationFrame(tick);
+  })(t0);
+}
+document.querySelectorAll('.stat b').forEach(el=>{
+  const m=el.textContent.trim().match(/^(\d+)(%?)$/);
+  if(m){el.dataset.n=m[1];el.dataset.s=m[2];el.textContent='0'+m[2];}
+});
+const heroIO=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    document.querySelectorAll('.stat b[data-n]').forEach(el=>countUp(el,+el.dataset.n,el.dataset.s));
+    heroIO.disconnect();
+  }
+}),{threshold:.3});
+heroIO.observe(document.querySelector('.statbar'));
+
+// 13%→96% 趨勢線繪製動畫
+const tl=document.getElementById('eptrend');
+if(tl){
+  const len=tl.getTotalLength();
+  tl.style.strokeDasharray=len;tl.style.strokeDashoffset=len;
+  const tlIO=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){
+      tl.style.transition='stroke-dashoffset 1.8s ease-out';
+      tl.style.strokeDashoffset='0';tlIO.disconnect();
+    }
+  }),{threshold:.5});
+  tlIO.observe(tl.closest('figure'));
+}
+
+// ← → 鍵切換章節（簡報模式）
+const jumpTargets=[document.querySelector('header'),...document.querySelectorAll('section')];
+function curIdx(){
+  const y=scrollY+innerHeight*.35;
+  let i=0;jumpTargets.forEach((s,k)=>{if(s.offsetTop<=y)i=k});return i;
+}
+addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea')||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();jumpTargets[Math.min(curIdx()+1,jumpTargets.length-1)].scrollIntoView({behavior:'smooth'});}
+  if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();jumpTargets[Math.max(curIdx()-1,0)].scrollIntoView({behavior:'smooth'});}
+});
+const hint=document.getElementById('keyhint');
+setTimeout(()=>hint.classList.add('show'),1200);
+setTimeout(()=>hint.classList.remove('show'),7000);
+
+// AI 助教演練面板
+const TD_DATA={
+ lms:{
+  welcome:'嗨，我是 EAGLE-LMS 的 AI 學習助教 🎓\n我熟悉磺港溪案例的四個任務、契約工項與監造報表。點下方範例問題，或直接輸入你的問題。',
+  qa:[
+   {q:'監造報表的工項和契約工項對不起來，該填哪一項？',k:['工項','對不起','契約','監造報表'],
+    a:'問得很好，這正是日誌填報最需要專業判斷的地方。建議三個步驟：\n1. 回到契約工項清單，把名稱相近的項目都列出來（注意計價單位）。\n2. 對照前後幾天的監造報表——同一作業通常會連續出現數日，可以幫你鎖定工項。\n3. 若仍無法確定，記下你的判斷依據再填報。\n\n💡 當責提醒：施工日誌是具法律效力的文件，「有依據的判斷」比「猜一個填上」重要得多。',
+    s:'任務 2 手冊・契約工項清單'},
+   {q:'我前幾天的日誌填錯了，可以回去改嗎？',k:['填錯','修改','回去改','改嗎'],
+    a:'可以，而且「發現錯誤主動修正」正是本課程最希望你養成的習慣。\n\n在任務期限內，回到該日日誌重新編輯並儲存即可；系統會保留修改紀錄。修改時順手確認：受影響日期的「本日完成數量」與「累計完成數量」是否要連動調整，避免進度曲線出現跳點。\n\n💡 當責提醒：真實工地上，日誌填錯置之不理可能影響估驗計價甚至衍生爭議；主動更正並留下軌跡，是專業也是保護自己。',
+    s:'任務 2 手冊・日誌修改規範'},
+   {q:'SPI 算出來 0.85，代表什麼意思？',k:['spi','實獲值','evm','0.85'],
+    a:'SPI（進度績效指標）= 實獲值 EV ÷ 計畫值 PV。0.85 代表：到目前為止，實際完成的工作量只有計畫的 85%——進度落後。\n\n判讀時注意兩件事：\n1. 搭配 CPI（成本績效）一起看，才知道是「慢但省」還是「又慢又貴」。\n2. 回到 S 曲線找出落後發生的區段，對照施工日誌看那幾週發生了什麼。\n\n💡 當責提醒：指標算出來不是終點——誠實面對數字、追出原因，才是對專案負責。',
+    s:'任務 3 手冊・EVM 實獲值分析'},
+   {q:'任務 3 的 CPM 前推後推一直對不起來怎麼辦？',k:['cpm','前推','後推','排程','工期'],
+    a:'前推後推對不起來，九成是這三個地方出了問題，照順序檢查：\n1. 網圖邏輯：每個作業的前置關係有沒有漏（尤其匯入點）。\n2. 前推取「最大」、後推取「最小」——最常見的就是這裡取反了。\n3. 總工期：後推起點是否用前推算出的完工日。\n\n建議把手算過程逐格列出來再檢查，不要在腦中運算。學長姐的經驗：「問了十來次 AI 都沒辦法閉合，最後自己手算出來」——AI 可以幫你檢查觀念，但閉合的成就感是你自己的。\n\n💡 當責提醒：算不出來就先放著，和追到它閉合為止——差別就是當責。',
+    s:'任務 3 手冊・CPM 要徑法'}
+  ]},
+ sys:{
+  welcome:'你好，我是 EAGLE 系統操作助教 🦅\n舉凡施工日誌、自主檢查、進度報告、照片管理的系統操作問題都可以問我。',
+  qa:[
+   {q:'怎麼新增一筆施工日誌？',k:['新增','施工日誌','填日誌'],
+    a:'路徑：左側選單「施工管理」→「施工日誌」→ 點「新增日誌」。\n\n填寫順序：\n1.【基本資訊】選填表日期與上午／下午天氣。\n2.【施工項目】點「新增施工項目」，從契約工項清單選取當日施作項目，填「本日完成數量」（也可切換到統計表模式逐項輸入）。\n3.【材料使用】【人員機具】依當日實況填寫。\n4.【安全衛生】勾選工前教育、新進人員保險、PPE 檢查。\n5. 點「儲存」完成。',
+    s:'EAGLE 系統操作介紹・施工日誌'},
+   {q:'自主檢查表要怎麼建立？',k:['自主檢查','查驗','檢查表'],
+    a:'路徑：「自主檢查」→ 點「新增查驗」。\n\n重點欄位：\n1. 選擇分項工程——分項工程名稱會自動帶入表頭。\n2. 填檢查日期、檢查位置、檢查時機。\n3. 逐項勾選檢查結果（合格／不合格／不適用），不合格項目填改善說明。\n4. 「查核人」欄位簽名後送出。\n\n💡 這個簽名就是你的專業背書——課程把它設計成任務 4 的當責考驗，不是偶然。',
+    s:'EAGLE 系統操作介紹・自主檢查'},
+   {q:'進度報告去哪裡下載？',k:['進度報告','下載','報表'],
+    a:'路徑：「進度報告」→ 勾選要匯出的日期區間 → 右上角「匯出報表」。\n\n系統會產出 Excel 檔（公司施工日誌格式），可以直接對照你在系統裡填的逐日數量。下載紀錄會列在頁面下方（今天／上週分組），隨時可以重新下載。',
+    s:'EAGLE 系統操作介紹・進度報告'},
+   {q:'施工照片怎麼快速找到、放大檢視？',k:['照片','放大','檢視','地圖'],
+    a:'兩種方式：\n1.【施工照片】所有照片依拍攝日期自動分組，頁面右上角有滑桿——往右拉放大縮圖、往左拉縮小，點擊照片可全螢幕檢視。\n2.【地圖檢索】在地圖上依工程位置找照片，適合多案場管理時快速定位。',
+    s:'EAGLE 系統操作介紹・照片管理'}
+  ]}
+};
+const tdChat=document.getElementById('tdChat'),tdChips=document.getElementById('tdChips'),tdInput=document.getElementById('tdInput'),tdSend=document.getElementById('tdSend');
+if(tdChat){
+ const TD_API='https://api-production-6163.up.railway.app/api/ai-tutor/demo-chat';
+ const tdBadge=document.querySelector('.td-badge');
+ let tdBot='lms',tdBusy=false;
+ function tdScroll(){tdChat.scrollTop=tdChat.scrollHeight}
+ function tdAdd(cls,text){const d=document.createElement('div');d.className='td-msg '+cls;d.textContent=text;tdChat.appendChild(d);tdScroll();return d}
+ function tdSetMode(live){
+  if(!tdBadge)return;
+  if(live){tdBadge.textContent='真實助教・RAG 連線';tdBadge.style.background='#2E7D32';tdBadge.style.color='#fff'}
+  else{tdBadge.textContent='演練模式・預錄示範';tdBadge.style.background='';tdBadge.style.color=''}
+ }
+ function tdTypeOut(d,text,srcLabel){
+  return new Promise(res=>{
+   let i=0;
+   (function step(){
+    i=Math.min(i+3,text.length);
+    d.textContent=text.slice(0,i);tdScroll();
+    if(i<text.length){setTimeout(step,18)}
+    else{
+     if(srcLabel){const s=document.createElement('span');s.className='src';s.textContent=srcLabel;d.appendChild(s);tdScroll()}
+     res();
+    }
+   })();
+  });
+ }
+ async function tdLive(q){
+  const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),25000);
+  try{
+   const r=await fetch(TD_API,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:q.slice(0,300),system:tdBot==='lms'?'eagle-lms':'dashboard'}),signal:ctrl.signal});
+   clearTimeout(to);
+   if(r.status===429){let d={};try{d=await r.json()}catch(e){}return{limited:(d&&d.detail)||'演示額度已達上限（每小時 10 題），請稍後再試。'}}
+   if(!r.ok)return null;
+   const d=await r.json();
+   if(!d||typeof d.answer!=='string'||!d.answer.trim())return null;
+   const src=(d.sources||[]).map(s=>s&&s.title).filter(Boolean).slice(0,3).join('、');
+   return{answer:d.answer,src:src};
+  }catch(e){clearTimeout(to);return null}
+ }
+ function tdWelcome(){tdChat.innerHTML='';tdAdd('bot',TD_DATA[tdBot].welcome)}
+ function tdRenderChips(){
+  tdChips.innerHTML='';
+  TD_DATA[tdBot].qa.forEach(item=>{
+   const b=document.createElement('button');b.type='button';b.className='td-chip';b.textContent=item.q;
+   b.addEventListener('click',()=>tdAsk(item.q));tdChips.appendChild(b);
+  });
+ }
+ async function tdAsk(q){
+  if(tdBusy)return;tdBusy=true;
+  tdAdd('user',q);
+  const t=document.createElement('div');t.className='td-typing';t.textContent='助教思考中…（正在查詢課程知識庫）';tdChat.appendChild(t);tdScroll();
+  const live=await tdLive(q);
+  t.remove();
+  const d=tdAdd('bot','');
+  if(live&&live.limited){tdSetMode(true);await tdTypeOut(d,live.limited,null)}
+  else if(live){tdSetMode(true);await tdTypeOut(d,live.answer,live.src?('📚 知識庫來源：'+live.src):'📚 來源：課程知識庫（RAG）')}
+  else{
+   tdSetMode(false);
+   const norm=q.toLowerCase();
+   let hit=TD_DATA[tdBot].qa.find(item=>item.q===q);
+   if(!hit)hit=TD_DATA[tdBot].qa.find(item=>item.k.some(kw=>norm.includes(kw.toLowerCase())));
+   if(hit){await tdTypeOut(d,hit.a,'📚 來源：'+hit.s+'（離線預錄）')}
+   else{await tdTypeOut(d,'目前無法連上線上助教，離線演練僅涵蓋上方範例問題 🙏 請點範例試試，或登入 EAGLE 2.0 LMS 使用完整版助教。',null)}
+  }
+  tdBusy=false;
+ }
+ document.querySelectorAll('.td-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+   if(tdBusy)return;
+   document.querySelectorAll('.td-tab').forEach(x=>x.classList.remove('on'));
+   tab.classList.add('on');tdBot=tab.dataset.bot;tdWelcome();tdRenderChips();
+  });
+ });
+ function tdSubmit(){const v=tdInput.value.trim();if(!v||tdBusy)return;tdInput.value='';tdAsk(v)}
+ tdSend.addEventListener('click',tdSubmit);
+ let tdComposing=false;
+ tdInput.addEventListener('compositionstart',()=>{tdComposing=true});
+ tdInput.addEventListener('compositionend',()=>{tdComposing=false});
+ tdInput.addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  if(tdComposing||e.isComposing||e.keyCode===229)return; // 中文輸入法選字中的 Enter 交給輸入法
+  e.preventDefault();tdSubmit();
+ });
+ tdWelcome();tdRenderChips();
+}
+
+// 照片燈箱
+const lb=document.getElementById('lightbox'),lbImg=lb.querySelector('img'),lbCap=lb.querySelector('p');
+document.querySelectorAll('.gallery figure, .photo-band').forEach(f=>{
+  f.addEventListener('click',()=>{
+    const img=f.querySelector('img'),cap=f.querySelector('figcaption, .cap');
+    lbImg.src=img.src;lbImg.alt=img.alt;lbCap.textContent=cap?cap.textContent:'';
+    lb.classList.add('show');document.body.style.overflow='hidden';
+  });
+});
+lb.addEventListener('click',()=>{lb.classList.remove('show');document.body.style.overflow='';});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&lb.classList.contains('show')){lb.classList.remove('show');document.body.style.overflow='';}});
+</script>
+</body>
+</html>

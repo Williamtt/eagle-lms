@@ -376,6 +376,25 @@ def index():
     return redirect(url_for('login'))
 
 
+# ─── 公開頁：教學實踐研究成果網站（免登入，純靜態，不觸及任何資料） ─────────────
+RESEARCH_SITE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'research_site')
+
+
+@app.route('/research')
+def research_redirect():
+    return redirect('/research/')
+
+
+@app.route('/research/')
+def research_index():
+    return send_from_directory(RESEARCH_SITE_DIR, 'index.html')
+
+
+@app.route('/research/<path:filename>')
+def research_file(filename):
+    return send_from_directory(RESEARCH_SITE_DIR, filename)
+
+
 @app.route('/manual')
 @login_required
 def manual():
