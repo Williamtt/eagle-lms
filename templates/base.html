@@ -23,8 +23,10 @@
             background-color: #f5f5f5;
         }
 
-        /* Navigation */
-        nav {
+        /* Navigation
+           用 body > nav 限定「站台導覽列」，避免波及頁面內容裡的 <nav>
+           （例如任務手冊的目錄 <nav class="toc">）。 */
+        body > nav {
             background-color: #1a5276;
             padding: 1rem 2rem;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -336,7 +338,7 @@
 
         /* Responsive */
         @media (max-width: 768px) {
-            nav {
+            body > nav {
                 flex-direction: column;
                 gap: 1rem;
             }
@@ -444,7 +446,7 @@
     <script>
     // 將導覽列實際高度寫入 --nav-h，讓頁內其他 sticky 元素（如問卷進度條）不被蓋住
     (function () {
-        var nav = document.querySelector('nav');
+        var nav = document.querySelector('body > nav');
         if (!nav) return;
         function sync() {
             document.documentElement.style.setProperty(
