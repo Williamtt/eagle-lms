@@ -159,10 +159,14 @@ def generate_instant_feedback(task_number, submission_type, content, student_nam
 
 
 def generate_teacher_analysis(submissions_data):
-    """Generate class-level analytics report for teacher."""
+    """Generate class-level analytics report for teacher.
+
+    回傳 dict：{'analysis': str, '_usage': {...}, 'error': str（可選）}
+    （v2.8.1 由回傳純字串改為 dict，以便呼叫端寫入 ai_quota 用量。）
+    """
     client = get_client()
     if not client:
-        return "AI 分析功能尚未啟用。"
+        return {"analysis": "AI 分析功能尚未啟用。", "error": "ai_disabled", "_usage": {}}
 
     system_prompt = """你是一位營建管理課程的教學分析助理。請根據全班學生的提交資料，產生一份教學分析報告。
 
@@ -176,6 +180,7 @@ def generate_teacher_analysis(submissions_data):
 
 請用繁體中文、以段落方式撰寫（不要用條列式），約 500-800 字。"""
 
+    message = None
     try:
         message = client.messages.create(
             model="claude-sonnet-4-5",
@@ -186,9 +191,12 @@ def generate_teacher_analysis(submissions_data):
                 "content": f"以下是全班學生的提交資料彙整：\n\n{json.dumps(submissions_data, ensure_ascii=False, indent=2)}"
             }]
         )
-        return message.content[0].text
+        return {"analysis": message.content[0].text,
+                "_usage": _extract_usage(message, "claude-sonnet-4-5")}
     except Exception as e:
-        return f"分析報告生成失敗：{str(e)}"
+        print(f"[ai_service] generate_teacher_analysis error: {e}")
+        return {"analysis": "", "error": str(e),
+                "_usage": _extract_usage(message, "claude-sonnet-4-5") if message else {}}
 
 
 def generate_review_suggestion(submission_content, task_number, submission_type):

@@ -11,6 +11,11 @@
             box-sizing: border-box;
         }
 
+        :root {
+            /* 導覽列高度，由頁尾 script 依實際高度更新；供 sticky 子元素定位用 */
+            --nav-h: 64px;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Microsoft JhengHei', Arial, sans-serif;
             line-height: 1.6;
@@ -26,6 +31,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 900;
         }
 
         .nav-logo {
@@ -433,6 +441,19 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-tutor.css') }}">
     <script src="{{ url_for('static', filename='js/ai-tutor.js') }}"></script>
     {% endif %}
+    <script>
+    // 將導覽列實際高度寫入 --nav-h，讓頁內其他 sticky 元素（如問卷進度條）不被蓋住
+    (function () {
+        var nav = document.querySelector('nav');
+        if (!nav) return;
+        function sync() {
+            document.documentElement.style.setProperty(
+                '--nav-h', nav.offsetHeight + 'px');
+        }
+        sync();
+        window.addEventListener('resize', sync);
+    })();
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

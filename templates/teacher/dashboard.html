@@ -38,14 +38,22 @@
         background: #fff; border-radius: 8px; overflow: hidden;
         box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         transition: transform 0.2s, box-shadow 0.2s;
+        display: flex; flex-direction: column;
     }
     .task-card:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
     .task-card-hd {
         background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
         color: #fff; padding: 1.1rem 1.4rem;
     }
-    .task-card-hd h3 { font-size: 1.05rem; margin: 0; }
-    .task-card-bd { padding: 1.1rem 1.4rem; }
+    /* 標題一律佔滿兩行高度，任務名稱長短不一時卡片內容仍能對齊 */
+    .task-card-hd h3 {
+        font-size: 1.05rem; margin: 0;
+        line-height: 1.45; min-height: 2.9em;
+        display: flex; align-items: center;
+    }
+    .task-card-bd { padding: 1.1rem 1.4rem; display: flex; flex-direction: column; flex: 1; }
+    /* 按鈕靠卡片底部對齊 */
+    .task-card-cta { margin-top: auto; padding-top: 0.8rem; }
     .stat-row {
         display: flex; justify-content: space-between;
         padding: 0.55rem 0; border-bottom: 1px solid #f0f0f0;
@@ -275,7 +283,7 @@
                         {% endif %}
                     </span>
                 </div>
-                <div style="margin-top:0.8rem;">
+                <div class="task-card-cta">
                     <a href="{{ url_for('teacher_task_submissions', task_number=t_num) }}"
                        class="btn btn-primary btn-small" style="width:100%;text-align:center;">
                         查看提交列表
@@ -443,7 +451,7 @@
                         {% if student.experimental_group == 'control' %}
                             提案已提交 {{ proposal_counts.get(student.id, 0) }} 份
                         {% elif student.experimental_group == 'experimental' %}
-                            任務 {{ student.task_submissions.filter_by(semester=semester).count() }} / {{ task_stats | length }}
+                            任務 {{ task_sub_counts.get(student.id, 0) }} / {{ task_stats | length }}
                         {% else %}
                             <span style="color:#aaa;">未分群</span>
                         {% endif %}

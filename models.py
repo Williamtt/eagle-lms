@@ -262,6 +262,27 @@ class AIBatchJob(db.Model):
     last_error  = db.Column(db.String(500), default='')
 
 
+class TeacherAnalysisCache(db.Model):
+    """學習分析（班級層級 AI 摘要）快取。
+
+    v2.8.1：原本每次進入 /teacher/analytics 都同步重跑一次全班 AI 分析
+    （整包反思逐字稿丟給 Claude，30–90 秒，且完全繞過 ai_quota）。
+    改為存檔顯示 + 教師按鈕手動重新分析。
+    """
+    __tablename__ = 'teacher_analysis_caches'
+    id           = db.Column(db.Integer, primary_key=True)
+    task_number  = db.Column(db.Integer, nullable=False)
+    semester     = db.Column(db.String(10), nullable=False)
+    analysis     = db.Column(db.Text, default='')
+    # 產生當下的資料指紋；與現況不符時前端提示「資料已更新，建議重新分析」
+    fingerprint  = db.Column(db.String(120), default='')
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    __table_args__ = (db.UniqueConstraint('task_number', 'semester',
+                                          name='uq_analysis_cache_task_semester'),)
+
+
 # =============================================================================
 # 模組 D：問卷系統
 # =============================================================================

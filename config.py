@@ -14,6 +14,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = DATABASE_URL or 'sqlite:///eagle_lms.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # 連線池健康檢查：Railway Postgres 重啟或閒置後，池中連線可能已被對端關閉，
+    # 若不先 ping 會在下一次查詢才爆 "SSL SYSCALL error: EOF detected"（使用者端表現為長時間空轉）。
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 280,   # < Railway proxy 的閒置回收時間，主動汰換舊連線
+    }
+
     # File uploads
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'static/uploads')
     MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32MB max

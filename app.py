@@ -29,7 +29,8 @@ from models import (db, User,
                     Workshop, WorkshopParticipation,
                     LearningEvent, TaskSubmissionSnapshot,
                     TaskSchedule, TaskDateChangeLog,
-                    SelfStudyProposal, OralPresentationAssessment)
+                    SelfStudyProposal, OralPresentationAssessment,
+                    TeacherAnalysisCache)
 from sqlalchemy import or_, and_
 import requests as http_requests
 import ai_service
@@ -1383,6 +1384,17 @@ def teacher_dashboard():
         for t_num, t_def in TASKS.items()
     }
 
+    # 各學生任務提交數（實驗組用）；取代 template 內 per-student 的 count 查詢
+    task_sub_counts = {
+        uid: count
+        for uid, count in db.session.query(
+            TaskSubmission.user_id,
+            db.func.count(TaskSubmission.id)
+        ).filter(
+            TaskSubmission.semester == SEMESTER
+        ).group_by(TaskSubmission.user_id).all()
+    }
+
     # 各學生提案數（對照組用）
     proposal_counts = {
         uid: count
@@ -1429,6 +1441,7 @@ def teacher_dashboard():
                            task_stats=task_stats,
                            tasks=TASKS,
                            proposal_counts=proposal_counts,
+                           task_sub_counts=task_sub_counts,
                            semester=SEMESTER,
                            experimental_count=experimental_count,
                            ai_chip=ai_chip)
@@ -2390,6 +2403,131 @@ def teacher_student_profile(uid):
                            total_journals=5)
 
 
+# ─── Teacher: 學習分析 ───────────────────────────────────────────────────────
+#
+# v2.8.1：原本每次 GET 都同步重跑一次全班 AI 分析（把 68 份反思逐字稿整包送給
+# Claude，30–90 秒，且完全繞過 ai_quota）。改為：
+#   GET  /teacher/analytics              → 只讀 TeacherAnalysisCache，不呼叫 AI
+#   POST /teacher/analytics/generate     → 教師手動觸發，走 ai_quota 治理後寫入快取
+# 頁面統計與明細表改用 GROUP BY 一次撈齊，取代 template 內的 per-submission 查詢。
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _analytics_submissions(task_number):
+    """該任務全部提交（author 一併 join，避免明細表 N+1）。"""
+    return (TaskSubmission.query
+            .options(db.joinedload(TaskSubmission.author))
+            .filter_by(task_number=task_number, semester=SEMESTER)
+            .order_by(TaskSubmission.id.asc())
+            .all())
+
+
+def _analytics_fingerprint(subs):
+    """資料指紋：提交筆數 + 最新內容更新時間。與快取不符即提示可重新分析。"""
+    if not subs:
+        return 'empty'
+    stamps = [s.content_updated_at or s.updated_at or s.submitted_at for s in subs]
+    stamps = [t for t in stamps if t]
+    latest = max(stamps).isoformat(timespec='seconds') if stamps else ''
+    return f'{len(subs)}:{latest}'
+
+
+def _checklist_counts(sub_ids):
+    """{submission_id: (checked, total)}；一次 GROUP BY 取代逐筆查詢。"""
+    if not sub_ids:
+        return {}
+    rows = db.session.query(
+        ChecklistResponse.submission_id,
+        db.func.count(ChecklistResponse.id),
+        db.func.sum(db.case((ChecklistResponse.checked == True, 1), else_=0)),
+        db.func.sum(db.case((ChecklistResponse.status == 'done', 1), else_=0)),
+    ).filter(
+        ChecklistResponse.submission_id.in_(sub_ids)
+    ).group_by(ChecklistResponse.submission_id).all()
+    return {r[0]: (int(r[2] or 0), int(r[1] or 0), int(r[3] or 0)) for r in rows}
+
+
+def _analytics_rows(subs):
+    """明細表用的資料列 + 統計摘要（三個 GROUP BY / IN 查詢）。"""
+    sub_ids = [s.id for s in subs]
+    cl_map = _checklist_counts(sub_ids)
+
+    review_map = {}
+    if sub_ids:
+        # 依 reviewed_at 由舊到新掃過，後寫入者即為最新一筆
+        for rv in (TeacherReview.query
+                   .filter(TeacherReview.task_submission_id.in_(sub_ids),
+                           TeacherReview.published == True)
+                   .order_by(TeacherReview.reviewed_at.asc()).all()):
+            review_map[rv.task_submission_id] = rv
+
+    ai_ids = set()
+    if sub_ids:
+        ai_ids = {r[0] for r in db.session.query(AIFeedback.task_submission_id)
+                  .filter(AIFeedback.task_submission_id.in_(sub_ids)).distinct().all()}
+
+    rows = []
+    cl_checked_sum = cl_total_sum = 0
+    for s in subs:
+        chk, tot, _done = cl_map.get(s.id, (0, 0, 0))
+        cl_checked_sum += chk
+        cl_total_sum   += tot
+        rows.append({
+            'id':           s.id,
+            'student_id':   s.author.student_id if s.author else '',
+            'name':         s.author.name if s.author else '',
+            'class_group':  s.author.class_group if s.author else '',
+            'updated_at':   s.updated_at,
+            'task_version': s.task_version,
+            'cl_checked':   chk,
+            'cl_total':     tot,
+            'cl_pct':       int(chk / tot * 100) if tot else 0,
+            'review':       review_map.get(s.id),
+            'has_ai':       s.id in ai_ids,
+        })
+
+    reviewed = sum(1 for r in rows if r['review'])
+    summary = {
+        'total':    len(rows),
+        'reviewed': reviewed,
+        'pending':  len(rows) - reviewed,
+        'cl_rate':  round(cl_checked_sum / cl_total_sum * 100, 1) if cl_total_sum else 0,
+    }
+    return rows, summary
+
+
+def _analytics_ai_payload(subs):
+    """送給 Claude 的班級彙整資料（反思 / 檢核 / AI 分數各一次 IN 查詢）。"""
+    sub_ids = [s.id for s in subs]
+    if not sub_ids:
+        return []
+
+    reflections = {}
+    for r in ReflectionResponse.query.filter(
+            ReflectionResponse.submission_id.in_(sub_ids)).all():
+        reflections.setdefault(r.submission_id, {})[r.question_id] = r.answer
+
+    cl_map = _checklist_counts(sub_ids)
+
+    ai_scores = {}
+    for fb in (AIFeedback.query
+               .filter(AIFeedback.task_submission_id.in_(sub_ids))
+               .order_by(AIFeedback.created_at.asc()).all()):
+        if fb.scores:
+            try:
+                ai_scores[fb.task_submission_id] = json.loads(fb.scores)
+            except (ValueError, TypeError):
+                pass
+
+    return [{
+        'student_id':   s.author.student_id if s.author else '',
+        'class':        s.author.class_group if s.author else '',
+        'task_version': s.task_version,
+        'reflection_answers':   reflections.get(s.id, {}),
+        'checklist_completion': cl_map.get(s.id, (0, 0, 0))[2],
+        'ai_scores':            ai_scores.get(s.id, {}),
+    } for s in subs]
+
+
 @app.route('/teacher/analytics')
 @login_required
 def teacher_analytics():
@@ -2398,36 +2536,80 @@ def teacher_analytics():
 
     task_number = request.args.get('task', 1, type=int)
     task_def    = TASKS.get(task_number, {})
-    subs        = TaskSubmission.query.filter_by(
-        task_number=task_number, semester=SEMESTER).all()
+    subs        = _analytics_submissions(task_number)
+    rows, summary = _analytics_rows(subs)
 
-    submissions_data = []
-    for s in subs:
-        ai_fb = s.ai_feedbacks.order_by(AIFeedback.created_at.desc()).first()
-        # 整理反思回答供分析
-        rq_map = {r.question_id: r.answer for r in s.reflection_responses}
-        submissions_data.append({
-            'student_id':   s.author.student_id,
-            'class':        s.author.class_group,
-            'task_version': s.task_version,
-            'reflection_answers': rq_map,
-            'checklist_completion': sum(
-                1 for r in s.checklist_responses if (r.status or '') == 'done'
-            ),
-            'ai_scores': json.loads(ai_fb.scores)
-                         if ai_fb and ai_fb.scores else {},
-        })
-
-    analysis = ''
-    if submissions_data and app.config.get('ANTHROPIC_API_KEY'):
-        analysis = ai_service.generate_teacher_analysis(submissions_data)
+    cache = TeacherAnalysisCache.query.filter_by(
+        task_number=task_number, semester=SEMESTER).first()
 
     return render_template('teacher/analytics.html',
                            task_number=task_number,
                            task_def=task_def,
-                           submissions=subs,
-                           analysis=analysis,
+                           rows=rows,
+                           summary=summary,
+                           analysis=cache.analysis if cache else '',
+                           analysis_generated_at=cache.generated_at if cache else None,
+                           analysis_stale=bool(cache) and
+                                          cache.fingerprint != _analytics_fingerprint(subs),
+                           ai_enabled=bool(app.config.get('ANTHROPIC_API_KEY')),
                            tasks=TASKS)
+
+
+@app.route('/teacher/analytics/generate', methods=['POST'])
+@login_required
+@csrf_required
+def teacher_analytics_generate():
+    """教師手動觸發全班 AI 分析（同步等待，會跑數十秒）。"""
+    if not current_user.is_teacher:
+        return redirect(url_for('dashboard'))
+
+    task_number = request.form.get('task', 1, type=int)
+    back = url_for('teacher_analytics', task=task_number)
+
+    if not app.config.get('ANTHROPIC_API_KEY'):
+        flash('AI 分析功能尚未啟用（未設定 ANTHROPIC_API_KEY）。', 'error')
+        return redirect(back)
+
+    subs = _analytics_submissions(task_number)
+    if not subs:
+        flash('此任務尚無學生提交，無法分析。', 'warning')
+        return redirect(back)
+
+    from services import ai_quota
+    allowed, reason = ai_quota.can_call()
+    if not allowed:
+        flash(reason, 'error')
+        return redirect(back)
+
+    result = ai_service.generate_teacher_analysis(_analytics_ai_payload(subs))
+    usage  = result.get('_usage') or {}
+    ai_quota.record_call(
+        purpose        = 'teacher_analysis',
+        model_used     = usage.get('model', 'claude-sonnet-4-5'),
+        input_tokens   = usage.get('input_tokens', 0),
+        output_tokens  = usage.get('output_tokens', 0),
+        user_id        = current_user.id,
+        success        = not result.get('error'),
+        error_message  = result.get('error', ''),
+    )
+
+    if result.get('error') or not result.get('analysis'):
+        flash(f"AI 分析生成失敗：{result.get('error', '未知錯誤')}", 'error')
+        return redirect(back)
+
+    cache = TeacherAnalysisCache.query.filter_by(
+        task_number=task_number, semester=SEMESTER).first()
+    if not cache:
+        cache = TeacherAnalysisCache(task_number=task_number, semester=SEMESTER)
+        db.session.add(cache)
+    cache.analysis     = result['analysis']
+    cache.fingerprint  = _analytics_fingerprint(subs)
+    cache.generated_at = datetime.utcnow()
+    cache.generated_by = current_user.id
+    db.session.commit()
+
+    flash('AI 分析已更新。', 'success')
+    return redirect(back)
 
 
 # ─── Teacher: Data Export (P7) ───────────────────────────────────────────────

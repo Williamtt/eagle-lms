@@ -277,17 +277,29 @@ def schedule_background_draft(sub_id: int) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def list_pending_submissions() -> list[TaskSubmission]:
-    """列出『本學期已 submitted、未 finalized rubric、cache 缺或失效』的提交。"""
+    """列出『本學期已 submitted、未 finalized rubric、cache 缺或失效』的提交。
+
+    v2.8.1：原本每筆提交各查 2 次（finalized + cache），教師儀表板每次載入都跑一輪。
+    改為兩次 IN 查詢一次撈齊。
+    """
     from task_definitions import SEMESTER as _SEM
     subs = TaskSubmission.query.filter_by(status='submitted', semester=_SEM).all()
-    pending = []
-    for s in subs:
-        if _is_finalized_review(s):
-            continue
-        cache = AIReviewSuggestion.query.filter_by(task_submission_id=s.id).first()
-        if not _is_cache_fresh(cache, s):
-            pending.append(s)
-    return pending
+    if not subs:
+        return []
+
+    ids = [s.id for s in subs]
+    finalized = {
+        r[0] for r in db.session.query(TeacherReview.task_submission_id).filter(
+            TeacherReview.task_submission_id.in_(ids),
+            TeacherReview.rubric_finalized_at.isnot(None)).all()
+    }
+    caches = {
+        c.task_submission_id: c
+        for c in AIReviewSuggestion.query.filter(
+            AIReviewSuggestion.task_submission_id.in_(ids)).all()
+    }
+    return [s for s in subs
+            if s.id not in finalized and not _is_cache_fresh(caches.get(s.id), s)]
 
 
 def batch_pregenerate_drafts(teacher_id: int) -> int:

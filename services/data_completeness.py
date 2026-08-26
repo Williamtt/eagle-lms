@@ -6,6 +6,7 @@
 """
 
 import json
+from datetime import datetime
 from models import (db, User, TaskSubmission, TeacherReview, LearningJournal,
                     OralPresentationAssessment, SelfStudyProposal,
                     Questionnaire, QuestionnaireSubmission, LearningEvent)
@@ -61,20 +62,103 @@ LABELS = {
 }
 
 
-def _has_questionnaire(user_id: int, code: str) -> bool:
-    q = Questionnaire.query.filter_by(code=code).first()
-    if not q:
+class _Bulk:
+    """一次撈齊整批學生所需資料，取代原本 per-student、per-item 的逐項查詢。
+
+    v2.8.1：/teacher/data-check 原本 90 位學生 × 約 20 次查詢 ≈ 1800 次 round-trip。
+    改為固定 8 次查詢。單一學生也走同一條路徑（user_ids 只放一個），避免兩套邏輯分歧。
+    """
+
+    _MIN_DT = datetime.min
+
+    def __init__(self, user_ids, semester: str):
+        self.semester = semester
+        ids = list(user_ids)
+
+        # ── 問卷填答 ──
+        self.q_by_code = {q.code: q.id for q in Questionnaire.query.all()}
+        self.q_done = set()
+        if ids:
+            self.q_done = {
+                (r[0], r[1]) for r in db.session.query(
+                    QuestionnaireSubmission.user_id,
+                    QuestionnaireSubmission.questionnaire_id,
+                ).filter(QuestionnaireSubmission.user_id.in_(ids)).all()
+            }
+
+        # ── 任務提交（非草稿）；UniqueConstraint 保證每人每任務至多一筆 ──
+        self.task_sub = {}          # (user_id, task_number) -> submission_id
+        sub_ids = []
+        if ids:
+            rows = (TaskSubmission.query
+                    .filter(TaskSubmission.user_id.in_(ids),
+                            TaskSubmission.semester == semester,
+                            TaskSubmission.status != 'draft')
+                    .all())
+            rows.sort(key=lambda s: s.submitted_at or self._MIN_DT)
+            for s in rows:          # 由舊到新掃過，最後寫入者即最新一筆
+                self.task_sub[(s.user_id, s.task_number)] = s.id
+            sub_ids = [s.id for s in rows]
+
+        self.rubric_finalized = set()
+        if sub_ids:
+            self.rubric_finalized = {
+                r[0] for r in db.session.query(TeacherReview.task_submission_id)
+                .filter(TeacherReview.task_submission_id.in_(sub_ids),
+                        TeacherReview.rubric_finalized_at.isnot(None)).all()
+            }
+
+        # ── 學習日誌（無 unique constraint，取最新一筆）──
+        self.journals = {}          # (user_id, journal_number) -> LearningJournal
+        if ids:
+            js = (LearningJournal.query
+                  .filter(LearningJournal.user_id.in_(ids),
+                          LearningJournal.semester == semester).all())
+            js.sort(key=lambda j: j.submitted_at or self._MIN_DT)
+            for j in js:
+                self.journals[(j.user_id, j.journal_number)] = j
+
+        # ── 口頭報告（UniqueConstraint user_id + semester）──
+        self.oral_finalized = set()
+        if ids:
+            self.oral_finalized = {
+                o.user_id for o in OralPresentationAssessment.query
+                .filter(OralPresentationAssessment.user_id.in_(ids),
+                        OralPresentationAssessment.semester == semester).all()
+                if o.finalized_at
+            }
+
+        # ── 自學提案（UniqueConstraint user_id + proposal_number + semester）──
+        self.proposals = {}         # (user_id, n) -> (id, finalized_at)
+        if ids:
+            for p in (SelfStudyProposal.query
+                      .filter(SelfStudyProposal.user_id.in_(ids),
+                              SelfStudyProposal.semester == semester).all()):
+                self.proposals[(p.user_id, p.proposal_number)] = (p.id, p.finalized_at)
+
+        # ── beacon 事件 ──
+        self.events = {}            # user_id -> [LearningEvent]
+        if ids:
+            for e in (LearningEvent.query
+                      .filter(LearningEvent.user_id.in_(ids),
+                              LearningEvent.entity_type == 'task_submission',
+                              LearningEvent.event_type.in_([
+                                  'ai_feedback_received',
+                                  'ai_feedback_viewed',
+                                  'task_resubmitted',
+                              ])).all()):
+                self.events.setdefault(e.user_id, []).append(e)
+
+
+def _has_questionnaire(user_id: int, code: str, bulk: _Bulk) -> bool:
+    qid = bulk.q_by_code.get(code)
+    if qid is None:
         return False
-    return QuestionnaireSubmission.query.filter_by(
-        user_id=user_id, questionnaire_id=q.id
-    ).first() is not None
+    return (user_id, qid) in bulk.q_done
 
 
-def _journal5_has_dp5(user_id: int, semester: str) -> bool:
-    j5 = (LearningJournal.query
-          .filter_by(user_id=user_id, journal_number=5, semester=semester)
-          .order_by(LearningJournal.submitted_at.desc())
-          .first())
+def _journal5_has_dp5(user_id: int, semester: str, bulk: _Bulk) -> bool:
+    j5 = bulk.journals.get((user_id, 5))
     if not j5 or not j5.evaluation_json:
         return False
     try:
@@ -84,83 +168,50 @@ def _journal5_has_dp5(user_id: int, semester: str) -> bool:
         return False
 
 
-def _has_journal(user_id: int, n: int, semester: str) -> bool:
-    return LearningJournal.query.filter_by(
-        user_id=user_id, journal_number=n, semester=semester
-    ).first() is not None
+def _has_journal(user_id: int, n: int, semester: str, bulk: _Bulk) -> bool:
+    return (user_id, n) in bulk.journals
 
 
-def _has_oral_finalized(user_id: int, semester: str) -> bool:
-    oral = OralPresentationAssessment.query.filter_by(
-        user_id=user_id, semester=semester
-    ).first()
-    return bool(oral and oral.finalized_at)
+def _has_oral_finalized(user_id: int, semester: str, bulk: _Bulk) -> bool:
+    return user_id in bulk.oral_finalized
 
 
-def _exp_task_status(user_id: int, task_number: int, semester: str):
+def _exp_task_status(user_id: int, task_number: int, semester: str, bulk: _Bulk):
     """回傳 (submitted, rubric_finalized, submission_id_or_none)。"""
-    sub = (TaskSubmission.query
-           .filter(
-               TaskSubmission.user_id == user_id,
-               TaskSubmission.task_number == task_number,
-               TaskSubmission.semester == semester,
-               TaskSubmission.status != 'draft',
-           )
-           .order_by(TaskSubmission.submitted_at.desc())
-           .first())
-    if not sub:
+    sub_id = bulk.task_sub.get((user_id, task_number))
+    if not sub_id:
         return False, False, None
-    review = (TeacherReview.query
-              .filter_by(task_submission_id=sub.id)
-              .filter(TeacherReview.rubric_finalized_at != None)
-              .first())
-    return True, review is not None, sub.id
+    return True, sub_id in bulk.rubric_finalized, sub_id
 
 
-def _proposal_finalized(user_id: int, n: int, semester: str) -> bool:
-    p = SelfStudyProposal.query.filter_by(
-        user_id=user_id, proposal_number=n, semester=semester
-    ).first()
-    return bool(p and p.finalized_at)
+def _proposal_finalized(user_id: int, n: int, semester: str, bulk: _Bulk) -> bool:
+    entry = bulk.proposals.get((user_id, n))
+    return bool(entry and entry[1])
 
 
-def _beacon_anomaly(user_id: int) -> bool:
+def _beacon_anomaly(user_id: int, bulk: _Bulk) -> bool:
     """
-    異常：ai_feedback_received 之後 7 天內無 ai_feedback_viewed，但有 task_resubmitted。
+    異常：ai_feedback_received 之後無 ai_feedback_viewed，但有 task_resubmitted。
     任一 submission 出現此情形即標記。
     """
-    received_events = LearningEvent.query.filter_by(
-        user_id=user_id,
-        event_type='ai_feedback_received',
-        entity_type='task_submission',
-    ).all()
-    for ev in received_events:
-        viewed = (LearningEvent.query
-                  .filter_by(
-                      user_id=user_id,
-                      event_type='ai_feedback_viewed',
-                      entity_type='task_submission',
-                      entity_id=ev.entity_id,
-                  )
-                  .filter(LearningEvent.created_at > ev.created_at)
-                  .first())
-        if viewed:
+    evs = bulk.events.get(user_id, [])
+    if not evs:
+        return False
+    for ev in evs:
+        if ev.event_type != 'ai_feedback_received' or ev.created_at is None:
             continue
-        resubmit = (LearningEvent.query
-                    .filter_by(
-                        user_id=user_id,
-                        event_type='task_resubmitted',
-                        entity_type='task_submission',
-                        entity_id=ev.entity_id,
-                    )
-                    .filter(LearningEvent.created_at > ev.created_at)
-                    .first())
-        if resubmit:
+        later = [e for e in evs
+                 if e.entity_id == ev.entity_id
+                 and e.created_at is not None
+                 and e.created_at > ev.created_at]
+        if any(e.event_type == 'ai_feedback_viewed' for e in later):
+            continue
+        if any(e.event_type == 'task_resubmitted' for e in later):
             return True
     return False
 
 
-def student_completeness(user: User, semester: str) -> dict:
+def student_completeness(user: User, semester: str, bulk: '_Bulk' = None) -> dict:
     """
     回傳該生資料完整性摘要。
 
@@ -178,6 +229,9 @@ def student_completeness(user: User, semester: str) -> dict:
         'research_eligible': bool,    # missing == [] 且 anomalies == []
     }
     """
+    if bulk is None:
+        bulk = _Bulk([user.id], semester)
+
     group = user.experimental_group
     if group == 'experimental':
         required = list(EXP_REQUIRED)
@@ -189,16 +243,16 @@ def student_completeness(user: User, semester: str) -> dict:
     completed = []
     links = {}
 
-    if 'arcsa_pre' in required and _has_questionnaire(user.id, 'arcsa_pre'):
+    if 'arcsa_pre' in required and _has_questionnaire(user.id, 'arcsa_pre', bulk):
         completed.append('arcsa_pre')
-    if 'arcsa_post' in required and _has_questionnaire(user.id, 'arcsa_post'):
+    if 'arcsa_post' in required and _has_questionnaire(user.id, 'arcsa_post', bulk):
         completed.append('arcsa_post')
-    if 'satisfaction' in required and _has_questionnaire(user.id, 'satisfaction'):
+    if 'satisfaction' in required and _has_questionnaire(user.id, 'satisfaction', bulk):
         completed.append('satisfaction')
 
     if group == 'experimental':
         for n in (1, 2, 3, 4):
-            submitted, finalized, sub_id = _exp_task_status(user.id, n, semester)
+            submitted, finalized, sub_id = _exp_task_status(user.id, n, semester, bulk)
             if submitted:
                 completed.append(f'task{n}_submitted')
             if finalized:
@@ -208,30 +262,28 @@ def student_completeness(user: User, semester: str) -> dict:
 
     if group == 'control':
         for n in (1, 2, 3, 4):
-            if _proposal_finalized(user.id, n, semester):
+            if _proposal_finalized(user.id, n, semester, bulk):
                 completed.append(f'proposal{n}_finalized')
             else:
-                p = SelfStudyProposal.query.filter_by(
-                    user_id=user.id, proposal_number=n, semester=semester
-                ).first()
-                if p:
-                    links[f'proposal{n}_finalized'] = f'/teacher/self-study/{p.id}'
+                entry = bulk.proposals.get((user.id, n))
+                if entry:
+                    links[f'proposal{n}_finalized'] = f'/teacher/self-study/{entry[0]}'
 
     for n in (1, 2, 3, 4, 5):
-        if _has_journal(user.id, n, semester):
+        if _has_journal(user.id, n, semester, bulk):
             completed.append(f'journal{n}')
 
-    if 'journal5_dp5_self_rating' in required and _journal5_has_dp5(user.id, semester):
+    if 'journal5_dp5_self_rating' in required and _journal5_has_dp5(user.id, semester, bulk):
         completed.append('journal5_dp5_self_rating')
 
     if 'oral_finalized' in required:
-        if _has_oral_finalized(user.id, semester):
+        if _has_oral_finalized(user.id, semester, bulk):
             completed.append('oral_finalized')
 
     missing = [r for r in required if r not in completed]
 
     anomalies = []
-    if group == 'experimental' and _beacon_anomaly(user.id):
+    if group == 'experimental' and _beacon_anomaly(user.id, bulk):
         anomalies.append('beacon_anomaly')
 
     return {
@@ -255,4 +307,5 @@ def all_students_completeness(semester: str) -> list:
                 .filter_by(role='student', status='active')
                 .order_by(User.experimental_group, User.class_group, User.student_id)
                 .all())
-    return [student_completeness(s, semester) for s in students]
+    bulk = _Bulk([s.id for s in students], semester)
+    return [student_completeness(s, semester, bulk) for s in students]

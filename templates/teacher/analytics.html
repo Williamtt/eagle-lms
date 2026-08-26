@@ -108,73 +108,70 @@
     {% endfor %}
 </div>
 
-{# ── 統計（在 template 內計算，避免 context 變數命名混亂）── #}
-{% set total_subs = submissions | length %}
-
-{% set reviewed_count = namespace(n=0) %}
-{% set cl_total_sum   = namespace(n=0) %}
-{% set cl_max_sum     = namespace(n=0) %}
-{% set ai_score_sum   = namespace(n=0.0) %}
-{% set ai_score_cnt   = namespace(n=0) %}
-
-{% for sub in submissions %}
-    {# 已評閱 #}
-    {% if sub.latest_teacher_review %}
-        {% set reviewed_count.n = reviewed_count.n + 1 %}
-    {% endif %}
-    {# 檢核勾選 #}
-    {% for cr in sub.checklist_responses %}
-        {% if cr.checked %}{% set cl_total_sum.n = cl_total_sum.n + 1 %}{% endif %}
-        {% set cl_max_sum.n = cl_max_sum.n + 1 %}
-    {% endfor %}
-    {# AI 整體分數（如果有 overall 數字） #}
-    {% set ai_fb = sub.latest_ai_feedback %}
-    {% if ai_fb and ai_fb.scores %}
-        {# scores JSON 裡找 overall 或 total #}
-    {% endif %}
-{% endfor %}
-
-{% set cl_rate = ((cl_total_sum.n / cl_max_sum.n) * 100) | round(1) if cl_max_sum.n > 0 else 0 %}
-
+{# ── 統計（v2.8.1 改由 route 以 GROUP BY 算好後傳入）── #}
 <div class="stats-grid">
     <div class="stat-box">
         <div class="s-label">已提交</div>
-        <div class="s-value">{{ total_subs }}</div>
+        <div class="s-value">{{ summary.total }}</div>
         <div class="s-sub">份</div>
     </div>
     <div class="stat-box">
         <div class="s-label">已評閱</div>
-        <div class="s-value" style="color:#27ae60;">{{ reviewed_count.n }}</div>
-        <div class="s-sub">/ {{ total_subs }}</div>
+        <div class="s-value" style="color:#27ae60;">{{ summary.reviewed }}</div>
+        <div class="s-sub">/ {{ summary.total }}</div>
     </div>
     <div class="stat-box">
         <div class="s-label">待評閱</div>
-        <div class="s-value" style="color:#e67e22;">{{ total_subs - reviewed_count.n }}</div>
+        <div class="s-value" style="color:#e67e22;">{{ summary.pending }}</div>
         <div class="s-sub">份</div>
     </div>
     <div class="stat-box">
         <div class="s-label">平均檢核完成率</div>
-        <div class="s-value">{{ cl_rate }}</div>
+        <div class="s-value">{{ summary.cl_rate }}</div>
         <div class="s-sub">%</div>
     </div>
 </div>
 
-{# ── AI 分析文字 ── #}
-{% if analysis %}
-    <div class="analysis-card">
-        <h2>🤖 AI 整體分析摘要 — 任務 {{ task_number }}：{{ task_def.name }}</h2>
+{# ── AI 分析文字（v2.8.1：讀快取，不在頁面載入時呼叫 AI）── #}
+<div class="analysis-card">
+    <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;
+                justify-content:space-between;margin-bottom:0.9rem;">
+        <h2 style="margin:0;">🤖 AI 整體分析摘要 — 任務 {{ task_number }}：{{ task_def.name }}</h2>
+        {% if ai_enabled and summary.total > 0 %}
+        <form method="POST" action="{{ url_for('teacher_analytics_generate') }}"
+              style="margin:0;" onsubmit="return startAnalysis(this);">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="task" value="{{ task_number }}">
+            <button type="submit" class="btn btn-secondary btn-small" id="genBtn">
+                {% if analysis %}🔄 重新分析{% else %}✨ 產生 AI 分析{% endif %}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if analysis %}
+        <p style="font-size:0.8rem;color:#888;margin-bottom:0.8rem;">
+            上次分析時間：{{ analysis_generated_at.strftime('%Y-%m-%d %H:%M') }}（UTC）
+            {% if analysis_stale %}
+                <span style="color:#e67e22;font-weight:600;">
+                    ・學生提交在這之後有更新，建議重新分析
+                </span>
+            {% endif %}
+        </p>
         <div class="analysis-text">{{ analysis }}</div>
-    </div>
-{% elif total_subs > 0 %}
-    <div class="analysis-card">
+    {% elif not ai_enabled %}
+        <div class="no-data"><p>⚠ AI 分析功能尚未啟用（未設定 ANTHROPIC_API_KEY）</p></div>
+    {% elif summary.total == 0 %}
+        <div class="no-data"><p>此任務尚無學生提交，無法分析</p></div>
+    {% else %}
         <div class="no-data">
-            <p>⚠ AI 分析尚未生成（API Key 未設定或提交數不足）</p>
+            <p>尚未產生 AI 分析。按上方「✨ 產生 AI 分析」即可（需等待數十秒）。</p>
         </div>
-    </div>
-{% endif %}
+    {% endif %}
+</div>
 
 {# ── 學生明細表 ── #}
-{% if submissions %}
+{% if rows %}
     <div class="analysis-card">
         <h2>📋 學生提交明細 — 任務 {{ task_number }}</h2>
         <div style="overflow-x:auto;">
@@ -193,46 +190,34 @@
                 </tr>
             </thead>
             <tbody>
-                {% for sub in submissions %}
-                    {% set review = sub.latest_teacher_review %}
-                    {% set ai_fb  = sub.latest_ai_feedback %}
-
-                    {# 計算檢核勾選數 #}
-                    {% set cl_chk = namespace(n=0) %}
-                    {% set cl_tot = namespace(n=0) %}
-                    {% for cr in sub.checklist_responses %}
-                        {% set cl_tot.n = cl_tot.n + 1 %}
-                        {% if cr.checked %}{% set cl_chk.n = cl_chk.n + 1 %}{% endif %}
-                    {% endfor %}
-                    {% set pct = ((cl_chk.n / cl_tot.n) * 100) | int if cl_tot.n > 0 else 0 %}
-
+                {% for r in rows %}
                     <tr>
-                        <td>{{ sub.author.student_id }}</td>
-                        <td>{{ sub.author.name }}</td>
-                        <td>{{ sub.author.class_group }}</td>
-                        <td>{{ sub.updated_at.strftime('%m/%d %H:%M') }}</td>
-                        <td style="color:#888;font-size:0.8rem;">v{{ sub.task_version }}</td>
+                        <td>{{ r.student_id }}</td>
+                        <td>{{ r.name }}</td>
+                        <td>{{ r.class_group }}</td>
+                        <td>{{ r.updated_at.strftime('%m/%d %H:%M') if r.updated_at else '—' }}</td>
+                        <td style="color:#888;font-size:0.8rem;">v{{ r.task_version }}</td>
                         <td>
                             <div style="display:flex;align-items:center;gap:0.4rem;">
                                 <div class="cl-bar">
-                                    <div class="cl-fill" style="width:{{ pct }}%;"></div>
+                                    <div class="cl-fill" style="width:{{ r.cl_pct }}%;"></div>
                                 </div>
                                 <span style="font-size:0.78rem;color:#888;">
-                                    {{ cl_chk.n }}/{{ cl_tot.n }}
+                                    {{ r.cl_checked }}/{{ r.cl_total }}
                                 </span>
                             </div>
                         </td>
                         <td>
-                            {% if review %}
+                            {% if r.review %}
                                 <span class="pill-sm pill-rev">
-                                    ✅{% if review.score is not none %} {{ review.score | int }}分{% endif %}
+                                    ✅{% if r.review.score is not none %} {{ r.review.score | int }}分{% endif %}
                                 </span>
                             {% else %}
                                 <span class="pill-sm pill-pend">待評閱</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if ai_fb %}
+                            {% if r.has_ai %}
                                 <span class="pill-sm" style="background:#e8f4f8;color:#2980b9;">
                                     🤖 有
                                 </span>
@@ -242,9 +227,9 @@
                         </td>
                         <td>
                             <div style="display:flex;gap:0.35rem;">
-                                <a href="{{ url_for('view_task_submission', submission_id=sub.id) }}"
+                                <a href="{{ url_for('view_task_submission', submission_id=r.id) }}"
                                    class="btn btn-outline btn-small">查看</a>
-                                <a href="{{ url_for('teacher_review', submission_id=sub.id) }}"
+                                <a href="{{ url_for('teacher_review', submission_id=r.id) }}"
                                    class="btn btn-primary btn-small">評閱</a>
                             </div>
                         </td>
@@ -266,4 +251,16 @@
        class="btn btn-secondary btn-small">⬇ 匯出任務 {{ task_number }} CSV</a>
     <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-outline btn-small">← 返回儀表板</a>
 </div>
+
+<script>
+// 產生 AI 分析要跑數十秒；按下後鎖住按鈕並顯示進行中，避免教師重複送出
+function startAnalysis(form) {
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '分析中…（約需 30–90 秒，請勿關閉頁面）';
+    }
+    return true;
+}
+</script>
 {% endblock %}
